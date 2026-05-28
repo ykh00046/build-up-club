@@ -1,0 +1,8 @@
+.antigravitycli/
+.bkit/
+.playwright-mcp/
+
+verify-*.png
+
+docs/.bkit-memory.json
+docs/.pdca-status.json

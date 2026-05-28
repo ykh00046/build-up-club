@@ -1,0 +1,3470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="description" content="Build-Up Lab — A tactical football puzzle game. Escape the high press and find the free man using bounce passes, third-man runs, and tactical switches.">
+<title>📋 Build-Up Lab — Beat the Press</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #05050f;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    overflow: hidden;
+    font-family: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+
+  #game-wrapper {
+    position: relative;
+    background: #000;
+    border: 3px solid #1a3a3a;
+    box-shadow: 0 0 40px rgba(0, 245, 212, 0.12), inset 0 0 20px rgba(0,0,0,0.8);
+    border-radius: 6px;
+  }
+
+  canvas {
+    display: block;
+    cursor: pointer;
+  }
+
+  #ui-overlay {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+  }
+
+  #portrait-warning {
+    display: none;
+    position: fixed;
+    top: 0; left: 0;
+    width: 100vw; height: 100vh;
+    background: #05050f;
+    z-index: 9999;
+    color: #fff;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding: 20px;
+  }
+
+  #portrait-warning .icon {
+    font-size: 40px;
+    margin-bottom: 15px;
+    animation: rotateDevice 2s infinite ease-in-out;
+  }
+
+  #portrait-warning h2 {
+    font-size: 18px;
+    font-weight: 800;
+  }
+
+  @keyframes rotateDevice {
+    0% { transform: rotate(0deg); }
+    50% { transform: rotate(-90deg); }
+    100% { transform: rotate(0deg); }
+  }
+
+  @media (orientation: portrait) and (max-width: 768px) {
+    #portrait-warning {
+      display: flex;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div id="portrait-warning">
+  <div class="icon">📱</div>
+  <h2>Rotate Your Device</h2>
+  <p style="color: #00f5d4; font-size: 11px; margin-top: 8px; font-weight: 600;">BUILD-UP LAB IS BEST PLAYED IN LANDSCAPE MODE.</p>
+</div>
+
+<div id="game-wrapper">
+  <canvas id="game-canvas"></canvas>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════
+// 빌드업 랩 — 압박 탈출 전술 퍼즐
+// Build-Up Lab — Beat the Press Tactical Puzzle
+// Single-file Implementation (Canvas 2D)
+// ═══════════════════════════════════════════════════
+
+(() => {
+'use strict';
+
+// ─── Constants ───────────────────────────────────
+const INTERNAL_W = 384;
+const INTERNAL_H = 256;
+const PIXEL_SCALE = 3;
+const PLAYER_RADIUS = 8;
+const BALL_RADIUS = 3;
+const HIT_RADIUS = 14; // click/touch snap radius (internal coords)
+const PASS_SPEED = 120; // Slightly faster pass for punchy feel
+
+// ─── Positional Play: pitch interior & 5 vertical channels ───
+// Field interior (matches drawField border): x[10..374], y[10..246]. Attack goes left → right.
+const FIELD_X0 = 10, FIELD_X1 = 374, FIELD_Y0 = 10, FIELD_Y1 = 246;
+// 5 channels by y: wing / half-space / centre / half-space / wing
+const CHANNELS = [
+  { y0: 10,  y1: 57,  short: 'LW',  label: 'LEFT WING' },
+  { y0: 57,  y1: 104, short: 'LHS', label: 'LEFT HALF-SPACE' },
+  { y0: 104, y1: 152, short: 'C',   label: 'CENTRE' },
+  { y0: 152, y1: 199, short: 'RHS', label: 'RIGHT HALF-SPACE' },
+  { y0: 199, y1: 246, short: 'RW',  label: 'RIGHT WING' },
+];
+function channelOf(y) {
+  for (let i = 0; i < CHANNELS.length; i++) {
+    if (y < CHANNELS[i].y1) return i;
+  }
+  return CHANNELS.length - 1;
+}
+
+// ─── Colors (Tactical Dark Board Palette) ────────
+const C = {
+  fieldGreen:    '#0e2216', // Dark tactic board background
+  fieldDark:     '#0a1a11',
+  fieldLine:     '#1e3d2a',
+  playerBlue:    '#3a86ff', // Attackers
+  playerOutline: '#1b4a9a',
+  playerHighlight: '#00f5d4', // Selected / Active
+  defenderRed:   '#ff5c5c', // Pressing defenders
+  defenderOutline: '#9a2a2a',
+  defenderRange: 'rgba(255,92,92,0.1)', // Light pressing circle
+  defenderRangeStroke: 'rgba(255,92,92,0.22)',
+  coverShadow:   'rgba(242,100,25,0.15)', // Cover shadow cone orange
+  coverShadowStroke: 'rgba(242,100,25,0.3)',
+  patrolRange:   'rgba(242,160,25,0.1)',
+  patrolStroke:  'rgba(242,160,25,0.22)',
+  chaseRange:    'rgba(200,92,255,0.1)',
+  chaseStroke:   'rgba(200,92,255,0.22)',
+  ball:          '#ffffff', // High-visibility white tactical ball
+  ballOutline:   '#00f5d4',
+  goalPost:      '#e8e8e8',
+  goalNet:       'rgba(232,232,232,0.15)',
+  passSafe:      'rgba(0,245,212,0.65)', // Cyan safe path
+  passRisky:     'rgba(242,160,25,0.65)', // Orange risky path (near defender)
+  passBlocked:   'rgba(255,92,92,0.65)', // Red blocked path (cover shadow / block radius)
+  passRange:     'rgba(0,245,212,0.08)',
+  passRangeStroke: 'rgba(0,245,212,0.22)',
+  targetZone:    'rgba(0,180,216,0.14)', // Target escape zone blue
+  targetZoneStroke: 'rgba(0,180,216,0.4)',
+  targetZoneText: '#00f5d4',
+  uiBg:          'rgba(5,5,15,0.92)',
+  uiText:        '#e2e8f0',
+  uiAccent:      '#00f5d4',
+  uiFail:        '#ff5c5c',
+  starGold:      '#ffd700',
+  starEmpty:     '#222538',
+  titleBg:       '#05050f',
+  titleGradTop:  '#0e2216',
+  titleGradBot:  '#05050f',
+  levelLocked:   '#222538',
+  levelUnlocked: '#3a86ff',
+  levelClear:    '#00f5d4',
+  btnBg:         '#1b3a3a',
+  btnHover:      '#2a5a5a',
+  btnText:       '#00f5d4',
+  btnActive:     '#00f5d4',
+};
+
+// ─── Audio Manager (Web Audio API, 8-bit) ────────
+const AudioMgr = {
+  ctx: null,
+  muted: false,
+  volume: 0.3,
+
+  // BGM scheduler properties
+  bgmInterval: null,
+  bgmIndex: 0,
+  bgmSequence: [
+    // Cheerfully simple C-major arpeggios for pleasant retro game flow
+    261.63, 329.63, 392.00, 523.25, 392.00, 329.63,
+    293.66, 349.23, 440.00, 587.33, 440.00, 349.23,
+    329.63, 392.00, 493.88, 659.25, 493.88, 392.00,
+    349.23, 440.00, 523.25, 698.46, 523.25, 440.00
+  ],
+
+  init() {
+    if (this.ctx) return;
+    try {
+      this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+    } catch(e) { /* no audio */ }
+  },
+
+  play(type) {
+    if (!this.ctx || this.muted) return;
+    const now = this.ctx.currentTime;
+    switch(type) {
+      case 'pass': this._beep(440, 0.08, 'square', 660); break;
+      case 'fail': this._beep(220, 0.25, 'sawtooth', 110); break;
+      case 'goal': this._fanfare(); break;
+      case 'star': this._beep(880, 0.1, 'square', 1100); break;
+      case 'click': this._beep(600, 0.04, 'square', 600); break;
+      case 'undo': this._beep(330, 0.06, 'triangle', 220); break;
+      case 'lock': this._beep(150, 0.15, 'sawtooth', 100); break;
+    }
+  },
+
+  _beep(freq, dur, wave, endFreq) {
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = wave;
+    osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+    osc.frequency.linearRampToValueAtTime(endFreq || freq, this.ctx.currentTime + dur);
+    gain.gain.setValueAtTime(this.volume * 0.5, this.ctx.currentTime);
+    gain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + dur);
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    osc.start();
+    osc.stop(this.ctx.currentTime + dur);
+  },
+
+  _fanfare() {
+    const notes = [523, 659, 784, 1047];
+    notes.forEach((f, i) => {
+      setTimeout(() => this._beep(f, 0.15, 'square', f), i * 120);
+    });
+  },
+
+  startBGM() {
+    this.init();
+    if (!this.ctx || this.muted || this.bgmInterval) return;
+    this.bgmIndex = 0;
+    this.bgmInterval = setInterval(() => {
+      if (this.muted || !this.ctx || this.ctx.state === 'suspended') return;
+      const note = this.bgmSequence[this.bgmIndex];
+      this._playBgmNote(note, 0.12);
+      this.bgmIndex = (this.bgmIndex + 1) % this.bgmSequence.length;
+    }, 180);
+  },
+
+  stopBGM() {
+    if (this.bgmInterval) {
+      clearInterval(this.bgmInterval);
+      this.bgmInterval = null;
+    }
+  },
+
+  _playBgmNote(freq, dur) {
+    if (!this.ctx || this.muted) return;
+    try {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+      gain.gain.setValueAtTime(this.volume * 0.12, this.ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + dur);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start();
+      osc.stop(this.ctx.currentTime + dur);
+    } catch (e) {}
+  }
+};
+
+// ─── Storage Manager ─────────────────────────────
+const SAVE_KEY = 'buildup-lab:v1';
+const StorageMgr = {
+  data: null,
+
+  load() {
+    try {
+      const raw = localStorage.getItem(SAVE_KEY);
+      if (raw) {
+        this.data = JSON.parse(raw);
+      }
+    } catch(e) { /* corrupt */ }
+    if (!this.data || typeof this.data !== 'object') {
+      this.data = this._defaults();
+    }
+    // merge defaults for missing keys
+    const def = this._defaults();
+    for (const k in def) {
+      if (!(k in this.data)) this.data[k] = def[k];
+    }
+  },
+
+  save() {
+    try {
+      localStorage.setItem(SAVE_KEY, JSON.stringify(this.data));
+    } catch(e) { /* full */ }
+  },
+
+  _defaults() {
+    return {
+      levels: {},   // { "1": { stars: 0, bestPasses: 99 }, ... }
+      unlocked: 1,
+      muted: false,
+      volume: 0.3,
+    };
+  },
+
+  getLevelData(id) {
+    return this.data.levels[id] || { stars: 0, bestPasses: 99 };
+  },
+
+  setLevelData(id, stars, passes) {
+    const cur = this.getLevelData(id);
+    if (stars > cur.stars || (stars === cur.stars && passes < cur.bestPasses)) {
+      this.data.levels[id] = { stars: Math.max(cur.stars, stars), bestPasses: Math.min(cur.bestPasses, passes) };
+    }
+    if (id >= this.data.unlocked) {
+      this.data.unlocked = Number(id) + 1;
+    }
+    this.save();
+  },
+
+  // Tactical grade emblem from internal star count (3=S, 2=A, 1=B)
+  starsToGrade(stars) {
+    return stars >= 3 ? 'S' : (stars === 2 ? 'A' : 'B');
+  }
+};
+
+const LEVELS = [
+  // ─── Phase 1: Free Man & Blocked Lanes (Levels 1-5) ───
+  {
+    id: 1,
+    name: 'Find the Free Man',
+    intro: 'Pass to the unmarked teammate in the Pivot Zone!',
+    passLimit: 3,
+    optimalPasses: 2,
+    players: [
+      { x: 50, y: 128, hasBall: true },
+      { x: 170, y: 80 },
+      { x: 280, y: 128 }
+    ],
+    defenders: [
+      { x: 170, y: 140, type: 'static', blockRadius: 28 } // blocks the lower space
+    ],
+    targetZone: { x: 250, y: 90, w: 70, h: 76, label: 'Pivot Zone' },
+    tacticalActions: { bounce: 0, thirdMan: 0, switchPlay: 0, dropPivot: 0 },
+  },
+  {
+    id: 2,
+    name: 'Avoid the Press',
+    intro: 'Navigate around the defender\'s pressing circle!',
+    passLimit: 3,
+    optimalPasses: 2,
+    players: [
+      { x: 50, y: 60, hasBall: true },
+      { x: 140, y: 130 },
+      { x: 230, y: 60 }
+    ],
+    defenders: [
+      { x: 140, y: 55, type: 'static', blockRadius: 32 }
+    ],
+    targetZone: { x: 210, y: 35, w: 60, h: 60, label: 'Wing Area' },
+    tacticalActions: { bounce: 0, thirdMan: 0, switchPlay: 0, dropPivot: 0 },
+  },
+  {
+    id: 3,
+    name: 'Cover Shadow Entry',
+    intro: 'Beware of the defender\'s orange cover shadow blocking the lane!',
+    passLimit: 3,
+    optimalPasses: 2,
+    players: [
+      { x: 45, y: 128, hasBall: true },
+      { x: 150, y: 65 },
+      { x: 170, y: 190 },
+      { x: 290, y: 128 }
+    ],
+    defenders: [
+      { x: 150, y: 110, type: 'presser', blockRadius: 18, coverShadowAngle: 40, coverShadowLength: 90 }
+    ],
+    targetZone: { x: 260, y: 90, w: 75, h: 76, label: 'Half-Space' },
+    tacticalActions: { bounce: 0, thirdMan: 0, switchPlay: 0, dropPivot: 0 },
+  },
+  {
+    id: 4,
+    name: 'Dynamic Press Shift',
+    intro: 'Wait for the patrolling midfielder to move away!',
+    passLimit: 4,
+    optimalPasses: 3,
+    players: [
+      { x: 45, y: 128, hasBall: true },
+      { x: 150, y: 70 },
+      { x: 220, y: 190 },
+      { x: 300, y: 110 }
+    ],
+    defenders: [
+      { x: 150, y: 140, type: 'static', blockRadius: 28 },
+      { x: 210, y: 80, type: 'patrol', blockRadius: 24, patrolPath: [{x:210,y:50},{x:210,y:150}], speed: 1.2 }
+    ],
+    targetZone: { x: 270, y: 80, w: 70, h: 70, label: 'Pocket Area' },
+    tacticalActions: { bounce: 0, thirdMan: 0, switchPlay: 0, dropPivot: 0 },
+  },
+  {
+    id: 5,
+    name: 'Mid-Block Barrier',
+    intro: 'Find a way through a 2-man defensive line!',
+    passLimit: 4,
+    optimalPasses: 3,
+    players: [
+      { x: 40, y: 128, hasBall: true },
+      { x: 120, y: 55 },
+      { x: 130, y: 200 },
+      { x: 230, y: 128 },
+      { x: 310, y: 128 }
+    ],
+    defenders: [
+      { x: 120, y: 110, type: 'presser', blockRadius: 18, coverShadowAngle: 35, coverShadowLength: 75 },
+      { x: 210, y: 70, type: 'static', blockRadius: 26 }
+    ],
+    targetZone: { x: 280, y: 90, w: 70, h: 76, label: 'Advanced Pivot' },
+    tacticalActions: { bounce: 0, thirdMan: 0, switchPlay: 0, dropPivot: 0 },
+  },
+
+  // ─── Phase 2: Tactical Actions Basics (Levels 6-10) ───
+  {
+    id: 6,
+    name: 'Bounce Pass Intro',
+    intro: 'Activate [Bounce] to bypass the press with a quick one-two!',
+    passLimit: 2,
+    optimalPasses: 1,
+    players: [
+      { x: 45, y: 128, hasBall: true },
+      { x: 160, y: 128 }, // Connector player
+      { x: 290, y: 80 }   // Final receiver
+    ],
+    defenders: [
+      { x: 180, y: 90, type: 'presser', blockRadius: 20, coverShadowAngle: 35, coverShadowLength: 90 }
+    ],
+    targetZone: { x: 250, y: 40, w: 90, h: 70, label: 'Weak Side Wing' },
+    tacticalActions: { bounce: 1, thirdMan: 0, switchPlay: 0, dropPivot: 0 },
+  },
+  {
+    id: 7,
+    name: 'Third-Man Combination',
+    intro: 'Use [Third Man] action to connect and trigger a blind-side run!',
+    passLimit: 2,
+    optimalPasses: 1,
+    players: [
+      { x: 45, y: 128, hasBall: true },
+      { x: 160, y: 70 },   // Connector
+      { x: 170, y: 190 },  // Intermediary
+      { x: 290, y: 128 }   // Runner
+    ],
+    defenders: [
+      { x: 130, y: 130, type: 'presser', blockRadius: 22, coverShadowAngle: 40, coverShadowLength: 90 },
+      { x: 230, y: 138, type: 'static', blockRadius: 24 } // Shifted down to block straight pass
+    ],
+    targetZone: { x: 260, y: 90, w: 70, h: 76, label: 'Between Lines' },
+    tacticalActions: { bounce: 0, thirdMan: 1, switchPlay: 0, dropPivot: 0 },
+  },
+  {
+    id: 8,
+    name: 'Switch Play!',
+    intro: 'Unlock the weak-side winger using the [Switch] action!',
+    passLimit: 2,
+    optimalPasses: 1,
+    players: [
+      { x: 45, y: 190, hasBall: true },
+      { x: 150, y: 190 }, // Sideline fullback
+      { x: 280, y: 65 }   // Opposite winger
+    ],
+    defenders: [
+      { x: 110, y: 160, type: 'static', blockRadius: 26 },
+      { x: 180, y: 140, type: 'presser', blockRadius: 20, coverShadowAngle: 40, coverShadowLength: 100 }
+    ],
+    targetZone: { x: 240, y: 30, w: 100, h: 70, label: 'Isolation Zone' },
+    tacticalActions: { bounce: 0, thirdMan: 0, switchPlay: 1, dropPivot: 0 },
+  },
+  {
+    id: 9,
+    name: 'Drop Pivot Support',
+    intro: 'Use [Drop Pivot] to drop a midfielder deep to create a passing angle!',
+    passLimit: 3,
+    optimalPasses: 2,
+    players: [
+      { x: 45, y: 180, hasBall: true },
+      { x: 160, y: 80 },  // Midfielder
+      { x: 220, y: 160 }
+    ],
+    defenders: [
+      { x: 105, y: 90, type: 'static', blockRadius: 24 },
+      { x: 180, y: 110, type: 'presser', blockRadius: 20, coverShadowAngle: 35, coverShadowLength: 80 }
+    ],
+    targetZone: { x: 200, y: 130, w: 80, h: 60, label: 'Free Space' },
+    tacticalActions: { bounce: 0, thirdMan: 0, switchPlay: 0, dropPivot: 1 },
+  },
+  {
+    id: 10,
+    name: 'Action Convergence',
+    intro: 'Decide whether a [Bounce] or [Third Man] is better to escape!',
+    passLimit: 2,
+    optimalPasses: 1,
+    players: [
+      { x: 40, y: 128, hasBall: true },
+      { x: 130, y: 60 },
+      { x: 130, y: 190 },
+      { x: 240, y: 128 },
+      { x: 310, y: 60 }
+    ],
+    defenders: [
+      { x: 120, y: 125, type: 'presser', blockRadius: 20, coverShadowAngle: 35, coverShadowLength: 85 },
+      { x: 210, y: 80, type: 'chase', blockRadius: 22, alertRange: 80, speed: 1.0 }
+    ],
+    targetZone: { x: 270, y: 30, w: 80, h: 65, label: 'Advanced Half-space' },
+    tacticalActions: { bounce: 1, thirdMan: 1, switchPlay: 0, dropPivot: 0 },
+  },
+
+  // ─── Phase 3: Switches & Side Traps (Levels 11-15) ───
+  {
+    id: 11,
+    name: 'Overloaded Sideline',
+    intro: 'The opponent overloaded your left flank. Switch play!',
+    passLimit: 2,
+    optimalPasses: 1,
+    players: [
+      { x: 50, y: 190, hasBall: true },
+      { x: 120, y: 180 },
+      { x: 140, y: 220 },
+      { x: 280, y: 60 }
+    ],
+    defenders: [
+      { x: 90, y: 180, type: 'static', blockRadius: 24 },
+      { x: 150, y: 180, type: 'presser', blockRadius: 22, coverShadowAngle: 45, coverShadowLength: 90 },
+      { x: 200, y: 130, type: 'static', blockRadius: 25 }
+    ],
+    targetZone: { x: 240, y: 30, w: 90, h: 70, label: 'Weak Side Escape' },
+    tacticalActions: { bounce: 0, thirdMan: 0, switchPlay: 1, dropPivot: 0 },
+  },
+  {
+    id: 12,
+    name: 'The Chasing Sentinel',
+    intro: 'A fast chaser blocks the middle. Use tactical movements!',
+    passLimit: 2,
+    optimalPasses: 1,
+    players: [
+      { x: 45, y: 60, hasBall: true },
+      { x: 150, y: 190 },
+      { x: 230, y: 60 },
+      { x: 300, y: 128 }
+    ],
+    defenders: [
+      { x: 140, y: 90, type: 'chase', blockRadius: 22, alertRange: 100, speed: 1.4 },
+      { x: 230, y: 140, type: 'static', blockRadius: 26 }
+    ],
+    targetZone: { x: 260, y: 95, w: 80, h: 65, label: 'Pocket Zone' },
+    tacticalActions: { bounce: 1, thirdMan: 0, switchPlay: 0, dropPivot: 1 },
+  },
+  {
+    id: 13,
+    name: 'Sideline Press Trap',
+    intro: 'Break the sideline trap using a drop pivot or third-man sequence!',
+    passLimit: 4,
+    optimalPasses: 3,
+    players: [
+      { x: 45, y: 190, hasBall: true },
+      { x: 140, y: 110 },
+      { x: 150, y: 200 },
+      { x: 290, y: 160 }
+    ],
+    defenders: [
+      { x: 95, y: 180, type: 'static', blockRadius: 25 },
+      { x: 150, y: 170, type: 'presser', blockRadius: 20, coverShadowAngle: 40, coverShadowLength: 85 }
+    ],
+    targetZone: { x: 250, y: 120, w: 90, h: 70, label: 'Free Pocket' },
+    tacticalActions: { bounce: 0, thirdMan: 1, switchPlay: 0, dropPivot: 1 },
+  },
+  {
+    id: 14,
+    name: 'Central Congestion',
+    intro: 'The center is congested. Work around the block!',
+    passLimit: 3,
+    optimalPasses: 2,
+    players: [
+      { x: 40, y: 128, hasBall: true },
+      { x: 110, y: 70 },
+      { x: 110, y: 180 },
+      { x: 200, y: 128 },
+      { x: 280, y: 128 }
+    ],
+    defenders: [
+      { x: 110, y: 125, type: 'presser', blockRadius: 22, coverShadowAngle: 35, coverShadowLength: 80 },
+      { x: 180, y: 75, type: 'static', blockRadius: 24 },
+      { x: 180, y: 180, type: 'static', blockRadius: 24 }
+    ],
+    targetZone: { x: 250, y: 95, w: 80, h: 65, label: 'Zone 14' },
+    tacticalActions: { bounce: 1, thirdMan: 1, switchPlay: 0, dropPivot: 0 },
+  },
+  {
+    id: 15,
+    name: 'Half-Space Penetration',
+    intro: 'Penetrate the defensive block into the targeted Half-space!',
+    passLimit: 2,
+    optimalPasses: 1,
+    players: [
+      { x: 45, y: 80, hasBall: true },
+      { x: 130, y: 160 },
+      { x: 150, y: 50 },
+      { x: 220, y: 100 },
+      { x: 290, y: 180 }
+    ],
+    defenders: [
+      { x: 100, y: 100, type: 'static', blockRadius: 25 },
+      { x: 170, y: 110, type: 'presser', blockRadius: 22, coverShadowAngle: 40, coverShadowLength: 90 },
+      { x: 220, y: 170, type: 'patrol', blockRadius: 22, patrolPath: [{x:220,y:140},{x:220,y:200}], speed: 1.0 }
+    ],
+    targetZone: { x: 250, y: 140, w: 90, h: 70, label: 'Half-Space Right' },
+    tacticalActions: { bounce: 1, thirdMan: 0, switchPlay: 1, dropPivot: 0 },
+  },
+
+  // ─── Phase 4: Full Pressing Blocks (Levels 16-20) ───
+  {
+    id: 16,
+    name: 'Beat the 4-4-2 High Press',
+    intro: 'Opponent defends in a compact 4-4-2. Break their first lines!',
+    passLimit: 5,
+    optimalPasses: 4,
+    players: [
+      { x: 45, y: 180, hasBall: true }, // LCB
+      { x: 45, y: 80 },  // RCB
+      { x: 140, y: 128 }, // DM (Pivot)
+      { x: 160, y: 210 }, // LB
+      { x: 290, y: 128 }  // AM
+    ],
+    defenders: [
+      { x: 100, y: 175, type: 'presser', blockRadius: 26, coverShadowAngle: 35, coverShadowLength: 80 }, // Fwd 1 (Shifted down to block direct LB/DM pass)
+      { x: 100, y: 90, type: 'static', blockRadius: 24 },  // Fwd 2
+      { x: 200, y: 128, type: 'chase', blockRadius: 22, alertRange: 80, speed: 1.1 }  // CM
+    ],
+    targetZone: { x: 250, y: 95, w: 90, h: 65, label: 'Between the Lines' },
+    tacticalActions: { bounce: 1, thirdMan: 1, switchPlay: 0, dropPivot: 1 },
+  },
+  {
+    id: 17,
+    name: 'Beat the 4-3-3 Mid Press',
+    intro: 'Escape the 3-man frontline pressing trap!',
+    passLimit: 2,
+    optimalPasses: 1,
+    players: [
+      { x: 40, y: 128, hasBall: true }, // GK
+      { x: 90, y: 60 },   // LCB
+      { x: 90, y: 196 },  // RCB
+      { x: 180, y: 128 }, // DM
+      { x: 280, y: 128 }  // CM
+    ],
+    defenders: [
+      { x: 120, y: 95, type: 'presser', blockRadius: 20, coverShadowAngle: 35, coverShadowLength: 75 }, // LW
+      { x: 120, y: 160, type: 'presser', blockRadius: 20, coverShadowAngle: 35, coverShadowLength: 75 }, // RW
+      { x: 140, y: 128, type: 'static', blockRadius: 22 }, // CF
+      { x: 220, y: 128, type: 'chase', blockRadius: 22, alertRange: 70, speed: 1.0 }  // CM
+    ],
+    targetZone: { x: 250, y: 95, w: 80, h: 65, label: 'Deep Pivot' },
+    tacticalActions: { bounce: 1, thirdMan: 1, switchPlay: 0, dropPivot: 1 },
+  },
+  {
+    id: 18,
+    name: 'Man-Oriented Block',
+    intro: 'Every teammate is tightly marked. Shift them with tactical runs!',
+    passLimit: 4,
+    optimalPasses: 3,
+    players: [
+      { x: 40, y: 128, hasBall: true },
+      { x: 130, y: 70 },
+      { x: 130, y: 180 },
+      { x: 230, y: 128 },
+      { x: 320, y: 170 } // Moved outside target zone to force an extra pass
+    ],
+    defenders: [
+      { x: 130, y: 105, type: 'static', blockRadius: 24 }, // Mark player 1
+      { x: 130, y: 145, type: 'presser', blockRadius: 20, coverShadowAngle: 40, coverShadowLength: 80 }, // Mark center
+      { x: 220, y: 160, type: 'chase', blockRadius: 22, alertRange: 80, speed: 1.2 }
+    ],
+    targetZone: { x: 260, y: 70, w: 90, h: 65, label: 'Pivot Hole' },
+    tacticalActions: { bounce: 1, thirdMan: 1, switchPlay: 0, dropPivot: 1 },
+  },
+  {
+    id: 19,
+    name: 'The Wing Trap Escape',
+    intro: 'Opponent seals the flank. Switch or bounce to escape!',
+    passLimit: 2,
+    optimalPasses: 1,
+    players: [
+      { x: 50, y: 200, hasBall: true },
+      { x: 130, y: 200 },
+      { x: 150, y: 140 },
+      { x: 280, y: 60 }
+    ],
+    defenders: [
+      { x: 90, y: 190, type: 'static', blockRadius: 24 },
+      { x: 150, y: 195, type: 'presser', blockRadius: 22, coverShadowAngle: 45, coverShadowLength: 85 },
+      { x: 180, y: 150, type: 'static', blockRadius: 26 },
+      { x: 220, y: 100, type: 'chase', blockRadius: 22, alertRange: 90, speed: 1.0 }
+    ],
+    targetZone: { x: 240, y: 30, w: 90, h: 70, label: 'Isolation Area' },
+    tacticalActions: { bounce: 0, thirdMan: 1, switchPlay: 1, dropPivot: 1 },
+  },
+  {
+    id: 20,
+    name: 'Build-Up Masterclass',
+    intro: 'Beat the aggressive high press block using every tactical tool!',
+    passLimit: 3,
+    optimalPasses: 2,
+    players: [
+      { x: 35, y: 128, hasBall: true }, // GK
+      { x: 95, y: 60 },   // LCB
+      { x: 95, y: 196 },  // RCB
+      { x: 175, y: 128 }, // DM
+      { x: 200, y: 55 },   // LB
+      { x: 325, y: 215 }  // AM (deep wing — a lone switch can't reach the zone)
+    ],
+    defenders: [
+      { x: 105, y: 100, type: 'presser', blockRadius: 22, coverShadowAngle: 35, coverShadowLength: 80 },
+      { x: 105, y: 155, type: 'presser', blockRadius: 22, coverShadowAngle: 35, coverShadowLength: 80 },
+      { x: 195, y: 105, type: 'chase', blockRadius: 22, alertRange: 90, speed: 1.3 }, // Shifted up to press DM from top-right and clear AM-to-DM pass lane
+      { x: 250, y: 75, type: 'patrol', blockRadius: 20, patrolPath: [{x:220,y:75},{x:270,y:75}], speed: 1.1 },
+      { x: 225, y: 128, type: 'presser', blockRadius: 22, coverShadowAngle: 35, coverShadowLength: 85 } // Screens the central entry to the escape zone
+    ],
+    targetZone: { x: 255, y: 95, w: 90, h: 65, label: 'Escape Zone' },
+    tacticalActions: { bounce: 1, thirdMan: 1, switchPlay: 1, dropPivot: 1 },
+  }
+];
+
+// ─── Utility Functions ───────────────────────────
+function dist(a, b) {
+  return Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2);
+}
+
+function lerp(a, b, t) {
+  return a + (b - a) * t;
+}
+
+// Line segment (p1→p2) intersection with circle (c, r)
+function lineCircleIntersect(p1, p2, c, r) {
+  const dx = p2.x - p1.x;
+  const dy = p2.y - p1.y;
+  const fx = p1.x - c.x;
+  const fy = p1.y - c.y;
+  const a = dx * dx + dy * dy;
+  const b = 2 * (fx * dx + fy * dy);
+  const cc = fx * fx + fy * fy - r * r;
+  let disc = b * b - 4 * a * cc;
+  if (disc < 0) return false;
+  disc = Math.sqrt(disc);
+  const t1 = (-b - disc) / (2 * a);
+  const t2 = (-b + disc) / (2 * a);
+  if (t1 >= 0 && t1 <= 1) return true;
+  if (t2 >= 0 && t2 <= 1) return true;
+  if (t1 < 0 && t2 > 1) return true;
+  return false;
+}
+
+// Point in rect
+function pointInRect(px, py, rx, ry, rw, rh) {
+  return px >= rx && px <= rx + rw && py >= ry && py <= ry + rh;
+}
+
+// Check if point p is in the cover shadow of defender d from holder h
+function pointInCoverShadow(p, d, h) {
+  // vector from holder to defender
+  const vHD = { x: d.x - h.x, y: d.y - h.y };
+  const distHD = Math.sqrt(vHD.x * vHD.x + vHD.y * vHD.y);
+  if (distHD === 0) return false;
+  const dirHD = { x: vHD.x / distHD, y: vHD.y / distHD };
+
+  // vector from defender to point p
+  const vDP = { x: p.x - d.x, y: p.y - d.y };
+  const distDP = Math.sqrt(vDP.x * vDP.x + vDP.y * vDP.y);
+  if (distDP === 0) return false;
+  if (distDP > d.coverShadowLength) return false;
+  const dirDP = { x: vDP.x / distDP, y: vDP.y / distDP };
+
+  // cosine of angle between dirHD and dirDP
+  const dot = dirHD.x * dirDP.x + dirHD.y * dirDP.y;
+  if (dot <= 0) return false; // must be behind defender
+
+  const angle = Math.acos(dot) * 180 / Math.PI;
+  return angle <= (d.coverShadowAngle / 2);
+}
+
+// Sampling based line-cone intersection check
+function lineIntersectsCoverShadow(p1, p2, d, h) {
+  const samples = 16;
+  for (let i = 1; i <= samples; i++) {
+    const t = i / samples;
+    const p = {
+      x: p1.x + (p2.x - p1.x) * t,
+      y: p1.y + (p2.y - p1.y) * t
+    };
+    if (pointInCoverShadow(p, d, h)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+// ─── Collective pressing block movement (shared by runtime + solver) ───
+// One pure step for a single defender so runtime and BFS solver stay identical.
+// Triggers: back-pass step-up, touchline trap; statics slide ball-side (compactness).
+const COHESION_Y = 4;          // static ball-side vertical slide per turn
+const PRESS_BACKPASS_BONUS = 4; // pressers/chasers step up further when ball goes back
+const PRESS_TRAP_BONUS = 4;     // pressers tighten when holder is pinned on a wing
+function stepDefender(d, holder, prevHolderX) {
+  const nd = { ...d, patrolPath: d.patrolPath ? d.patrolPath.map(p => ({ ...p })) : null };
+  if (!holder) return nd;
+  const backPass = (prevHolderX != null) && (holder.x < prevHolderX - 2);
+  const ch = channelOf(holder.y);
+  const onWing = (ch === 0 || ch === 4);
+
+  if (d.type === 'patrol' && d.patrolPath) {
+    nd.patrolIdx = d.patrolIdx || 0;
+    nd.patrolDir = d.patrolDir || 1;
+    const target = d.patrolPath[nd.patrolIdx];
+    const dx = target.x - d.x, dy = target.y - d.y;
+    const dd = Math.sqrt(dx * dx + dy * dy);
+    const moveAmt = 15;
+    if (dd <= moveAmt) {
+      nd.x = target.x; nd.y = target.y;
+      nd.patrolIdx += nd.patrolDir;
+      if (nd.patrolIdx >= d.patrolPath.length || nd.patrolIdx < 0) {
+        nd.patrolDir *= -1;
+        nd.patrolIdx += nd.patrolDir * 2;
+        nd.patrolIdx = Math.max(0, Math.min(nd.patrolIdx, d.patrolPath.length - 1));
+      }
+    } else {
+      nd.x += (dx / dd) * moveAmt;
+      nd.y += (dy / dd) * moveAmt;
+    }
+  } else if (d.type === 'chase') {
+    if (dist(d, holder) < (d.alertRange || 80)) {
+      const dx = holder.x - d.x, dy = holder.y - d.y;
+      const dd = Math.sqrt(dx * dx + dy * dy);
+      const moveAmt = 12 + (backPass ? PRESS_BACKPASS_BONUS : 0);
+      if (dd > 0) {
+        nd.x += (dx / dd) * Math.min(moveAmt, dd);
+        nd.y += (dy / dd) * Math.min(moveAmt, dd);
+      }
+    }
+  } else if (d.type === 'presser') {
+    if (dist(d, holder) < 100) {
+      const dx = holder.x - d.x, dy = holder.y - d.y;
+      const dd = Math.sqrt(dx * dx + dy * dy);
+      const moveAmt = 8 + (backPass ? PRESS_BACKPASS_BONUS : 0) + (onWing ? PRESS_TRAP_BONUS : 0);
+      if (dd > 20) {
+        nd.x += (dx / dd) * moveAmt;
+        nd.y += (dy / dd) * moveAmt;
+      }
+    }
+  } else {
+    // static: block cohesion — slide ball-side in y only (x stays as a line anchor)
+    const dy = holder.y - d.y;
+    if (Math.abs(dy) > COHESION_Y) nd.y += Math.sign(dy) * COHESION_Y;
+    else nd.y = holder.y;
+  }
+  return nd;
+}
+
+// ─── Vector Sprite Helpers (High Resolution & Sub-pixel Precise) ────────────────────
+function drawPixelCircle(ctx, x, y, r, fill, stroke, strokeW) {
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+  if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+  if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = strokeW || 1; ctx.stroke(); }
+}
+
+function drawPlayer(ctx, x, y, hasBall, highlighted, passRange) {
+  if (highlighted && passRange) {
+    drawPixelCircle(ctx, x, y, passRange, C.passRange, C.passRangeStroke, 1);
+  }
+
+  const bodyColor = highlighted ? C.playerHighlight : C.playerBlue;
+  drawPixelCircle(ctx, x, y, PLAYER_RADIUS, bodyColor, C.playerOutline, 1.5);
+
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(x - 2, y - 2, 4, 4);
+
+  if (hasBall) {
+    ctx.save();
+    ctx.globalAlpha = 0.3 + 0.15 * Math.sin(Date.now() / 200);
+    drawPixelCircle(ctx, x, y, PLAYER_RADIUS + 4, null, C.uiAccent, 2);
+    ctx.restore();
+  }
+}
+
+function getLevelTacticalLabel(id) {
+  if (id <= 5) return `DRILL 0${id}`;
+  if (id <= 10) return `PATTERN 0${id - 5}`;
+  if (id <= 15) return `SCENARIO 0${id - 10}`;
+  return `CHALLENGE 0${id - 15}`;
+}
+
+function drawDefender(ctx, d, time) {
+  const px = d.x;
+  const py = d.y;
+
+  // Presser cover shadow cone drawing
+  if (d.type === 'presser' && d.coverShadowAngle && d.coverShadowLength) {
+    const holder = Game.players[Game.currentPlayerIdx];
+    if (holder) {
+      const dx = d.x - holder.x;
+      const dy = d.y - holder.y;
+      const baseAngle = Math.atan2(dy, dx);
+      const halfAngle = (d.coverShadowAngle * Math.PI / 180) / 2;
+
+      ctx.save();
+      ctx.fillStyle = C.coverShadow;
+      ctx.strokeStyle = C.coverShadowStroke;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(d.x, d.y);
+      ctx.arc(d.x, d.y, d.coverShadowLength, baseAngle - halfAngle, baseAngle + halfAngle);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  // Block range circle
+  let rangeColor, strokeColor;
+  if (d.type === 'patrol') {
+    rangeColor = C.patrolRange;
+    strokeColor = C.patrolStroke;
+  } else if (d.type === 'chase') {
+    rangeColor = C.chaseRange;
+    strokeColor = C.chaseStroke;
+  } else {
+    rangeColor = C.defenderRange;
+    strokeColor = C.defenderRangeStroke;
+  }
+  drawPixelCircle(ctx, px, py, d.blockRadius, rangeColor, strokeColor, 1);
+
+  // Patrol path visualization
+  if (d.type === 'patrol' && d.patrolPath) {
+    ctx.save();
+    ctx.setLineDash([2, 4]);
+    ctx.strokeStyle = C.patrolStroke;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(d.patrolPath[0].x, d.patrolPath[0].y);
+    for (let i = 1; i < d.patrolPath.length; i++) {
+      ctx.lineTo(d.patrolPath[i].x, d.patrolPath[i].y);
+    }
+    ctx.stroke();
+    ctx.restore();
+    ctx.setLineDash([]);
+  }
+
+  // Body
+  const bodyColor = d.type === 'chase' ? '#a050d0' : (d.type === 'patrol' ? '#d9a04a' : C.defenderRed);
+  const outColor = d.type === 'chase' ? '#6a2a9a' : (d.type === 'patrol' ? '#9a6a2a' : C.defenderOutline);
+  drawPixelCircle(ctx, px, py, PLAYER_RADIUS - 1, bodyColor, outColor, 1.5);
+
+  // Shape icon
+  ctx.fillStyle = '#fff';
+  if (d.type === 'static' || d.type === 'presser') {
+    ctx.fillRect(px - 2, py - 2, 4, 4);
+  } else if (d.type === 'patrol') {
+    ctx.fillRect(px - 3, py - 1, 6, 2);
+    ctx.fillRect(px - 3, py - 2, 1, 4);
+    ctx.fillRect(px + 2, py - 2, 1, 4);
+  } else if (d.type === 'chase') {
+    ctx.beginPath();
+    ctx.moveTo(px, py - 3);
+    ctx.lineTo(px + 3, py + 2);
+    ctx.lineTo(px - 3, py + 2);
+    ctx.closePath();
+    ctx.fill();
+  }
+}
+
+function drawBall(ctx, x, y) {
+  drawPixelCircle(ctx, x, y, BALL_RADIUS, C.ball, C.ballOutline, 1);
+}
+
+function drawTargetZone(ctx, tz) {
+  if (!tz) return;
+  ctx.save();
+  ctx.fillStyle = C.targetZone;
+  ctx.strokeStyle = C.targetZoneStroke;
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([4, 3]);
+  ctx.fillRect(tz.x, tz.y, tz.w, tz.h);
+  ctx.strokeRect(tz.x, tz.y, tz.w, tz.h);
+  ctx.setLineDash([]);
+
+  // Label Text + the positional-play channel it sits in
+  const cx = tz.x + tz.w / 2;
+  const cy = tz.y + tz.h / 2;
+  ctx.fillStyle = C.targetZoneText;
+  ctx.font = 'bold 7px Outfit';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(tz.label.toUpperCase(), cx, cy - 4);
+  ctx.fillStyle = 'rgba(0,180,216,0.7)';
+  ctx.font = '600 5px Outfit';
+  ctx.fillText(CHANNELS[channelOf(cy)].label, cx, cy + 5);
+  ctx.restore();
+}
+
+function drawField(ctx, w, h) {
+  // Base
+  ctx.fillStyle = C.fieldGreen;
+  ctx.fillRect(0, 0, w, h);
+
+  // Stripes
+  const stripeW = 32;
+  ctx.fillStyle = C.fieldDark;
+  for (let i = 0; i < w; i += stripeW * 2) {
+    ctx.fillRect(i, 0, stripeW, h);
+  }
+
+  // Border
+  ctx.strokeStyle = C.fieldLine;
+  ctx.lineWidth = 2;
+  ctx.strokeRect(10, 10, w - 20, h - 20);
+
+  // Center line
+  ctx.beginPath();
+  ctx.moveTo(w / 2, 10);
+  ctx.lineTo(w / 2, h - 10);
+  ctx.stroke();
+
+  // Center circle
+  ctx.beginPath();
+  ctx.arc(w / 2, h / 2, 30, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // Penalty areas
+  ctx.strokeRect(10, h/2 - 40, 50, 80);
+  ctx.strokeRect(w - 60, h/2 - 40, 50, 80);
+}
+
+// Positional-play channel overlay: subtle half-space shading + separators + labels
+function drawChannels(ctx) {
+  ctx.save();
+  // Highlight the two half-spaces (highest-value build-up channels)
+  ctx.fillStyle = 'rgba(0,245,212,0.035)';
+  ctx.fillRect(FIELD_X0, CHANNELS[1].y0, FIELD_X1 - FIELD_X0, CHANNELS[1].y1 - CHANNELS[1].y0);
+  ctx.fillRect(FIELD_X0, CHANNELS[3].y0, FIELD_X1 - FIELD_X0, CHANNELS[3].y1 - CHANNELS[3].y0);
+
+  // Channel separators
+  ctx.strokeStyle = 'rgba(120,160,140,0.10)';
+  ctx.lineWidth = 0.5;
+  ctx.setLineDash([2, 4]);
+  for (let i = 1; i < CHANNELS.length; i++) {
+    ctx.beginPath();
+    ctx.moveTo(FIELD_X0, CHANNELS[i].y0);
+    ctx.lineTo(FIELD_X1, CHANNELS[i].y0);
+    ctx.stroke();
+  }
+  ctx.setLineDash([]);
+
+  // Channel short labels down the left edge
+  ctx.fillStyle = 'rgba(150,180,165,0.30)';
+  ctx.font = '600 5px "Outfit"';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  for (const ch of CHANNELS) {
+    ctx.fillText(ch.short, FIELD_X0 + 2, (ch.y0 + ch.y1) / 2);
+  }
+  ctx.restore();
+}
+
+// Lines of engagement: cluster defenders by x and draw faint vertical pressing lines
+function drawLinesOfEngagement(ctx, defenders) {
+  if (!defenders.length) return;
+  const xs = defenders.map(d => d.x).sort((a, b) => a - b);
+  const lines = [];
+  for (const x of xs) {
+    if (lines.length && Math.abs(x - lines[lines.length - 1]) < 22) {
+      lines[lines.length - 1] = (lines[lines.length - 1] + x) / 2;
+    } else {
+      lines.push(x);
+    }
+  }
+  ctx.save();
+  ctx.strokeStyle = 'rgba(255,92,92,0.12)';
+  ctx.lineWidth = 0.5;
+  ctx.setLineDash([1, 5]);
+  for (const x of lines) {
+    ctx.beginPath();
+    ctx.moveTo(x, FIELD_Y0);
+    ctx.lineTo(x, FIELD_Y1);
+    ctx.stroke();
+  }
+  ctx.setLineDash([]);
+  ctx.restore();
+}
+
+function drawStar(ctx, cx, cy, r, filled) {
+  const spikes = 5;
+  const outerR = r;
+  const innerR = r * 0.45;
+  ctx.beginPath();
+  for (let i = 0; i < spikes * 2; i++) {
+    const radius = i % 2 === 0 ? outerR : innerR;
+    const angle = (Math.PI / spikes) * i - Math.PI / 2;
+    const x = cx + Math.cos(angle) * radius;
+    const y = cy + Math.sin(angle) * radius;
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  ctx.closePath();
+  ctx.fillStyle = filled ? C.starGold : C.starEmpty;
+  ctx.fill();
+  if (filled) {
+    ctx.strokeStyle = '#b8960a';
+    ctx.lineWidth = 0.5;
+    ctx.stroke();
+  }
+}
+
+// ─── Game State Machine ──────────────────────────
+const States = {
+  TITLE: 'title',
+  LEVEL_MAP: 'levelMap',
+  GAME_IDLE: 'idle',
+  GAME_PASSING: 'passing',
+  GAME_RESOLVE: 'resolve',
+  GAME_WIN: 'win',
+  GAME_LOSE: 'lose',
+  RESULT: 'result',
+};
+
+// ─── Main Game Object ────────────────────────────
+const Game = {
+  canvas: null,
+  ctx: null,
+  state: States.TITLE,
+  time: 0,
+  dt: 0,
+
+  // Field cache
+  fieldCanvas: null,
+  fieldCtx: null,
+
+  // Current level
+  currentLevel: null,
+  levelId: 0,
+  players: [],
+  defenders: [],
+  targetZone: null,
+  ball: { x: 0, y: 0, targetX: 0, targetY: 0, startX: 0, startY: 0, state: 'held', progress: 0, stage: 1, scaleEffect: 1.0 },
+  passCount: 0,
+  passLimit: 0,
+  currentPlayerIdx: -1,
+  trail: [],
+  passHistory: [], // for undo
+
+  // Hover
+  hoveredPlayerIdx: -1,
+
+  // Effects
+  shake: { amount: 0, decay: 0.9 },
+  failMark: null,   // {x, y, alpha}
+  goalAnim: null,    // {frame, maxFrame}
+  starAnim: [],      // [{star, frame, maxFrame}]
+  particles: [],
+
+  // Result
+  resultStars: 0,
+  resultPasses: 0,
+
+  // Level map
+  mapScroll: 0,
+  mapHovered: -1,
+  activeTab: 0,
+
+  // UI Buttons (computed)
+  buttons: [],
+
+  // Intro overlay
+  showIntro: false,
+  introTimer: 0,
+
+  // Tactical Actions System
+  tacticalActions: {}, // { bounce: 0, thirdMan: 0, switchPlay: 0, dropPivot: 0 }
+  activeAction: 'pass', // 'pass' | 'bounce' | 'thirdMan' | 'switchPlay' | 'dropPivot'
+  
+  passUsesBounce: false,
+  passUsesThirdMan: false,
+  passUsesSwitch: false,
+  bounceConnectorIdx: -1,
+  thirdManConnectorIdx: -1,
+  thirdManRunnerIdx: -1,
+  thirdManOriginalPos: null,
+  dropPivotIdx: -1,
+  dropPivotOriginalPos: null,
+  passTargetIsTargetZone: false,
+  passTargetIdx: -1,
+
+  // ─── Init ───
+  init() {
+    this.canvas = document.getElementById('game-canvas');
+    this.ctx = this.canvas.getContext('2d');
+
+    this.canvas.width = INTERNAL_W;
+    this.canvas.height = INTERNAL_H;
+
+    this.resize();
+    window.addEventListener('resize', () => this.resize());
+
+    // Input
+    this.canvas.addEventListener('click', (e) => this.onClick(e));
+    this.canvas.addEventListener('mousemove', (e) => this.onMouseMove(e));
+    this.canvas.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      AudioMgr.init();
+      const touch = e.touches[0];
+      const fakeEvt = { clientX: touch.clientX, clientY: touch.clientY };
+      this.onMouseMove(fakeEvt);
+      this.onClick(fakeEvt);
+    }, { passive: false });
+
+    // Keyboard
+    window.addEventListener('keydown', (e) => this.onKey(e));
+
+    // Prerender field
+    this.fieldCanvas = document.createElement('canvas');
+    this.fieldCanvas.width = INTERNAL_W;
+    this.fieldCanvas.height = INTERNAL_H;
+    this.fieldCtx = this.fieldCanvas.getContext('2d');
+    drawField(this.fieldCtx, INTERNAL_W, INTERNAL_H);
+
+    // Load save
+    StorageMgr.load();
+    AudioMgr.muted = StorageMgr.data.muted;
+    AudioMgr.volume = StorageMgr.data.volume;
+
+    // Start loop
+    this.lastTime = performance.now();
+    requestAnimationFrame((t) => this.loop(t));
+
+    // Auto-start BGM on user interaction to comply with autoplay policy
+    const startBgmOnce = () => {
+      AudioMgr.startBGM();
+      window.removeEventListener('click', startBgmOnce);
+      window.removeEventListener('touchstart', startBgmOnce);
+      window.removeEventListener('keydown', startBgmOnce);
+    };
+    window.addEventListener('click', startBgmOnce);
+    window.addEventListener('touchstart', startBgmOnce);
+    window.addEventListener('keydown', startBgmOnce);
+  },
+
+  resize() {
+    const wrapper = document.getElementById('game-wrapper');
+    const maxW = window.innerWidth - 20;
+    const maxH = window.innerHeight - 20;
+    const aspect = INTERNAL_W / INTERNAL_H;
+
+    let w, h;
+    if (maxW / maxH > aspect) {
+      h = maxH;
+      w = h * aspect;
+    } else {
+      w = maxW;
+      h = w / aspect;
+    }
+
+    wrapper.style.width = w + 'px';
+    wrapper.style.height = h + 'px';
+
+    const dpr = window.devicePixelRatio || 1;
+    this.canvas.width = w * dpr;
+    this.canvas.height = h * dpr;
+    this.canvas.style.width = w + 'px';
+    this.canvas.style.height = h + 'px';
+
+    this.displayScale = w / INTERNAL_W;
+    this.dpr = dpr;
+  },
+
+  screenToGame(clientX, clientY) {
+    const rect = this.canvas.getBoundingClientRect();
+    return {
+      x: (clientX - rect.left) / this.displayScale,
+      y: (clientY - rect.top) / this.displayScale,
+    };
+  },
+
+  // ─── Game Loop ───
+  loop(now) {
+    this.dt = Math.min((now - this.lastTime) / 1000, 0.05);
+    this.lastTime = now;
+    this.time = now;
+
+    this.update();
+    this.render();
+
+    requestAnimationFrame((t) => this.loop(t));
+  },
+
+  // ─── Update ───
+  update() {
+    // Shake decay
+    if (this.shake.amount > 0.1) {
+      this.shake.amount *= this.shake.decay;
+    } else {
+      this.shake.amount = 0;
+    }
+
+    // Fail mark fade
+    if (this.failMark) {
+      this.failMark.alpha -= this.dt * 1.5;
+      if (this.failMark.alpha <= 0) this.failMark = null;
+    }
+
+    // Particles
+    for (let i = this.particles.length - 1; i >= 0; i--) {
+      const p = this.particles[i];
+      p.x += p.vx * this.dt;
+      p.y += p.vy * this.dt;
+      p.life -= this.dt;
+      if (p.life <= 0) this.particles.splice(i, 1);
+    }
+
+    // Star anim
+    for (let i = this.starAnim.length - 1; i >= 0; i--) {
+      this.starAnim[i].frame++;
+      if (this.starAnim[i].frame > this.starAnim[i].maxFrame) {
+        this.starAnim.splice(i, 1);
+      }
+    }
+
+    // Intro timer
+    if (this.showIntro) {
+      this.introTimer -= this.dt;
+      if (this.introTimer <= 0) this.showIntro = false;
+    }
+
+    // Game state updates
+    if (this.state === States.GAME_PASSING) {
+      this.updatePassing();
+    }
+
+    // Goal anim
+    if (this.goalAnim) {
+      this.goalAnim.frame++;
+      if (this.goalAnim.frame > this.goalAnim.maxFrame) {
+        this.goalAnim = null;
+      }
+    }
+
+    // Celebration update
+    if (this.state === States.GAME_WIN && this.scorerCelebration) {
+      const sc = this.scorerCelebration;
+      sc.progress += this.dt * sc.speed;
+      sc.progress = Math.min(sc.progress, 1);
+      const prevX = sc.x;
+      const prevY = sc.y;
+      sc.x = lerp(sc.x, sc.targetX, this.dt * sc.speed * 4);
+      sc.y = lerp(sc.y, sc.targetY, this.dt * sc.speed * 4);
+
+      if (dist(sc, {x: prevX, y: prevY}) > 0.5) {
+        if (Math.random() < 0.4) {
+          this.spawnParticles(sc.x, sc.y, '#00f5d4', 2);
+          this.spawnParticles(sc.x, sc.y, '#ffffff', 2);
+        }
+      }
+    }
+  },
+
+  updatePassing() {
+    const b = this.ball;
+    const from = this.players[this.currentPlayerIdx];
+
+    // Bounce and Third-Man runs involve routing through a connector player
+    if (this.passUsesBounce || this.passUsesThirdMan) {
+      const connIdx = this.passUsesBounce ? this.bounceConnectorIdx : this.thirdManConnectorIdx;
+      const conn = this.players[connIdx];
+      
+      if (b.stage === 1) {
+        // Stage 1: to connector
+        b.progress += PASS_SPEED * this.dt / dist({x: b.startX, y: b.startY}, conn);
+        b.progress = Math.min(b.progress, 1);
+        b.x = lerp(b.startX, conn.x, b.progress);
+        b.y = lerp(b.startY, conn.y, b.progress);
+
+        if (this.trail.length === 0 || dist(this.trail[this.trail.length-1], b) > 4) {
+          this.trail.push({ x: b.x, y: b.y, alpha: 1 });
+        }
+
+        // Intercept check (uses initial passer as holder)
+        this.checkInterception(b, from);
+        if (b.state === 'intercepted') return;
+
+        if (b.progress >= 1) {
+          b.stage = 2;
+          b.progress = 0;
+          b.startX = conn.x;
+          b.startY = conn.y;
+          AudioMgr.play('pass');
+        }
+      } else {
+        // Stage 2: from connector to final target
+        b.progress += PASS_SPEED * this.dt / dist({x: b.startX, y: b.startY}, {x: b.targetX, y: b.targetY});
+        b.progress = Math.min(b.progress, 1);
+        b.x = lerp(b.startX, b.targetX, b.progress);
+        b.y = lerp(b.startY, b.targetY, b.progress);
+
+        if (this.trail.length === 0 || dist(this.trail[this.trail.length-1], b) > 4) {
+          this.trail.push({ x: b.x, y: b.y, alpha: 1 });
+        }
+
+        // Intercept check (uses connector as holder)
+        this.checkInterception(b, conn);
+        if (b.state === 'intercepted') return;
+
+        if (b.progress >= 1) {
+          this.resolvePassing();
+        }
+      }
+    } else {
+      // Normal pass or Switch lob pass
+      b.progress += PASS_SPEED * this.dt / dist({x: b.startX, y: b.startY}, {x: b.targetX, y: b.targetY});
+      b.progress = Math.min(b.progress, 1);
+      b.x = lerp(b.startX, b.targetX, b.progress);
+      b.y = lerp(b.startY, b.targetY, b.progress);
+
+      // Lob ball sizing effect for Switch Play
+      if (this.passUsesSwitch) {
+        b.scaleEffect = 1.0 + 1.2 * Math.sin(b.progress * Math.PI);
+      } else {
+        b.scaleEffect = 1.0;
+      }
+
+      if (this.trail.length === 0 || dist(this.trail[this.trail.length-1], b) > 4) {
+        this.trail.push({ x: b.x, y: b.y, alpha: 1 });
+      }
+
+      // Check interception (Switch passes fly OVER defenders, so skip check)
+      if (!this.passUsesSwitch) {
+        this.checkInterception(b, from);
+        if (b.state === 'intercepted') return;
+      }
+
+      if (b.progress >= 1) {
+        this.resolvePassing();
+      }
+    }
+  },
+
+  checkInterception(b, holder) {
+    const activeHolder = holder || this.players[this.currentPlayerIdx];
+    for (const d of this.defenders) {
+      // Check block radius
+      if (dist(b, d) < d.blockRadius) {
+        this.triggerIntercept(b);
+        return;
+      }
+      // Check cover shadows for pressers
+      if (d.type === 'presser' && activeHolder) {
+        if (pointInCoverShadow(b, d, activeHolder)) {
+          this.triggerIntercept(b);
+          return;
+        }
+      }
+    }
+  },
+
+  triggerIntercept(b) {
+    this.state = States.GAME_LOSE;
+    b.state = 'intercepted';
+    this.shake.amount = 6;
+    this.failMark = { x: b.x, y: b.y, alpha: 1.5 };
+    AudioMgr.play('fail');
+    this.spawnParticles(b.x, b.y, C.uiFail, 8);
+  },
+
+  resolvePassing() {
+    const b = this.ball;
+    b.state = 'held';
+    b.progress = 0;
+    b.scaleEffect = 1.0;
+
+    // Check target reached target zone
+    let reachedTargetZone = false;
+    if (this.passTargetIsTargetZone) {
+      reachedTargetZone = true;
+    } else {
+      const targetPlayer = this.players[this.passTargetIdx];
+      if (targetPlayer && this.targetZone) {
+        reachedTargetZone = pointInRect(targetPlayer.x, targetPlayer.y, this.targetZone.x, this.targetZone.y, this.targetZone.w, this.targetZone.h);
+      }
+    }
+
+    if (reachedTargetZone) {
+      this.state = States.GAME_WIN;
+      this.goalAnim = { frame: 0, maxFrame: 60 };
+      AudioMgr.play('goal');
+      AudioMgr.stopBGM();
+      
+      const px = this.targetZone ? this.targetZone.x + this.targetZone.w / 2 : b.x;
+      const py = this.targetZone ? this.targetZone.y + this.targetZone.h / 2 : b.y;
+      this.spawnParticles(px, py, C.starGold, 20);
+
+      // Stars/Grade calculation
+      const opt = this.currentLevel.optimalPasses;
+      if (this.passCount <= opt) this.resultStars = 3;
+      else if (this.passCount <= opt + 1) this.resultStars = 2;
+      else this.resultStars = 1;
+      this.resultPasses = this.passCount;
+
+      // Lines broken: pressing lines (defenders) the ball got behind, net of the start position
+      const finalX = b.x;
+      const startX = (this.startHolderX != null) ? this.startHolderX : finalX;
+      const behindFinal = this.defenders.filter(d => d.x < finalX - PLAYER_RADIUS).length;
+      const behindStart = this.defenders.filter(d => d.x < startX - PLAYER_RADIUS).length;
+      this.resultLinesBroken = Math.max(0, behindFinal - behindStart);
+      this.resultTargetChannel = this.targetZone ? CHANNELS[channelOf(this.targetZone.y + this.targetZone.h / 2)].label : '';
+
+      StorageMgr.setLevelData(this.levelId, this.resultStars, this.resultPasses);
+
+      for (let i = 0; i < this.resultStars; i++) {
+        this.starAnim.push({ star: i, frame: -i * 15, maxFrame: 30 });
+      }
+
+      setTimeout(() => {
+        if (this.state === States.GAME_WIN) {
+          this.state = States.RESULT;
+        }
+      }, 1800);
+      return;
+    }
+
+    // Set ball holder
+    this.players[this.currentPlayerIdx].hasBall = false;
+    this.currentPlayerIdx = this.passTargetIdx;
+    this.players[this.currentPlayerIdx].hasBall = true;
+    b.x = this.players[this.currentPlayerIdx].x;
+    b.y = this.players[this.currentPlayerIdx].y;
+
+    // Reset active action
+    this.activeAction = 'pass';
+
+    // Move defenders (turn-based: after each pass) — pass the previous holder x so
+    // the block can read a back-pass trigger and step up collectively.
+    const snap = this.passHistory[this.passHistory.length - 1];
+    const prevHolderX = snap ? snap.players[snap.playerIdx].x : null;
+    this.advanceDefenders(prevHolderX);
+
+    // After defender move, check if receiver is trapped inside block range or cover shadow
+    const rec = this.players[this.currentPlayerIdx];
+    for (const d of this.defenders) {
+      if (dist(rec, d) < d.blockRadius) {
+        this.triggerIntercept(b);
+        return;
+      }
+      if (d.type === 'presser' && snap) {
+        const prevHolder = snap.players[snap.playerIdx];
+        if (pointInCoverShadow(rec, d, prevHolder)) {
+          this.triggerIntercept(b);
+          return;
+        }
+      }
+    }
+
+    // Check soft-lock
+    if (this.checkSoftLock()) {
+      this.state = States.GAME_LOSE;
+      AudioMgr.play('lock');
+      this.failMark = { x: b.x, y: b.y, alpha: 1.5 };
+      return;
+    }
+
+    this.state = States.GAME_IDLE;
+    AudioMgr.play('pass');
+    this.spawnParticles(b.x, b.y, C.uiAccent, 6);
+  },
+
+  advanceDefenders(prevHolderX) {
+    const holder = this.players[this.currentPlayerIdx];
+    this.defenders = this.defenders.map(d => stepDefender(d, holder, prevHolderX));
+  },
+
+  checkSoftLock() {
+    if (this.passCount >= this.passLimit) return true;
+    const holder = this.players[this.currentPlayerIdx];
+    const pRange = holder.passRange || 150;
+
+    // 1. Check if direct target zone is open
+    if (this.targetZone) {
+      const tzCenter = { x: this.targetZone.x + this.targetZone.w / 2, y: this.targetZone.y + this.targetZone.h / 2 };
+      if (dist(holder, tzCenter) <= pRange) {
+        let blocked = false;
+        for (const d of this.defenders) {
+          if (lineCircleIntersect(holder, tzCenter, d, d.blockRadius) || lineIntersectsCoverShadow(holder, tzCenter, d, holder)) {
+            blocked = true; break;
+          }
+        }
+        if (!blocked) return false;
+      }
+    }
+
+    // 2. Check direct passes to teammates
+    for (let i = 0; i < this.players.length; i++) {
+      if (i === this.currentPlayerIdx) continue;
+      const p = this.players[i];
+      if (dist(holder, p) > pRange) continue;
+      
+      let blocked = false;
+      for (const d of this.defenders) {
+        if (lineCircleIntersect(holder, p, d, d.blockRadius) || lineIntersectsCoverShadow(holder, p, d, holder)) {
+          blocked = true; break;
+        }
+      }
+      if (!blocked) return false;
+    }
+
+    // 3. Assume possible if tactical actions with uses remaining exist
+    const hasActions = (this.tacticalActions.bounce > 0 || this.tacticalActions.thirdMan > 0 || this.tacticalActions.switchPlay > 0 || this.tacticalActions.dropPivot > 0);
+    if (hasActions) return false;
+
+    return true; // lock
+  },
+
+  // ─── Load Level ───
+  loadLevel(id) {
+    const lvl = LEVELS.find(l => l.id === id);
+    if (!lvl) return;
+
+    this.currentLevel = lvl;
+    this.levelId = id;
+    this.passCount = 0;
+    this.passLimit = lvl.passLimit;
+    this.trail = [];
+    this.passHistory = [];
+    this.particles = [];
+    this.failMark = null;
+    this.goalAnim = null;
+    this.starAnim = [];
+    this.shake.amount = 0;
+    this.hoveredPlayerIdx = -1;
+
+    // Tactical Actions initialization
+    this.tacticalActions = { ...lvl.tacticalActions };
+    this.activeAction = 'pass';
+    this.passUsesBounce = false;
+    this.passUsesThirdMan = false;
+    this.passUsesSwitch = false;
+    this.passTargetIsTargetZone = false;
+    
+    this.thirdManRunnerIdx = -1;
+    this.thirdManOriginalPos = null;
+    this.dropPivotIdx = -1;
+    this.dropPivotOriginalPos = null;
+
+    // Clone players
+    this.players = lvl.players.map(p => ({
+      x: p.x, y: p.y,
+      hasBall: !!p.hasBall,
+      passRange: p.passRange || 150,
+    }));
+
+    // Clone defenders
+    this.defenders = lvl.defenders.map(d => ({
+      x: d.x, y: d.y,
+      type: d.type,
+      blockRadius: d.blockRadius,
+      coverShadowAngle: d.coverShadowAngle || 0,
+      coverShadowLength: d.coverShadowLength || 0,
+      patrolPath: d.patrolPath ? d.patrolPath.map(p => ({...p})) : null,
+      patrolIdx: 0,
+      patrolDir: 1,
+      speed: d.speed || 1,
+      alertRange: d.alertRange || 80,
+    }));
+
+    // Target Zone
+    this.targetZone = lvl.targetZone ? { ...lvl.targetZone } : null;
+
+    // Find ball holder
+    this.currentPlayerIdx = this.players.findIndex(p => p.hasBall);
+    this.startHolderX = this.players[this.currentPlayerIdx].x;
+    this.resultLinesBroken = 0;
+    this.resultTargetChannel = '';
+    this.ball = {
+      x: this.players[this.currentPlayerIdx].x,
+      y: this.players[this.currentPlayerIdx].y,
+      targetX: 0, targetY: 0,
+      startX: 0, startY: 0,
+      state: 'held',
+      progress: 0,
+      stage: 1,
+      scaleEffect: 1.0
+    };
+
+    this.state = States.GAME_IDLE;
+    this.scorerCelebration = null;
+    AudioMgr.startBGM();
+
+    this.showIntro = true;
+    this.introTimer = 2.5;
+
+    this.fieldCtx.clearRect(0, 0, INTERNAL_W, INTERNAL_H);
+    drawField(this.fieldCtx, INTERNAL_W, INTERNAL_H);
+  },
+
+  // ─── Pass attempt ───
+  tryPass(targetIdx) {
+    if (this.state !== States.GAME_IDLE) return;
+    if (targetIdx === this.currentPlayerIdx) return;
+    if (this.passCount >= this.passLimit) return;
+
+    const from = this.players[this.currentPlayerIdx];
+    const target = this.players[targetIdx];
+    const pRange = from.passRange || 150;
+
+    // Tactical Actions Check
+    let usesBounce = (this.activeAction === 'bounce' && this.tacticalActions.bounce > 0);
+    let usesThirdMan = (this.activeAction === 'thirdMan' && this.tacticalActions.thirdMan > 0);
+    let usesSwitch = (this.activeAction === 'switchPlay' && this.tacticalActions.switchPlay > 0);
+    let usesDropPivot = (this.activeAction === 'dropPivot' && this.tacticalActions.dropPivot > 0);
+
+    // Target player verification for Third-Man and Drop Pivot
+    if (usesThirdMan && targetIdx !== this.thirdManRunnerIdx) {
+      AudioMgr.play('fail');
+      this.shake.amount = 2;
+      return;
+    }
+    if (usesDropPivot && targetIdx !== this.dropPivotIdx) {
+      AudioMgr.play('fail');
+      this.shake.amount = 2;
+      return;
+    }
+
+    // Switch action distance validation (must be long range)
+    if (usesSwitch && dist(from, target) < 140) {
+      AudioMgr.play('fail');
+      this.shake.amount = 2;
+      return;
+    }
+    // Normal pass distance validation
+    if (!usesSwitch && dist(from, target) > pRange) {
+      AudioMgr.play('fail');
+      this.shake.amount = 2;
+      return;
+    }
+
+    // Save state for undo
+    this.passHistory.push({
+      playerIdx: this.currentPlayerIdx,
+      players: this.players.map(p => ({...p})),
+      defenders: this.defenders.map(d => ({...d, patrolPath: d.patrolPath ? d.patrolPath.map(pp => ({...pp})) : null})),
+      passCount: this.passCount,
+      ballX: this.ball.x, ballY: this.ball.y,
+      trail: [...this.trail],
+      tacticalActions: { ...this.tacticalActions },
+      activeAction: this.activeAction
+    });
+
+    this.passUsesBounce = false;
+    this.passUsesThirdMan = false;
+    this.passUsesSwitch = false;
+    this.passTargetIsTargetZone = false;
+
+    if (usesBounce) {
+      this.passUsesBounce = true;
+      this.tacticalActions.bounce--;
+      // Find automatic connector between from and target
+      let connIdx = -1;
+      let minDist = 9999;
+      for (let i = 0; i < this.players.length; i++) {
+        if (i !== this.currentPlayerIdx && i !== targetIdx) {
+          const d = dist(from, this.players[i]) + dist(this.players[i], target);
+          if (d < minDist) {
+            minDist = d;
+            connIdx = i;
+          }
+        }
+      }
+      this.bounceConnectorIdx = connIdx;
+      this.passCount++; // One action unit for One-Two sequence
+    } else if (usesThirdMan) {
+      this.passUsesThirdMan = true;
+      this.tacticalActions.thirdMan--;
+      this.passCount++;
+    } else if (usesSwitch) {
+      this.passUsesSwitch = true;
+      this.tacticalActions.switchPlay--;
+      this.passCount++;
+    } else {
+      if (usesDropPivot) {
+        this.tacticalActions.dropPivot--;
+      }
+      this.passCount++;
+    }
+
+    this.passTargetIdx = targetIdx;
+    this.ball.startX = from.x;
+    this.ball.startY = from.y;
+    this.ball.targetX = target.x;
+    this.ball.targetY = target.y;
+    this.ball.progress = 0;
+    this.ball.stage = 1;
+    this.ball.state = 'moving';
+    this.state = States.GAME_PASSING;
+    this.trail = [];
+    
+    // Clear active runner backups as they are now set at target positions
+    this.thirdManRunnerIdx = -1;
+    this.thirdManOriginalPos = null;
+    this.dropPivotIdx = -1;
+    this.dropPivotOriginalPos = null;
+  },
+
+  tryPassToTargetZone() {
+    if (this.state !== States.GAME_IDLE) return;
+    if (this.passCount >= this.passLimit) return;
+    if (!this.targetZone) return;
+    
+    // Prohibit any tactical action state when passing directly to the target zone
+    if (this.activeAction !== 'pass') {
+      AudioMgr.play('fail');
+      this.shake.amount = 2;
+      return;
+    }
+
+    const from = this.players[this.currentPlayerIdx];
+    const tzCenter = { x: this.targetZone.x + this.targetZone.w / 2, y: this.targetZone.y + this.targetZone.h / 2 };
+    const pRange = from.passRange || 150;
+
+    if (dist(from, tzCenter) > pRange) {
+      AudioMgr.play('fail');
+      this.shake.amount = 2;
+      return;
+    }
+
+    // Save state for undo
+    this.passHistory.push({
+      playerIdx: this.currentPlayerIdx,
+      players: this.players.map(p => ({...p})),
+      defenders: this.defenders.map(d => ({...d, patrolPath: d.patrolPath ? d.patrolPath.map(pp => ({...pp})) : null})),
+      passCount: this.passCount,
+      ballX: this.ball.x, ballY: this.ball.y,
+      trail: [...this.trail],
+      tacticalActions: { ...this.tacticalActions },
+      activeAction: this.activeAction
+    });
+
+    this.passUsesBounce = false;
+    this.passUsesThirdMan = false;
+    this.passUsesSwitch = false;
+    this.passTargetIsTargetZone = true;
+    this.passTargetIdx = -1;
+    
+    this.passCount++;
+    this.ball.startX = from.x;
+    this.ball.startY = from.y;
+    this.ball.targetX = tzCenter.x;
+    this.ball.targetY = tzCenter.y;
+    this.ball.progress = 0;
+    this.ball.state = 'moving';
+    this.state = States.GAME_PASSING;
+    this.trail = [];
+  },
+
+  undo() {
+    if (this.passHistory.length === 0) return;
+    if (this.state !== States.GAME_IDLE && this.state !== States.GAME_LOSE) return;
+
+    this.restoreTacticalPositions();
+
+    const snap = this.passHistory.pop();
+    this.currentPlayerIdx = snap.playerIdx;
+    this.players = snap.players;
+    this.defenders = snap.defenders;
+    this.passCount = snap.passCount;
+    this.ball.x = snap.ballX;
+    this.ball.y = snap.ballY;
+    this.ball.state = 'held';
+    this.ball.progress = 0;
+    this.ball.scaleEffect = 1.0;
+    this.trail = snap.trail;
+    this.failMark = null;
+    this.tacticalActions = { ...snap.tacticalActions };
+    this.activeAction = snap.activeAction || 'pass';
+    this.state = States.GAME_IDLE;
+    AudioMgr.play('undo');
+  },
+
+  setActiveAction(action) {
+    this.restoreTacticalPositions();
+
+    if (this.activeAction === action) {
+      this.activeAction = 'pass';
+      return;
+    }
+
+    this.activeAction = action;
+
+    if (action === 'thirdMan') {
+      let runnerIdx = -1;
+      let maxX = -999;
+      for (let i = 0; i < this.players.length; i++) {
+        if (i !== this.currentPlayerIdx && this.players[i].x > maxX) {
+          maxX = this.players[i].x;
+          runnerIdx = i;
+        }
+      }
+      if (runnerIdx >= 0) {
+        const runner = this.players[runnerIdx];
+        this.thirdManRunnerIdx = runnerIdx;
+        this.thirdManOriginalPos = { x: runner.x, y: runner.y };
+        // Trigger forward run animation effect coordinates
+        runner.x += 40;
+        runner.y = runner.y < 128 ? runner.y + 15 : runner.y - 15;
+
+        // Automatically assign connecting element
+        let connIdx = -1;
+        let minDist = 9999;
+        const holder = this.players[this.currentPlayerIdx];
+        for (let i = 0; i < this.players.length; i++) {
+          if (i !== this.currentPlayerIdx && i !== runnerIdx) {
+            const d = dist(holder, this.players[i]);
+            if (d < minDist) {
+              minDist = d;
+              connIdx = i;
+            }
+          }
+        }
+        this.thirdManConnectorIdx = connIdx;
+      }
+    } else if (action === 'dropPivot') {
+      let pivotIdx = -1;
+      for (let i = 0; i < this.players.length; i++) {
+        if (i !== this.currentPlayerIdx && this.players[i].x >= 120 && this.players[i].x <= 190) {
+          pivotIdx = i;
+          break;
+        }
+      }
+      if (pivotIdx >= 0) {
+        const pivot = this.players[pivotIdx];
+        this.dropPivotIdx = pivotIdx;
+        this.dropPivotOriginalPos = { x: pivot.x, y: pivot.y };
+        // Drops deep between defense center backs
+        pivot.x = 95;
+        pivot.y = 128;
+      }
+    }
+  },
+
+  restoreTacticalPositions() {
+    if (this.thirdManRunnerIdx >= 0 && this.thirdManOriginalPos) {
+      this.players[this.thirdManRunnerIdx].x = this.thirdManOriginalPos.x;
+      this.players[this.thirdManRunnerIdx].y = this.thirdManOriginalPos.y;
+    }
+    this.thirdManRunnerIdx = -1;
+    this.thirdManOriginalPos = null;
+    this.thirdManConnectorIdx = -1;
+
+    if (this.dropPivotIdx >= 0 && this.dropPivotOriginalPos) {
+      this.players[this.dropPivotIdx].x = this.dropPivotOriginalPos.x;
+      this.players[this.dropPivotIdx].y = this.dropPivotOriginalPos.y;
+    }
+    this.dropPivotIdx = -1;
+    this.dropPivotOriginalPos = null;
+  },
+
+  // ─── Input Handlers ───
+  onClick(e) {
+    AudioMgr.init();
+    const pos = this.screenToGame(e.clientX, e.clientY);
+
+    switch (this.state) {
+      case States.TITLE:
+        this.onTitleClick(pos);
+        break;
+      case States.LEVEL_MAP:
+        this.onLevelMapClick(pos);
+        break;
+      case States.GAME_IDLE:
+        this.onGameClick(pos);
+        break;
+      case States.GAME_LOSE:
+        this.onLoseClick(pos);
+        break;
+      case States.RESULT:
+        this.onResultClick(pos);
+        break;
+      case States.GAME_WIN:
+        // Clicking during win animation skips to result
+        this.state = States.RESULT;
+        break;
+    }
+  },
+
+  onMouseMove(e) {
+    const pos = this.screenToGame(e.clientX, e.clientY);
+
+    if (this.state === States.GAME_IDLE) {
+      // Find nearest valid pass target
+      const from = this.players[this.currentPlayerIdx];
+      const pRange = from.passRange || 999;
+      let nearestIdx = -1;
+      let nearestDist = HIT_RADIUS;
+
+      for (let i = 0; i < this.players.length; i++) {
+        if (i === this.currentPlayerIdx) continue;
+        const d = dist(pos, this.players[i]);
+        if (d < nearestDist && dist(from, this.players[i]) <= pRange) {
+          nearestDist = d;
+          nearestIdx = i;
+        }
+      }
+
+      // Check target zone hover
+      if (this.targetZone) {
+        const tzCenter = { x: this.targetZone.x + this.targetZone.w / 2, y: this.targetZone.y + this.targetZone.h / 2 };
+        const inside = pointInRect(pos.x, pos.y, this.targetZone.x, this.targetZone.y, this.targetZone.w, this.targetZone.h);
+        if (inside || dist(pos, tzCenter) < HIT_RADIUS + 8) {
+          this.hoveredPlayerIdx = -2; // special target zone hover code
+        } else {
+          this.hoveredPlayerIdx = nearestIdx;
+        }
+      } else {
+        this.hoveredPlayerIdx = nearestIdx;
+      }
+    } else if (this.state === States.LEVEL_MAP) {
+      this.mapHovered = -1;
+      if (pos.x >= 10 && pos.x <= 374) {
+        const cardH = 26;
+        const cardYStart = 74;
+        for (let i = 0; i < 5; i++) {
+          const cy = cardYStart + i * 32;
+          if (pos.y >= cy && pos.y <= cy + cardH) {
+            this.mapHovered = this.activeTab * 5 + i;
+            break;
+          }
+        }
+      }
+    }
+  },
+
+  onTitleClick(pos) {
+    if (pos.y > INTERNAL_H / 2 + 10 && pos.y < INTERNAL_H / 2 + 40) {
+      this.state = States.LEVEL_MAP;
+      AudioMgr.play('click');
+    }
+    if (pos.x > INTERNAL_W - 30 && pos.y < 20) {
+      AudioMgr.muted = !AudioMgr.muted;
+      StorageMgr.data.muted = AudioMgr.muted;
+      StorageMgr.save();
+      if (AudioMgr.muted) AudioMgr.stopBGM();
+      else AudioMgr.startBGM();
+    }
+  },
+
+  onLevelMapClick(pos) {
+    if (pos.x < 40 && pos.y < 25) {
+      this.state = States.TITLE;
+      AudioMgr.play('click');
+      return;
+    }
+
+    // 1. Tab Click
+    if (pos.y >= 35 && pos.y <= 52) {
+      const tabW = 88;
+      const tabGap = 4;
+      const startX = 10;
+      for (let i = 0; i < 4; i++) {
+        const tx = startX + i * (tabW + tabGap);
+        if (pos.x >= tx && pos.x <= tx + tabW) {
+          this.activeTab = i;
+          AudioMgr.play('click');
+          this.mapHovered = -1;
+          return;
+        }
+      }
+    }
+
+    // 2. Card Click
+    if (pos.x >= 10 && pos.x <= 374) {
+      const cardH = 26;
+      const cardYStart = 74;
+      for (let i = 0; i < 5; i++) {
+        const cy = cardYStart + i * 32;
+        if (pos.y >= cy && pos.y <= cy + cardH) {
+          const levelIdx = this.activeTab * 5 + i;
+          const lvl = LEVELS[levelIdx];
+          if (lvl) {
+            if (lvl.id <= StorageMgr.data.unlocked) {
+              this.loadLevel(lvl.id);
+              AudioMgr.play('click');
+            } else {
+              AudioMgr.play('lock');
+              this.shake.amount = 2;
+            }
+          }
+          return;
+        }
+      }
+    }
+  },
+
+  onGameClick(pos) {
+    if (this.showIntro) {
+      this.showIntro = false;
+      return;
+    }
+
+    // UI Buttons
+    // Undo
+    if (pos.x > INTERNAL_W - 50 && pos.x < INTERNAL_W - 25 && pos.y > INTERNAL_H - 22 && pos.y < INTERNAL_H - 6) {
+      this.undo();
+      return;
+    }
+    // Reset
+    if (pos.x > INTERNAL_W - 24 && pos.y > INTERNAL_H - 22 && pos.y < INTERNAL_H - 6) {
+      this.loadLevel(this.levelId);
+      AudioMgr.play('click');
+      return;
+    }
+    // Back
+    if (pos.x < 30 && pos.y > INTERNAL_H - 22 && pos.y < INTERNAL_H - 6) {
+      this.state = States.LEVEL_MAP;
+      AudioMgr.play('click');
+      return;
+    }
+    // Mute
+    if (pos.x > INTERNAL_W - 20 && pos.y < 16) {
+      AudioMgr.muted = !AudioMgr.muted;
+      StorageMgr.data.muted = AudioMgr.muted;
+      StorageMgr.save();
+      if (AudioMgr.muted) AudioMgr.stopBGM();
+      else AudioMgr.startBGM();
+      return;
+    }
+
+    // Tactical Actions Toolbar Click: y in [224, 254] (taller snap target for mobile guidelines)
+    if (pos.y > 224 && pos.y < 254) {
+      const actions = ['pass', 'bounce', 'thirdMan', 'switchPlay', 'dropPivot'];
+      const btnW = 55;
+      const spacing = 18;
+      for (let i = 0; i < actions.length; i++) {
+        const bx = spacing + i * (btnW + spacing);
+        if (pos.x > bx && pos.x < bx + btnW) {
+          const action = actions[i];
+          if (action === 'pass') {
+            this.setActiveAction('pass');
+            AudioMgr.play('click');
+          } else {
+            if (this.tacticalActions[action] > 0) {
+              this.setActiveAction(action);
+              AudioMgr.play('click');
+            } else {
+              AudioMgr.play('lock');
+            }
+          }
+          return;
+        }
+      }
+    }
+
+    // Target Zone Click
+    if (this.targetZone) {
+      const tzCenter = { x: this.targetZone.x + this.targetZone.w / 2, y: this.targetZone.y + this.targetZone.h / 2 };
+      const inside = pointInRect(pos.x, pos.y, this.targetZone.x, this.targetZone.y, this.targetZone.w, this.targetZone.h);
+      if (inside || dist(pos, tzCenter) < HIT_RADIUS + 8) {
+        this.tryPassToTargetZone();
+        return;
+      }
+    }
+
+    // Player snap click
+    const from = this.players[this.currentPlayerIdx];
+    const pRange = from.passRange || 999;
+    let nearestIdx = -1;
+    let nearestDist = HIT_RADIUS;
+
+    for (let i = 0; i < this.players.length; i++) {
+      if (i === this.currentPlayerIdx) continue;
+      const d = dist(pos, this.players[i]);
+      if (d < nearestDist) {
+        nearestDist = d;
+        nearestIdx = i;
+      }
+    }
+
+    if (nearestIdx >= 0) {
+      this.tryPass(nearestIdx);
+    }
+  },
+
+  onLoseClick(pos) {
+    const btnY = INTERNAL_H / 2 + 20;
+    if (pos.y > btnY - 8 && pos.y < btnY + 8) {
+      if (pos.x > INTERNAL_W/2 - 60 && pos.x < INTERNAL_W/2 - 10) {
+        this.undo();
+        return;
+      }
+      if (pos.x > INTERNAL_W/2 + 10 && pos.x < INTERNAL_W/2 + 60) {
+        this.loadLevel(this.levelId);
+        AudioMgr.play('click');
+        return;
+      }
+    }
+    if (pos.y > btnY + 12 && pos.y < btnY + 28) {
+      this.state = States.LEVEL_MAP;
+      AudioMgr.play('click');
+    }
+  },
+
+  onResultClick(pos) {
+    const cy = INTERNAL_H / 2;
+    // Retry button click
+    if (pos.x > INTERNAL_W/2 - 70 && pos.x < INTERNAL_W/2 - 10 && pos.y > cy + 40 && pos.y < cy + 60) {
+      this.loadLevel(this.levelId);
+      AudioMgr.play('click');
+      return;
+    }
+    // Next button click
+    if (pos.x > INTERNAL_W/2 + 10 && pos.x < INTERNAL_W/2 + 70 && pos.y > cy + 40 && pos.y < cy + 60) {
+      const nextId = this.levelId + 1;
+      if (LEVELS.find(l => l.id === nextId)) {
+        this.loadLevel(nextId);
+      } else {
+        this.state = States.LEVEL_MAP;
+        AudioMgr.startBGM();
+      }
+      AudioMgr.play('click');
+      return;
+    }
+    // Copy Summary button click
+    if (pos.x > INTERNAL_W/2 - 45 && pos.x < INTERNAL_W/2 + 45 && pos.y > cy + 60 && pos.y < cy + 78) {
+      this.copySummaryToClipboard();
+      return;
+    }
+    // Tap to map footer click (anywhere else at bottom)
+    if (pos.y > cy + 78) {
+      this.state = States.LEVEL_MAP;
+      AudioMgr.play('click');
+      AudioMgr.startBGM();
+    }
+  },
+
+  copySummaryToClipboard() {
+    const grade = StorageMgr.starsToGrade(this.resultStars);
+    const steps = this.passHistory.map((h, i) => {
+      const act = h.activeAction || 'pass';
+      return act.toUpperCase();
+    });
+    steps.push('ESCAPE');
+    const route = steps.join(' -> ');
+    
+    const summary = `[BUILD-UP LAB] PRESS ESCAPED!\n${getLevelTacticalLabel(this.levelId)}: ${this.currentLevel.name}\nTactical Grade: [${grade}] (${this.resultPasses} Actions)\nTactical Route: ${route}\nPlay Build-Up Lab & Beat the Press!`;
+
+    const handleFeedback = () => {
+      this.spawnParticles(INTERNAL_W / 2, INTERNAL_H / 2 + 68, C.uiAccent, 8);
+      AudioMgr.play('pass');
+      this.shareFeedbackMsg = "Summary Copied!";
+      setTimeout(() => { this.shareFeedbackMsg = ""; }, 1500);
+    };
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(summary).then(handleFeedback).catch(() => {
+        // fallback
+        const textArea = document.createElement("textarea");
+        textArea.value = summary;
+        document.body.appendChild(textArea);
+        textArea.select();
+        try {
+          document.execCommand('copy');
+          handleFeedback();
+        } catch (err) {}
+        document.body.removeChild(textArea);
+      });
+    } else {
+      const textArea = document.createElement("textarea");
+      textArea.value = summary;
+      document.body.appendChild(textArea);
+      textArea.select();
+      try {
+        document.execCommand('copy');
+        handleFeedback();
+      } catch (err) {}
+      document.body.removeChild(textArea);
+    }
+  },
+
+  onKey(e) {
+    const inGame = this.state === States.GAME_IDLE || this.state === States.GAME_LOSE || this.state === States.GAME_PASSING;
+    switch (e.key.toLowerCase()) {
+      case '1':
+        if (this.state === States.GAME_IDLE) {
+          this.setActiveAction('pass');
+          AudioMgr.play('click');
+        }
+        break;
+      case '2':
+        if (this.state === States.GAME_IDLE) {
+          if (this.tacticalActions.bounce > 0) this.setActiveAction('bounce');
+          else AudioMgr.play('lock');
+        }
+        break;
+      case '3':
+        if (this.state === States.GAME_IDLE) {
+          if (this.tacticalActions.thirdMan > 0) this.setActiveAction('thirdMan');
+          else AudioMgr.play('lock');
+        }
+        break;
+      case '4':
+        if (this.state === States.GAME_IDLE) {
+          if (this.tacticalActions.switchPlay > 0) this.setActiveAction('switchPlay');
+          else AudioMgr.play('lock');
+        }
+        break;
+      case '5':
+        if (this.state === States.GAME_IDLE) {
+          if (this.tacticalActions.dropPivot > 0) this.setActiveAction('dropPivot');
+          else AudioMgr.play('lock');
+        }
+        break;
+      case 'z':
+        // undo() guards on GAME_IDLE/GAME_LOSE; never cancel a pass mid-flight
+        this.undo();
+        break;
+      case 'r':
+        if (inGame) {
+          this.loadLevel(this.levelId);
+          AudioMgr.play('click');
+        }
+        break;
+      case 'escape':
+        if (inGame) {
+          this.state = States.LEVEL_MAP;
+          AudioMgr.play('click');
+        }
+        break;
+      case 'm':
+        AudioMgr.muted = !AudioMgr.muted;
+        StorageMgr.data.muted = AudioMgr.muted;
+        StorageMgr.save();
+        if (AudioMgr.muted) AudioMgr.stopBGM();
+        else AudioMgr.startBGM();
+        break;
+    }
+  },
+
+  // ─── Particles ───
+  spawnParticles(x, y, color, count) {
+    for (let i = 0; i < count; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 20 + Math.random() * 40;
+      this.particles.push({
+        x, y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        life: 0.4 + Math.random() * 0.3,
+        color,
+        size: 1 + Math.random() * 2,
+      });
+    }
+  },
+
+  // ─── Level Map Position ───
+  getLevelMapPos(idx) {
+    const cols = 5;
+    const startX = 50;
+    const startY = 65;
+    const gapX = 62;
+    const gapY = 65;
+    const row = Math.floor(idx / cols);
+    const col = idx % cols;
+    // Zigzag path
+    const x = row % 2 === 0 ? startX + col * gapX : startX + (cols - 1 - col) * gapX;
+    const y = startY + row * gapY;
+    return { x, y };
+  },
+
+  // ─── Render ───
+  render() {
+    const ctx = this.ctx;
+    ctx.save();
+    ctx.scale(this.displayScale * (this.dpr || 1), this.displayScale * (this.dpr || 1));
+    ctx.clearRect(0, 0, INTERNAL_W, INTERNAL_H);
+
+    switch (this.state) {
+      case States.TITLE:
+        this.renderTitle(ctx);
+        break;
+      case States.LEVEL_MAP:
+        this.renderLevelMap(ctx);
+        break;
+      case States.GAME_IDLE:
+      case States.GAME_PASSING:
+      case States.GAME_RESOLVE:
+      case States.GAME_WIN:
+      case States.GAME_LOSE:
+        this.renderGame(ctx);
+        break;
+      case States.RESULT:
+        this.renderResult(ctx);
+        break;
+    }
+    ctx.restore();
+  },
+
+  // ─── Title Screen ───
+  renderTitle(ctx) {
+    const grad = ctx.createLinearGradient(0, 0, 0, INTERNAL_H);
+    grad.addColorStop(0, C.titleGradTop);
+    grad.addColorStop(1, C.titleGradBot);
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, INTERNAL_W, INTERNAL_H);
+
+    ctx.globalAlpha = 0.08;
+    drawField(ctx, INTERNAL_W, INTERNAL_H);
+    ctx.globalAlpha = 1;
+
+    // Title
+    ctx.fillStyle = C.uiText;
+    ctx.textAlign = 'center';
+    ctx.font = 'bold 22px "Outfit"';
+    ctx.fillText('BUILD-UP LAB', INTERNAL_W / 2, INTERNAL_H / 2 - 34);
+
+    ctx.font = '600 11px "Outfit"';
+    ctx.fillStyle = C.uiAccent;
+    ctx.fillText('Beat the Press - Tactical Puzzle', INTERNAL_W / 2, INTERNAL_H / 2 - 14);
+
+    // Start Drill Button
+    const btnW = 110, btnH = 22;
+    const btnX = INTERNAL_W / 2 - btnW / 2;
+    const btnY = INTERNAL_H / 2 + 12;
+    ctx.fillStyle = C.btnBg;
+    ctx.fillRect(btnX, btnY, btnW, btnH);
+    ctx.strokeStyle = C.uiAccent;
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(btnX, btnY, btnW, btnH);
+    ctx.fillStyle = C.btnText;
+    ctx.font = '600 11px "Outfit"';
+    ctx.fillText('Start Drill', INTERNAL_W / 2, btnY + 14);
+
+    // Mute
+    ctx.font = 'bold 8px "Outfit"';
+    ctx.fillStyle = AudioMgr.muted ? '#666' : C.uiAccent;
+    ctx.textAlign = 'right';
+    ctx.fillText(AudioMgr.muted ? 'MUTED' : 'AUDIO', INTERNAL_W - 8, 16);
+    ctx.textAlign = 'center';
+
+    // Footer
+    ctx.font = '500 7px "Outfit"';
+    ctx.fillStyle = '#444';
+    ctx.fillText('Tactical Board V2.0', INTERNAL_W / 2, INTERNAL_H - 10);
+
+    const ballX = INTERNAL_W / 2 + Math.sin(this.time / 500) * 40;
+    const ballY = INTERNAL_H / 2 + 48 + Math.sin(this.time / 300) * 4;
+    drawBall(ctx, ballX, ballY);
+  },
+
+  // ─── Level Map ───
+  renderLevelMap(ctx) {
+    ctx.fillStyle = C.titleBg;
+    ctx.fillRect(0, 0, INTERNAL_W, INTERNAL_H);
+
+    ctx.fillStyle = C.uiText;
+    ctx.textAlign = 'center';
+    ctx.font = 'bold 12px "Outfit"';
+    ctx.fillText('TACTICAL TRAINING BOARD', INTERNAL_W / 2, 23);
+
+    // Back button
+    ctx.textAlign = 'left';
+    ctx.font = '600 9px "Outfit"';
+    ctx.fillStyle = C.uiAccent;
+    ctx.fillText('< BACK', 10, 16);
+
+    const tabLabels = ['TUTORIALS', 'PATTERNS', 'PRESS SHAPES', 'ADVANCED'];
+    const tabW = 88;
+    const tabH = 17;
+    const tabGap = 4;
+    const startX = 10;
+    const tabY = 35;
+
+    // Draw tabs
+    for (let i = 0; i < 4; i++) {
+      const tx = startX + i * (tabW + tabGap);
+      const isSelected = this.activeTab === i;
+
+      ctx.fillStyle = isSelected ? 'rgba(0, 245, 212, 0.12)' : 'rgba(255, 255, 255, 0.02)';
+      ctx.fillRect(tx, tabY, tabW, tabH);
+
+      ctx.strokeStyle = isSelected ? C.uiAccent : '#222538';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(tx, tabY, tabW, tabH);
+
+      ctx.fillStyle = isSelected ? C.uiAccent : '#888';
+      ctx.font = 'bold 8px "Outfit"';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(tabLabels[i], tx + tabW / 2, tabY + tabH / 2 + 0.5);
+    }
+
+    // Active Tab Description
+    const tabDescriptions = [
+      'Learn the basics: Find the free man, bypass cover shadows, and locate safe lanes.',
+      'Master tactical patterns: Bounce passes, third-man runs, switches, and drop supports.',
+      'Escape coordinate traps: Overloaded flanks, sideline traps, and shifting press blocks.',
+      'Break advanced blocks: 4-4-2 high press, 4-3-3 mid press, and tight man-oriented markings.'
+    ];
+    ctx.fillStyle = '#aaa';
+    ctx.font = '500 7px "Outfit"';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(tabDescriptions[this.activeTab], INTERNAL_W / 2, 60);
+
+    const cardW = 364;
+    const cardH = 26;
+    const cardYStart = 74;
+    const unlocked = StorageMgr.data.unlocked;
+
+    // Draw level cards for the active tab
+    for (let i = 0; i < 5; i++) {
+      const levelIdx = this.activeTab * 5 + i;
+      const lvl = LEVELS[levelIdx];
+      if (!lvl) continue;
+
+      const cy = cardYStart + i * 32;
+      const isUnlocked = lvl.id <= unlocked;
+      const data = StorageMgr.getLevelData(lvl.id);
+      const isHovered = this.mapHovered === levelIdx;
+
+      // Card Container
+      ctx.fillStyle = isUnlocked ? (isHovered ? 'rgba(0, 245, 212, 0.06)' : 'rgba(255, 255, 255, 0.02)') : 'rgba(10, 10, 20, 0.4)';
+      ctx.fillRect(startX, cy, cardW, cardH);
+
+      ctx.strokeStyle = isUnlocked ? (isHovered ? C.uiAccent : '#1e3d2a') : '#111222';
+      ctx.lineWidth = isHovered ? 1.2 : 1;
+      ctx.strokeRect(startX, cy, cardW, cardH);
+
+      if (isUnlocked) {
+        // Label & Title
+        ctx.fillStyle = isHovered ? C.uiAccent : C.uiText;
+        ctx.font = 'bold 9px "Outfit"';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(`${getLevelTacticalLabel(lvl.id)}: ${lvl.name.toUpperCase()}`, startX + 10, cy + cardH / 2 + 0.5);
+
+        // Stats
+        ctx.fillStyle = '#888';
+        ctx.font = '500 7px "Outfit"';
+        ctx.textAlign = 'right';
+        ctx.fillText(`Limit: ${lvl.passLimit} | Best: ${data.bestPasses === 99 ? '-' : data.bestPasses}`, startX + cardW - 35, cy + cardH / 2 + 0.5);
+
+        // Grade Emblem
+        const emblemX = startX + cardW - 16;
+        const emblemY = cy + cardH / 2;
+        if (data.stars > 0) {
+          const grade = StorageMgr.starsToGrade(data.stars);
+          ctx.beginPath();
+          ctx.arc(emblemX, emblemY, 8, 0, Math.PI * 2);
+          ctx.fillStyle = grade === 'S' ? C.uiAccent : (grade === 'A' ? C.passRisky : C.playerBlue);
+          ctx.fill();
+
+          ctx.fillStyle = '#000';
+          ctx.font = 'bold 9px "Outfit"';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(grade, emblemX, emblemY + 0.5);
+        } else {
+          ctx.save();
+          ctx.strokeStyle = '#2d5e3f';
+          ctx.lineWidth = 1;
+          ctx.setLineDash([2, 2]);
+          ctx.beginPath();
+          ctx.arc(emblemX, emblemY, 8, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.restore();
+        }
+      } else {
+        // Locked
+        ctx.fillStyle = '#444';
+        ctx.font = 'bold 9px "Outfit"';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('CLASSIFIED SCENARIO DRILL', startX + 10, cy + cardH / 2 + 0.5);
+
+        ctx.fillStyle = '#444';
+        ctx.font = '8px "Outfit"';
+        ctx.textAlign = 'center';
+        ctx.fillText('🔒', startX + cardW - 16, cy + cardH / 2);
+      }
+    }
+
+    ctx.fillStyle = '#666';
+    ctx.font = '500 7px "Outfit"';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('SELECT DRILL TO BEGIN TACTICAL STUDY', INTERNAL_W / 2, 245);
+  },
+
+  // ─── Game Render ───
+  renderGame(ctx) {
+    ctx.save();
+
+    if (this.shake.amount > 0) {
+      const sx = (Math.random() - 0.5) * this.shake.amount * 2;
+      const sy = (Math.random() - 0.5) * this.shake.amount * 2;
+      ctx.translate(sx, sy);
+    }
+
+    drawField(ctx, INTERNAL_W, INTERNAL_H);
+    drawChannels(ctx);
+    drawLinesOfEngagement(ctx, this.defenders);
+
+    // Target zone Escape boundary
+    if (this.targetZone) {
+      drawTargetZone(ctx, this.targetZone);
+    }
+
+    // Draw defenders with cover shadow cones
+    for (const d of this.defenders) {
+      drawDefender(ctx, d, this.time);
+    }
+
+    // Draw pass guides
+    if (this.state === States.GAME_IDLE && this.hoveredPlayerIdx !== -1) {
+      const from = this.players[this.currentPlayerIdx];
+      let target;
+      if (this.hoveredPlayerIdx === -2) {
+        target = this.targetZone ? { x: this.targetZone.x + this.targetZone.w / 2, y: this.targetZone.y + this.targetZone.h / 2 } : {x:0, y:0};
+      } else {
+        target = this.players[this.hoveredPlayerIdx];
+      }
+
+      let activeAction = this.activeAction;
+      let isBounce = (activeAction === 'bounce' && this.tacticalActions.bounce > 0);
+      let isThirdMan = (activeAction === 'thirdMan' && this.tacticalActions.thirdMan > 0);
+      let isSwitch = (activeAction === 'switchPlay' && this.tacticalActions.switchPlay > 0);
+
+      ctx.save();
+      ctx.setLineDash([3, 3]);
+
+      if (isBounce || isThirdMan) {
+        // Multi-stage path rendering
+        const connIdx = isBounce ? this.bounceConnectorIdx : this.thirdManConnectorIdx;
+        const conn = this.players[connIdx];
+        
+        if (conn) {
+          // Check collision on both lanes
+          let blocked1 = false, blocked2 = false;
+          for (const d of this.defenders) {
+            if (lineCircleIntersect(from, conn, d, d.blockRadius) || lineIntersectsCoverShadow(from, conn, d, from)) blocked1 = true;
+            if (lineCircleIntersect(conn, target, d, d.blockRadius) || lineIntersectsCoverShadow(conn, target, d, conn)) blocked2 = true;
+          }
+          
+          ctx.strokeStyle = (blocked1 || blocked2) ? C.passBlocked : C.passSafe;
+          ctx.lineWidth = 1.2;
+          
+          // Draw lane 1
+          ctx.beginPath();
+          ctx.moveTo(from.x, from.y);
+          ctx.lineTo(conn.x, conn.y);
+          ctx.stroke();
+          
+          // Draw lane 2
+          ctx.beginPath();
+          ctx.moveTo(conn.x, conn.y);
+          ctx.lineTo(target.x, target.y);
+          ctx.stroke();
+
+          // Action description overlay
+          ctx.fillStyle = C.uiAccent;
+          ctx.font = 'bold 6px Outfit';
+          ctx.textAlign = 'center';
+          ctx.fillText(isBounce ? 'BOUNCE' : '3RD MAN', (from.x + conn.x)/2, (from.y + conn.y)/2 - 4);
+        }
+      } else if (isSwitch) {
+        // Draw Switch Play curved lob trajectory
+        const isFar = dist(from, target) >= 140;
+        ctx.strokeStyle = isFar ? C.passSafe : C.passBlocked;
+        ctx.lineWidth = 1.5;
+        
+        const midX = (from.x + target.x) / 2;
+        const midY = (from.y + target.y) / 2 - 25; // height offset
+        
+        ctx.beginPath();
+        ctx.moveTo(from.x, from.y);
+        ctx.quadraticCurveTo(midX, midY, target.x, target.y);
+        ctx.stroke();
+      } else {
+        // Normal Straight pass
+        let blocked = false;
+        for (const d of this.defenders) {
+          if (lineCircleIntersect(from, target, d, d.blockRadius) || lineIntersectsCoverShadow(from, target, d, from)) {
+            blocked = true;
+            break;
+          }
+        }
+        const outOfRange = dist(from, target) > (from.passRange || 999);
+        
+        ctx.strokeStyle = (blocked || outOfRange) ? C.passBlocked : C.passSafe;
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.moveTo(from.x, from.y);
+        ctx.lineTo(target.x, target.y);
+        ctx.stroke();
+
+        if (blocked || outOfRange) {
+          const mx = (from.x + target.x) / 2;
+          const my = (from.y + target.y) / 2;
+          ctx.strokeStyle = C.uiFail;
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.moveTo(mx - 3, my - 3); ctx.lineTo(mx + 3, my + 3);
+          ctx.moveTo(mx + 3, my - 3); ctx.lineTo(mx - 3, my + 3);
+          ctx.stroke();
+        }
+      }
+
+      ctx.restore();
+    }
+
+    // Trail
+    for (let i = 0; i < this.trail.length; i++) {
+      const t = this.trail[i];
+      const alpha = 0.5 * (1 - i / this.trail.length);
+      ctx.fillStyle = `rgba(0, 245, 212, ${alpha})`;
+      ctx.fillRect(t.x - 1, t.y - 1, 2, 2);
+    }
+
+    // Draw Players
+    for (let i = 0; i < this.players.length; i++) {
+      const p = this.players[i];
+      let px = p.x;
+      let py = p.y;
+
+      const isHighlighted = (this.state === States.GAME_IDLE && this.hoveredPlayerIdx === i);
+
+      drawPlayer(ctx, px, py, p.hasBall, isHighlighted, p.passRange);
+
+      // "free man" hint in tutorial levels (1-3)
+      if (this.levelId <= 3 && this.state === States.GAME_IDLE && i !== this.currentPlayerIdx) {
+        const from = this.players[this.currentPlayerIdx];
+        const pRange = from.passRange || 150;
+        if (dist(from, p) <= pRange) {
+          let blocked = false;
+          for (const d of this.defenders) {
+            if (lineCircleIntersect(from, p, d, d.blockRadius) || lineIntersectsCoverShadow(from, p, d, from)) {
+              blocked = true;
+              break;
+            }
+          }
+          if (!blocked) {
+            ctx.save();
+            ctx.fillStyle = C.uiAccent;
+            ctx.font = 'bold 7px Outfit';
+            ctx.textAlign = 'center';
+            ctx.globalAlpha = 0.5 + 0.5 * Math.sin(Date.now() / 150);
+            ctx.fillText('FREE', px, py - PLAYER_RADIUS - 4);
+            
+            ctx.strokeStyle = C.uiAccent;
+            ctx.lineWidth = 1;
+            ctx.setLineDash([2, 2]);
+            ctx.beginPath();
+            ctx.arc(px, py, PLAYER_RADIUS + 4, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.restore();
+          }
+        }
+      }
+    }
+
+    // Ball with Scale Effect (height effect duringSwitch)
+    if (this.ball.state === 'moving') {
+      const r = BALL_RADIUS * (this.ball.scaleEffect || 1.0);
+      drawPixelCircle(ctx, this.ball.x, this.ball.y, r, C.ball, C.ballOutline, 1);
+    } else if (this.ball.state === 'held') {
+      const holder = this.players[this.currentPlayerIdx];
+      if (holder) drawBall(ctx, holder.x - 5, holder.y + 5);
+    }
+
+    // Fail mark
+    if (this.failMark) {
+      ctx.save();
+      ctx.globalAlpha = Math.min(this.failMark.alpha, 1);
+      ctx.strokeStyle = C.uiFail;
+      ctx.lineWidth = 2.5;
+      const fx = this.failMark.x;
+      const fy = this.failMark.y;
+      ctx.beginPath();
+      ctx.moveTo(fx - 6, fy - 6); ctx.lineTo(fx + 6, fy + 6);
+      ctx.moveTo(fx + 6, fy - 6); ctx.lineTo(fx - 6, fy + 6);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // Goal clear title
+    if (this.goalAnim) {
+      const f = this.goalAnim.frame;
+      const alpha = Math.min(f / 10, 1) * (1 - Math.max(0, f - 40) / 20);
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = C.uiAccent;
+      ctx.textAlign = 'center';
+      ctx.font = 'bold 24px "Outfit"';
+      ctx.fillText('PRESS BEATEN!', INTERNAL_W / 2, INTERNAL_H / 2 - 12 - f * 0.2);
+      ctx.restore();
+    }
+
+    // Particles
+    for (const p of this.particles) {
+      ctx.fillStyle = p.color;
+      ctx.globalAlpha = Math.min(p.life * 2, 1);
+      ctx.fillRect(p.x, p.y, p.size, p.size);
+    }
+    ctx.globalAlpha = 1;
+
+    ctx.restore();
+
+    this.renderHUD(ctx);
+
+    if (this.showIntro && this.currentLevel) {
+      this.renderIntro(ctx);
+    }
+
+    if (this.state === States.GAME_LOSE) {
+      this.renderLoseOverlay(ctx);
+    }
+  },
+
+  renderHUD(ctx) {
+    ctx.fillStyle = C.uiBg;
+    ctx.fillRect(0, 0, INTERNAL_W, 18);
+
+    // Lv title
+    ctx.fillStyle = C.uiText;
+    ctx.textAlign = 'left';
+    ctx.font = '600 9px "Outfit"';
+    ctx.fillText(`${getLevelTacticalLabel(this.levelId)}: ${this.currentLevel.name.toUpperCase()}`, 6, 12);
+
+    // Limit count
+    ctx.textAlign = 'center';
+    ctx.fillStyle = this.passCount >= this.passLimit ? C.uiFail : C.uiAccent;
+    ctx.font = 'bold 10px "Outfit"';
+    ctx.fillText(`Action Limit: ${this.passCount}/${this.passLimit}`, INTERNAL_W / 2, 12);
+
+    // Mute
+    ctx.textAlign = 'right';
+    ctx.font = 'bold 8px "Outfit"';
+    ctx.fillStyle = AudioMgr.muted ? '#555' : C.uiAccent;
+    ctx.fillText(AudioMgr.muted ? 'MUTED' : 'AUDIO', INTERNAL_W - 4, 12);
+
+    // Bottom action bar
+    ctx.fillStyle = C.uiBg;
+    ctx.fillRect(0, INTERNAL_H - 32, INTERNAL_W, 32);
+
+    // System commands
+    ctx.textAlign = 'left';
+    ctx.font = '600 7px "Outfit"';
+    ctx.fillStyle = C.uiText;
+    ctx.fillText('[ESC] LAB BOARD', 6, INTERNAL_H - 22);
+    ctx.fillText('[Z] ADJUST PASS', 6, INTERNAL_H - 14);
+    ctx.fillText('[R] RESET SHAPE', 6, INTERNAL_H - 6);
+
+    // ─── Render Tactical Actions Toolbar (5 buttons) ───
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = 'bold 7px "Outfit"';
+
+    const actions = ['pass', 'bounce', 'thirdMan', 'switchPlay', 'dropPivot'];
+    const labels = ['1:PASS', '2:BOUNCE', '3:3RD MAN', '4:SWITCH', '5:DROP DM'];
+    const btnW = 55;
+    const spacing = 18;
+    const yStart = 228;
+    const h = 22;
+
+    for (let i = 0; i < actions.length; i++) {
+      const actName = actions[i];
+      const bx = spacing + i * (btnW + spacing);
+      const isSelected = this.activeAction === actName;
+      
+      let countText = '∞';
+      let hasUses = true;
+      if (actName !== 'pass') {
+        const u = this.tacticalActions[actName] || 0;
+        countText = `x${u}`;
+        if (u <= 0) hasUses = false;
+      }
+
+      // Draw button container
+      if (isSelected) {
+        ctx.fillStyle = 'rgba(0, 245, 212, 0.22)';
+        ctx.strokeStyle = C.uiAccent;
+      } else {
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.03)';
+        ctx.strokeStyle = hasUses ? '#1d4e2d' : '#222538';
+      }
+      ctx.fillRect(bx, yStart, btnW, h);
+      ctx.strokeRect(bx, yStart, btnW, h);
+
+      // Label text
+      ctx.fillStyle = hasUses ? (isSelected ? C.uiAccent : '#fff') : '#555';
+      ctx.fillText(`${labels[i]} (${countText})`, bx + btnW / 2, yStart + h / 2 + 0.5);
+    }
+    ctx.restore();
+  },
+
+  renderIntro(ctx) {
+    ctx.save();
+    const alpha = Math.min(this.introTimer, 1);
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = 'rgba(5,5,15,0.85)';
+    ctx.fillRect(0, 0, INTERNAL_W, INTERNAL_H);
+
+    ctx.fillStyle = C.uiText;
+    ctx.textAlign = 'center';
+    ctx.font = 'bold 14px "Outfit"';
+    ctx.fillText(getLevelTacticalLabel(this.levelId), INTERNAL_W / 2, INTERNAL_H / 2 - 25);
+    ctx.font = 'bold 16px "Outfit"';
+    ctx.fillStyle = C.uiAccent;
+    ctx.fillText(this.currentLevel.name.toUpperCase(), INTERNAL_W / 2, INTERNAL_H / 2 - 8);
+
+    ctx.font = '600 9px "Outfit"';
+    ctx.fillStyle = '#e2e8f0';
+    ctx.fillText(this.currentLevel.intro, INTERNAL_W / 2, INTERNAL_H / 2 + 12);
+
+    ctx.font = '500 8px "Outfit"';
+    ctx.fillStyle = '#666';
+    ctx.fillText('Tap Screen to Begin Scenario', INTERNAL_W / 2, INTERNAL_H / 2 + 30);
+
+    ctx.restore();
+  },
+
+  renderLoseOverlay(ctx) {
+    ctx.save();
+    ctx.fillStyle = 'rgba(5,5,15,0.8)';
+    ctx.fillRect(0, INTERNAL_H / 2 - 38, INTERNAL_W, 76);
+
+    ctx.fillStyle = C.uiFail;
+    ctx.textAlign = 'center';
+    ctx.font = 'bold 14px "Outfit"';
+    ctx.fillText('DRILL INTERRUPTED!', INTERNAL_W / 2, INTERNAL_H / 2 - 12);
+
+    ctx.font = '500 8px "Outfit"';
+    ctx.fillStyle = '#888';
+    const reason = this.passCount >= this.passLimit ? 'Exceeded allowable actions' :
+                   this.checkSoftLockMsg() || 'Pass route intercepted by opponent block';
+    ctx.fillText(reason.toUpperCase(), INTERNAL_W / 2, INTERNAL_H / 2 + 2);
+
+    const btnY = INTERNAL_H / 2 + 18;
+
+    // Undo
+    if (this.passHistory.length > 0) {
+      ctx.fillStyle = C.btnBg;
+      ctx.fillRect(INTERNAL_W/2 - 58, btnY - 7, 46, 14);
+      ctx.strokeStyle = C.uiAccent;
+      ctx.lineWidth = 1;
+      ctx.strokeRect(INTERNAL_W/2 - 58, btnY - 7, 46, 14);
+      ctx.fillStyle = C.btnText;
+      ctx.font = 'bold 8px "Outfit"';
+      ctx.fillText('Adjust', INTERNAL_W/2 - 35, btnY + 2);
+    }
+
+    // Retry
+    ctx.fillStyle = '#7a1f1f';
+    ctx.fillRect(INTERNAL_W/2 + 12, btnY - 7, 46, 14);
+    ctx.strokeStyle = C.uiFail;
+    ctx.lineWidth = 1;
+    ctx.strokeRect(INTERNAL_W/2 + 12, btnY - 7, 46, 14);
+    ctx.fillStyle = C.btnText;
+    ctx.font = 'bold 8px "Outfit"';
+    ctx.fillText('Reset', INTERNAL_W/2 + 35, btnY + 2);
+
+    ctx.restore();
+  },
+
+  checkSoftLockMsg() {
+    if (this.passCount >= this.passLimit) return 'Exceeded allowable passes';
+    const holder = this.players[this.currentPlayerIdx];
+    if (!holder) return null;
+    const pRange = holder.passRange || 150;
+    let allOutOfRange = true;
+    for (let i = 0; i < this.players.length; i++) {
+      if (i === this.currentPlayerIdx) continue;
+      if (dist(holder, this.players[i]) <= pRange) { allOutOfRange = false; break; }
+    }
+    if (allOutOfRange) return 'All support options are out of pass range';
+    return 'Opponent cover shadows block all open lanes';
+  },
+
+  // ─── Result Screen ───
+  renderResult(ctx) {
+    ctx.fillStyle = C.titleBg;
+    ctx.fillRect(0, 0, INTERNAL_W, INTERNAL_H);
+
+    const cy = INTERNAL_H / 2;
+
+    ctx.fillStyle = C.uiAccent;
+    ctx.textAlign = 'center';
+    ctx.font = 'bold 18px "Outfit"';
+    ctx.fillText('PRESS ESCAPED!', INTERNAL_W / 2, cy - 44);
+
+    ctx.fillStyle = C.uiText;
+    ctx.font = '600 10px "Outfit"';
+    ctx.fillText(`${getLevelTacticalLabel(this.levelId)}: ${this.currentLevel.name.toUpperCase()}`, INTERNAL_W / 2, cy - 28);
+
+    // Large rating emblem S/A/B instead of stars
+    const grade = StorageMgr.starsToGrade(this.resultStars);
+    
+    // Bounce scale animation
+    let scale = 1;
+    if (this.starAnim.length > 0) {
+      const anim = this.starAnim[0]; // use first animation clock
+      if (anim && anim.frame >= 0) {
+        const t = anim.frame / anim.maxFrame;
+        scale = 1.0 + Math.sin(t * Math.PI) * 0.4;
+      }
+    }
+
+    ctx.save();
+    ctx.translate(INTERNAL_W / 2, cy + 2);
+    ctx.scale(scale, scale);
+
+    // Emblem background ring
+    ctx.strokeStyle = grade === 'S' ? C.uiAccent : (grade === 'A' ? C.passRisky : C.playerBlue);
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.arc(0, 0, 18, 0, Math.PI*2);
+    ctx.stroke();
+
+    // Emblem Grade Letter
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 20px "Outfit"';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(grade, 0, 1);
+    ctx.restore();
+
+    // Description text below rating
+    ctx.fillStyle = '#aaa';
+    ctx.font = '500 8px "Outfit"';
+    ctx.fillText(`GRADE: ${grade}   |   LINES BROKEN: ${this.resultLinesBroken || 0}`, INTERNAL_W / 2, cy + 26);
+    ctx.fillText(`Actions: ${this.resultPasses}/${this.currentLevel.optimalPasses}   |   INTO ${this.resultTargetChannel || 'ZONE'}`, INTERNAL_W / 2, cy + 36);
+
+    // Buttons
+    // Retry
+    ctx.fillStyle = C.btnBg;
+    ctx.fillRect(INTERNAL_W/2 - 62, cy + 44, 52, 14);
+    ctx.strokeStyle = C.uiAccent;
+    ctx.lineWidth = 1;
+    ctx.strokeRect(INTERNAL_W/2 - 62, cy + 44, 52, 14);
+    ctx.fillStyle = C.btnText;
+    ctx.font = 'bold 8px "Outfit"';
+    ctx.fillText('Reset Shape', INTERNAL_W/2 - 36, cy + 54);
+
+    // Next
+    const hasNext = LEVELS.find(l => l.id === this.levelId + 1);
+    if (hasNext) {
+      ctx.fillStyle = '#1e3d2a';
+      ctx.fillRect(INTERNAL_W/2 + 10, cy + 44, 52, 14);
+      ctx.strokeStyle = C.uiAccent;
+      ctx.lineWidth = 1;
+      ctx.strokeRect(INTERNAL_W/2 + 10, cy + 44, 52, 14);
+      ctx.fillStyle = C.btnText;
+      ctx.font = 'bold 8px "Outfit"';
+      ctx.fillText('Next Setup', INTERNAL_W/2 + 36, cy + 54);
+    }
+
+    // Copy Summary Button
+    ctx.fillStyle = C.btnBg;
+    ctx.fillRect(INTERNAL_W/2 - 40, cy + 62, 80, 12);
+    ctx.strokeStyle = C.uiAccent;
+    ctx.lineWidth = 1;
+    ctx.strokeRect(INTERNAL_W/2 - 40, cy + 62, 80, 12);
+    ctx.fillStyle = C.btnText;
+    ctx.font = 'bold 7px "Outfit"';
+    ctx.fillText('Share Summary', INTERNAL_W/2, cy + 69.5);
+
+    // Feedback message overlay
+    if (this.shareFeedbackMsg) {
+      ctx.fillStyle = C.uiAccent;
+      ctx.font = 'bold 7px "Outfit"';
+      ctx.fillText(this.shareFeedbackMsg, INTERNAL_W / 2, cy + 81);
+    }
+
+    // Map footer
+    ctx.fillStyle = '#666';
+    ctx.font = '500 7px "Outfit"';
+    ctx.fillText('Tap Screen or Back to Map List', INTERNAL_W / 2, cy + 90);
+  },
+};
+
+// ─── Start ───────────────────────────────────────
+window.addEventListener('DOMContentLoaded', () => Game.init());
+
+// ─── Console Test Functions ──────────────────────
+window._test = {
+  dist: (a, b) => dist(a, b),
+  lineCircleIntersect: (p1, p2, c, r) => lineCircleIntersect(p1, p2, c, r),
+  pointInCoverShadow: (p, d, h) => pointInCoverShadow(p, d, h),
+  lineIntersectsCoverShadow: (p1, p2, d, h) => lineIntersectsCoverShadow(p1, p2, d, h),
+  getGrade: (passes, optimal) => {
+    if (passes <= optimal) return 'S';
+    if (passes <= optimal + 1) return 'A';
+    return 'B';
+  },
+  storage: () => StorageMgr.data,
+  solveLevel(id) {
+    const lvl = LEVELS.find(l => l.id === id);
+    if (!lvl) return 'Level not found';
+
+    const initialPlayers = lvl.players.map(p => ({
+      x: p.x, y: p.y,
+      hasBall: !!p.hasBall,
+      passRange: p.passRange || 150
+    }));
+    const initialDefenders = lvl.defenders.map(d => ({
+      x: d.x, y: d.y,
+      type: d.type,
+      blockRadius: d.blockRadius,
+      coverShadowAngle: d.coverShadowAngle || 0,
+      coverShadowLength: d.coverShadowLength || 0,
+      patrolPath: d.patrolPath ? d.patrolPath.map(p => ({...p})) : null,
+      patrolIdx: 0,
+      patrolDir: 1,
+      speed: d.speed || 1,
+      alertRange: d.alertRange || 80
+    }));
+    const tz = lvl.targetZone;
+    if (!tz) return 'No target zone';
+    const tzCenter = { x: tz.x + tz.w / 2, y: tz.y + tz.h / 2 };
+    const startIdx = initialPlayers.findIndex(p => p.hasBall);
+
+    // Mirror of runtime advanceDefenders — uses the same shared stepDefender().
+    function advanceDefs(defs, players, holderIdx, prevHolderX) {
+      const holder = players[holderIdx];
+      return defs.map(d => stepDefender(d, holder, prevHolderX));
+    }
+
+    const queue = [{
+      idx: startIdx,
+      passes: 0,
+      path: ['START'],
+      players: initialPlayers,
+      defenders: initialDefenders,
+      actions: { ...lvl.tacticalActions }
+    }];
+
+    const visited = new Set();
+    const stateKey = (s) => {
+      const playerPos = s.players.map(p => `${Math.round(p.x)},${Math.round(p.y)}`).join('|');
+      const defPos = s.defenders.map(d => `${Math.round(d.x)},${Math.round(d.y)}`).join('|');
+      return `${s.idx}_${s.passes}_${playerPos}_${defPos}_b${s.actions.bounce}_t${s.actions.thirdMan}_s${s.actions.switchPlay}_d${s.actions.dropPivot}`;
+    };
+
+    visited.add(stateKey(queue[0]));
+
+    let iterations = 0;
+    while (queue.length > 0) {
+      iterations++;
+      if (iterations > 12000) break; // safeguard
+      const cur = queue.shift();
+      const from = cur.players[cur.idx];
+      const pRange = from.passRange || 150;
+
+      // 1. Direct Target Zone Check from current player (Normal Pass only)
+      if (dist(from, tzCenter) <= pRange) {
+        let blocked = false;
+        for (const d of cur.defenders) {
+          if (lineCircleIntersect(from, tzCenter, d, d.blockRadius) || lineIntersectsCoverShadow(from, tzCenter, d, from)) {
+            blocked = true; break;
+          }
+        }
+        if (!blocked && cur.passes + 1 <= lvl.passLimit) {
+          return { path: [...cur.path, 'ESCAPE_ZONE'], passes: cur.passes + 1, success: true };
+        }
+      }
+
+      // 2. Try actions & passes to teammates
+      for (let i = 0; i < cur.players.length; i++) {
+        if (i === cur.idx) continue;
+        const target = cur.players[i];
+
+        // 2-a. Normal pass
+        if (dist(from, target) <= pRange) {
+          let blocked = false;
+          for (const d of cur.defenders) {
+            if (lineCircleIntersect(from, target, d, d.blockRadius) || lineIntersectsCoverShadow(from, target, d, from)) {
+              blocked = true; break;
+            }
+          }
+          if (!blocked && cur.passes + 1 <= lvl.passLimit) {
+            // Apply pass: advance defenders
+            const nextDefenders = advanceDefs(cur.defenders, cur.players, i, from.x);
+            // Check if receiver is trapped in the new configuration
+            let trapped = false;
+            for (const d of nextDefenders) {
+              if (dist(target, d) < d.blockRadius || (d.type === 'presser' && pointInCoverShadow(target, d, from))) {
+                trapped = true; break;
+              }
+            }
+            if (!trapped) {
+              const inZone = pointInRect(target.x, target.y, tz.x, tz.y, tz.w, tz.h);
+              if (inZone) {
+                return { path: [...cur.path, `PASS(${i})`], passes: cur.passes + 1, success: true };
+              }
+              const nextState = {
+                idx: i,
+                passes: cur.passes + 1,
+                path: [...cur.path, `PASS(${i})`],
+                players: cur.players.map(p => ({...p})),
+                defenders: nextDefenders,
+                actions: { ...cur.actions }
+              };
+              const key = stateKey(nextState);
+              if (!visited.has(key)) {
+                visited.add(key);
+                queue.push(nextState);
+              }
+            }
+          }
+        }
+
+        // 2-b. Bounce Pass
+        if (cur.actions.bounce > 0) {
+          let connIdx = -1;
+          let minDist = 9999;
+          for (let j = 0; j < cur.players.length; j++) {
+            if (j !== cur.idx && j !== i) {
+              const d = dist(from, cur.players[j]) + dist(cur.players[j], target);
+              if (d < minDist) {
+                minDist = d;
+                connIdx = j;
+              }
+            }
+          }
+          if (connIdx >= 0) {
+            const conn = cur.players[connIdx];
+            let blocked1 = false, blocked2 = false;
+            for (const d of cur.defenders) {
+              if (lineCircleIntersect(from, conn, d, d.blockRadius) || lineIntersectsCoverShadow(from, conn, d, from)) blocked1 = true;
+              if (lineCircleIntersect(conn, target, d, d.blockRadius) || lineIntersectsCoverShadow(conn, target, d, conn)) blocked2 = true;
+            }
+            if (!blocked1 && !blocked2 && cur.passes + 1 <= lvl.passLimit) {
+              const nextDefenders = advanceDefs(cur.defenders, cur.players, i, from.x);
+              let trapped = false;
+              for (const d of nextDefenders) {
+                if (dist(target, d) < d.blockRadius || (d.type === 'presser' && pointInCoverShadow(target, d, conn))) {
+                  trapped = true; break;
+                }
+              }
+              if (!trapped) {
+                const inZone = pointInRect(target.x, target.y, tz.x, tz.y, tz.w, tz.h);
+                if (inZone) {
+                  return { path: [...cur.path, `BOUNCE(${connIdx}->${i})`], passes: cur.passes + 1, success: true };
+                }
+                const nextState = {
+                  idx: i,
+                  passes: cur.passes + 1,
+                  path: [...cur.path, `BOUNCE(${connIdx}->${i})`],
+                  players: cur.players.map(p => ({...p})),
+                  defenders: nextDefenders,
+                  actions: { ...cur.actions, bounce: cur.actions.bounce - 1 }
+                };
+                const key = stateKey(nextState);
+                if (!visited.has(key)) {
+                  visited.add(key);
+                  queue.push(nextState);
+                }
+              }
+            }
+          }
+        }
+
+        // 2-c. Switch Play
+        if (cur.actions.switchPlay > 0 && dist(from, target) >= 140) {
+          if (cur.passes + 1 <= lvl.passLimit) {
+            const nextDefenders = advanceDefs(cur.defenders, cur.players, i, from.x);
+            let trapped = false;
+            for (const d of nextDefenders) {
+              if (dist(target, d) < d.blockRadius) {
+                trapped = true; break;
+              }
+            }
+            if (!trapped) {
+              const inZone = pointInRect(target.x, target.y, tz.x, tz.y, tz.w, tz.h);
+              if (inZone) {
+                return { path: [...cur.path, `SWITCH(${i})`], passes: cur.passes + 1, success: true };
+              }
+              const nextState = {
+                idx: i,
+                passes: cur.passes + 1,
+                path: [...cur.path, `SWITCH(${i})`],
+                players: cur.players.map(p => ({...p})),
+                defenders: nextDefenders,
+                actions: { ...cur.actions, switchPlay: cur.actions.switchPlay - 1 }
+              };
+              const key = stateKey(nextState);
+              if (!visited.has(key)) {
+                visited.add(key);
+                queue.push(nextState);
+              }
+            }
+          }
+        }
+
+        // 2-d. Third-Man Run
+        if (cur.actions.thirdMan > 0) {
+          let runnerIdx = -1;
+          let maxX = -999;
+          for (let j = 0; j < cur.players.length; j++) {
+            if (j !== cur.idx && cur.players[j].x > maxX) {
+              maxX = cur.players[j].x;
+              runnerIdx = j;
+            }
+          }
+          if (runnerIdx === i) {
+            const tempPlayers = cur.players.map(p => ({...p}));
+            const runner = tempPlayers[runnerIdx];
+            const originalPos = { x: runner.x, y: runner.y };
+            
+            // Apply movement
+            runner.x += 40;
+            runner.y = runner.y < 128 ? runner.y + 15 : runner.y - 15;
+
+            let connIdx = -1;
+            let minDist = 9999;
+            for (let j = 0; j < tempPlayers.length; j++) {
+              if (j !== cur.idx && j !== runnerIdx) {
+                const d = dist(from, tempPlayers[j]);
+                if (d < minDist) {
+                  minDist = d;
+                  connIdx = j;
+                }
+              }
+            }
+            if (connIdx >= 0) {
+              const conn = tempPlayers[connIdx];
+              let blocked1 = false, blocked2 = false;
+              for (const d of cur.defenders) {
+                if (lineCircleIntersect(from, conn, d, d.blockRadius) || lineIntersectsCoverShadow(from, conn, d, from)) blocked1 = true;
+                if (lineCircleIntersect(conn, runner, d, d.blockRadius) || lineIntersectsCoverShadow(conn, runner, d, conn)) blocked2 = true;
+              }
+              if (!blocked1 && !blocked2 && cur.passes + 1 <= lvl.passLimit) {
+                const nextDefenders = advanceDefs(cur.defenders, tempPlayers, runnerIdx, from.x);
+                let trapped = false;
+                for (const d of nextDefenders) {
+                  if (dist(runner, d) < d.blockRadius || (d.type === 'presser' && pointInCoverShadow(runner, d, conn))) {
+                    trapped = true; break;
+                  }
+                }
+                if (!trapped) {
+                  const inZone = pointInRect(runner.x, runner.y, tz.x, tz.y, tz.w, tz.h);
+                  if (inZone) {
+                    return { path: [...cur.path, `3RD_MAN(${connIdx}->${runnerIdx})`], passes: cur.passes + 1, success: true };
+                  }
+                  const nextState = {
+                    idx: runnerIdx,
+                    passes: cur.passes + 1,
+                    path: [...cur.path, `3RD_MAN(${connIdx}->${runnerIdx})`],
+                    players: tempPlayers,
+                    defenders: nextDefenders,
+                    actions: { ...cur.actions, thirdMan: cur.actions.thirdMan - 1 }
+                  };
+                  const key = stateKey(nextState);
+                  if (!visited.has(key)) {
+                    visited.add(key);
+                    queue.push(nextState);
+                  }
+                }
+              }
+            }
+          }
+        }
+
+        // 2-e. Drop Pivot
+        if (cur.actions.dropPivot > 0) {
+          let pivotIdx = -1;
+          for (let j = 0; j < cur.players.length; j++) {
+            if (j !== cur.idx && cur.players[j].x >= 120 && cur.players[j].x <= 190) {
+              pivotIdx = j;
+              break;
+            }
+          }
+          if (pivotIdx === i) {
+            const tempPlayers = cur.players.map(p => ({...p}));
+            const pivot = tempPlayers[pivotIdx];
+            pivot.x = 95;
+            pivot.y = 128;
+
+            if (dist(from, pivot) <= pRange) {
+              let blocked = false;
+              for (const d of cur.defenders) {
+                if (lineCircleIntersect(from, pivot, d, d.blockRadius) || lineIntersectsCoverShadow(from, pivot, d, from)) {
+                  blocked = true; break;
+                }
+              }
+              if (!blocked && cur.passes + 1 <= lvl.passLimit) {
+                const nextDefenders = advanceDefs(cur.defenders, tempPlayers, pivotIdx, from.x);
+                let trapped = false;
+                for (const d of nextDefenders) {
+                  if (dist(pivot, d) < d.blockRadius || (d.type === 'presser' && pointInCoverShadow(pivot, d, from))) {
+                    trapped = true; break;
+                  }
+                }
+                if (!trapped) {
+                  const inZone = pointInRect(pivot.x, pivot.y, tz.x, tz.y, tz.w, tz.h);
+                  if (inZone) {
+                    return { path: [...cur.path, `DROP_PIVOT(${pivotIdx})`], passes: cur.passes + 1, success: true };
+                  }
+                  const nextState = {
+                    idx: pivotIdx,
+                    passes: cur.passes + 1,
+                    path: [...cur.path, `DROP_PIVOT(${pivotIdx})`],
+                    players: tempPlayers,
+                    defenders: nextDefenders,
+                    actions: { ...cur.actions, dropPivot: cur.actions.dropPivot - 1 }
+                  };
+                  const key = stateKey(nextState);
+                  if (!visited.has(key)) {
+                    visited.add(key);
+                    queue.push(nextState);
+                  }
+                }
+              }
+            }
+          }
+        }
+
+      }
+    }
+
+    return { success: false, path: null, passes: 0 };
+  },
+
+  solveAllLevels() {
+    console.log('%c--- BUILD-UP LAB BFS SOLVER REPORT ---', 'color:#00f5d4; font-weight:bold;');
+    console.log('%cValidating all 20 tactical scenarios...', 'color:#aaa;');
+    let passCount = 0;
+    const results = [];
+    
+    LEVELS.forEach(lvl => {
+      const res = this.solveLevel(lvl.id);
+      if (res && res.success) {
+        const rating = this.getGrade(res.passes, lvl.optimalPasses);
+        const limitOk = res.passes <= lvl.passLimit;
+        const ratingOk = res.passes <= lvl.optimalPasses;
+        const logColor = rating === 'S' ? 'color:#00f5d4;' : (rating === 'A' ? 'color:#f2a019;' : 'color:#3a86ff;');
+        console.log(`%c[Scenario ${lvl.id}] ${lvl.name} -> Solved in ${res.passes} passes (Opt: ${lvl.optimalPasses}, Limit: ${lvl.passLimit}) | Rating: ${rating} | Path: ${res.path.join(' -> ')}`, logColor);
+        results.push({ id: lvl.id, name: lvl.name, solved: true, passes: res.passes, optimal: lvl.optimalPasses, limit: lvl.passLimit, rating, path: res.path });
+        passCount++;
+      } else {
+        console.error(`[Scenario ${lvl.id}] ${lvl.name} -> %cNO SOLUTION FOUND within limit!`, 'font-weight:bold;');
+        results.push({ id: lvl.id, name: lvl.name, solved: false });
+      }
+    });
+
+    console.log('%c---------------------------------------', 'color:#aaa;');
+    console.log(`Result: ${passCount} / ${LEVELS.length} levels solved successfully.`);
+    return results;
+  }
+};
+
+})();
+</script>
+
+</body>
+</html>
