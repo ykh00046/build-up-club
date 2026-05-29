@@ -5,47 +5,790 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <meta name="description" content="Build-Up Lab — A tactical football puzzle game. Escape the high press and find the free man using bounce passes, third-man runs, and tactical switches.">
 <title>📋 Build-Up Lab — Beat the Press</title>
+<script src="https://game-cdn.poki.com/scripts/v2/poki-sdk.js"></script>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Outfit:wght@400;600;800&display=swap');
+
+  :root {
+    --bg-dark: #030408;
+    --panel-bg: rgba(6, 12, 10, 0.72);
+    --border-teal: rgba(0, 245, 212, 0.18);
+    --border-glow: rgba(0, 245, 212, 0.35);
+    --text-main: #f8f9fa;
+    --text-muted: #8e9e95;
+    --accent-amber: #f5a623;
+    --accent-mint: #10b981;
+    --accent-crimson: #eb5757;
+  }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
   body {
-    background: #05050f;
+    background: var(--bg-dark);
+    color: var(--text-main);
+    font-family: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+    min-height: 100vh;
+    overflow: hidden;
     display: flex;
     justify-content: center;
     align-items: center;
-    min-height: 100vh;
-    overflow: hidden;
-    font-family: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   }
 
-  #game-wrapper {
-    position: relative;
-    background: #000;
-    border: 3px solid #1a3a3a;
-    box-shadow: 0 0 40px rgba(0, 245, 212, 0.12), inset 0 0 20px rgba(0,0,0,0.8);
+  /* 🎥 Studio Layout Container */
+  #studio-container {
+    display: flex;
+    flex-direction: column;
+    width: 100vw;
+    height: 100vh;
+    padding: 12px;
+    gap: 10px;
+    background: radial-gradient(circle at center, #0a110f 0%, #030408 100%);
+  }
+
+  /* 📺 Top Scoreboard Header */
+  #studio-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    height: 38px;
+    padding: 0 16px;
+    background: var(--panel-bg);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--border-teal);
     border-radius: 6px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+  }
+
+  #studio-header .logo {
+    font-weight: 800;
+    font-size: 13px;
+    letter-spacing: 0.8px;
+    color: var(--text-main);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  #studio-header .logo span {
+    color: var(--accent-amber);
+  }
+
+  #studio-header .subtitle {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--accent-mint);
+    font-weight: 600;
+  }
+
+  .technical-btn {
+    background: rgba(21, 36, 29, 0.6);
+    border: 1px solid var(--border-teal);
+    color: var(--accent-amber);
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 9px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .technical-btn:hover {
+    background: rgba(27, 50, 39, 0.9);
+    border-color: var(--accent-amber);
+  }
+
+  /* 🌐 Language toggle */
+  .lang-toggle {
+    display: inline-flex;
+    border: 1px solid var(--border-teal);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .lang-btn {
+    background: rgba(21, 36, 29, 0.6);
+    border: none;
+    border-right: 1px solid var(--border-teal);
+    color: #8a9a92;
+    padding: 4px 8px;
+    font-size: 9px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .lang-btn:last-child { border-right: none; }
+  .lang-btn:hover { background: rgba(27, 50, 39, 0.9); color: #fff; }
+  .lang-btn.active { background: var(--accent-amber); color: #08100d; }
+
+  /* 🎛️ Three-Column Workspace */
+  #studio-body {
+    display: flex;
+    flex: 1;
+    gap: 10px;
+    overflow: hidden;
+  }
+
+  .glass-panel {
+    background: var(--panel-bg);
+    backdrop-filter: blur(14px);
+    border: 1px solid var(--border-teal);
+    border-radius: 6px;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    transition: border-color 0.3s ease;
+  }
+
+  .glass-panel:hover {
+    border-color: rgba(0, 245, 212, 0.28);
+  }
+
+  .panel-header {
+    font-weight: 800;
+    font-size: 9px;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+    padding: 10px 14px 6px 14px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+    text-transform: uppercase;
+  }
+
+  /* 📁 Left Sidebar: Scenarios */
+  #left-sidebar {
+    width: 250px;
+    flex-shrink: 0;
+  }
+
+  .tab-selectors {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 2px;
+    padding: 6px 10px;
+  }
+
+  .tab-btn {
+    background: rgba(255,255,255,0.02);
+    border: 1px solid rgba(255,255,255,0.05);
+    color: #6b7c72;
+    font-size: 8px;
+    font-weight: 800;
+    padding: 5px 0;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .tab-btn.active {
+    background: rgba(0, 245, 212, 0.08);
+    border-color: var(--accent-amber);
+    color: var(--accent-amber);
+  }
+
+  .tab-btn:hover:not(.active) {
+    background: rgba(255,255,255,0.05);
+    color: var(--text-main);
+  }
+
+  .scrollable-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 6px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  /* Scrollbar Customization */
+  .scrollable-list::-webkit-scrollbar {
+    width: 4px;
+  }
+  .scrollable-list::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollable-list::-webkit-scrollbar-thumb {
+    background: rgba(0, 245, 212, 0.2);
+    border-radius: 2px;
+  }
+
+  .scenario-card {
+    background: rgba(255,255,255,0.02);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    border-radius: 4px;
+    padding: 8px 10px;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: all 0.2s ease;
+  }
+
+  .scenario-card:hover {
+    background: rgba(0, 245, 212, 0.05);
+    border-color: var(--accent-amber);
+  }
+
+  .scenario-card.active {
+    background: rgba(0, 245, 212, 0.08);
+    border-color: var(--accent-amber);
+    box-shadow: inset 0 0 10px rgba(245, 166, 35, 0.1);
+  }
+
+  .scenario-card.locked {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
+
+  .scenario-card.locked:hover {
+    border-color: rgba(255,255,255,0.04);
+    background: rgba(255,255,255,0.02);
+  }
+
+  .scenario-card .card-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .scenario-card .card-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 7px;
+    color: var(--accent-mint);
+    font-weight: 600;
+  }
+
+  .scenario-card .card-name {
+    font-size: 10px;
+    font-weight: 800;
+    color: var(--text-main);
+  }
+
+  .scenario-card .card-meta {
+    font-size: 7px;
+    color: var(--text-muted);
+  }
+
+  .scenario-card .card-grade {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.05);
+    border: 1px dashed rgba(255,255,255,0.15);
+    font-size: 9px;
+    font-weight: 800;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: var(--text-muted);
+  }
+
+  .scenario-card.active .card-name {
+    color: var(--accent-amber);
+  }
+
+  .scenario-card .card-grade.grade-s { background: rgba(245,166,35,0.15); border: 1px solid var(--accent-amber); color: var(--accent-amber); }
+  .scenario-card .card-grade.grade-a { background: rgba(16,185,129,0.15); border: 1px solid var(--accent-mint); color: var(--accent-mint); }
+  .scenario-card .card-grade.grade-b { background: rgba(248,249,250,0.15); border: 1px solid var(--text-main); color: var(--text-main); }
+
+  /* ⚽ Center Column: Pitch + Actions */
+  #center-column {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    overflow: hidden;
+  }
+
+  #pitch-container {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+    padding: 10px;
+    position: relative;
   }
 
   canvas {
     display: block;
-    cursor: pointer;
+    max-width: 100%;
+    max-height: 100%;
+    border-radius: 4px;
+    box-shadow: 0 0 30px rgba(0,0,0,0.7);
   }
 
-  #ui-overlay {
-    position: absolute;
+  /* ⚙️ Tactical Actions Toolbar */
+  #action-toolbar {
+    height: 48px;
+    flex-shrink: 0;
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 6px;
+    padding: 6px 12px;
+  }
+
+  .action-card {
+    background: rgba(255, 255, 255, 0.015);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    padding: 0 10px;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+  }
+
+  .action-card:hover:not(.disabled) {
+    background: rgba(0, 245, 212, 0.04);
+    border-color: var(--accent-amber);
+    transform: translateY(-1px);
+  }
+
+  .action-card.active {
+    background: rgba(245, 166, 35, 0.12);
+    border-color: var(--accent-amber);
+    box-shadow: 0 0 12px rgba(245, 166, 35, 0.15);
+  }
+
+  .action-card.disabled {
+    opacity: 0.25;
+    cursor: not-allowed;
+  }
+
+  .action-card .key {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 8px;
+    font-weight: 800;
+    color: var(--text-muted);
+    background: rgba(255,255,255,0.04);
+    padding: 2px 5px;
+    border-radius: 3px;
+    margin-right: 8px;
+  }
+
+  .action-card.active .key {
+    background: var(--accent-amber);
+    color: #000;
+  }
+
+  .action-card .card-text {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .action-card .title {
+    font-size: 9px;
+    font-weight: 800;
+    color: var(--text-main);
+  }
+
+  .action-card.active .title {
+    color: var(--accent-amber);
+  }
+
+  .action-card .subtitle {
+    font-size: 6px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+  }
+
+  .action-card .count {
+    margin-left: auto;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    font-weight: 800;
+    color: var(--accent-mint);
+  }
+
+  .action-card.disabled .count {
+    color: var(--accent-crimson);
+  }
+
+  #coaching-feed-footer {
+    height: 18px;
+    font-size: 7.5px;
+    color: var(--text-muted);
+    padding: 0 12px;
+    display: flex;
+    align-items: center;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* 📊 Right Sidebar: Feed & Analytics */
+  #right-sidebar {
+    width: 260px;
+    flex-shrink: 0;
+  }
+
+  .stats-box {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 10px 14px;
+    background: rgba(255,255,255,0.01);
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+  }
+
+  .stat-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .stat-row .label {
+    font-size: 8px;
+    font-weight: 800;
+    color: var(--text-muted);
+  }
+
+  .stat-row .value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    font-weight: 800;
+    color: var(--text-main);
+  }
+
+  .stat-row #stat-active-zone {
+    color: var(--accent-amber);
+  }
+
+  .stat-row #stat-action-limit {
+    color: var(--accent-amber);
+  }
+
+  /* 📋 Ticker Box */
+  .ticker-box {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .ticker-line {
+    display: flex;
+    gap: 6px;
+    line-height: 1.2;
+    padding: 4px 6px;
+    border-radius: 3px;
+    background: rgba(255,255,255,0.01);
+    border: 1px solid rgba(255,255,255,0.02);
+  }
+
+  .ticker-line .step {
+    color: var(--accent-amber);
+    font-weight: 800;
+  }
+
+  .ticker-line .text {
+    color: var(--text-main);
+  }
+
+  .ticker-line.active {
+    background: rgba(0, 245, 212, 0.03);
+    border-color: rgba(0, 245, 212, 0.15);
+  }
+
+  .ticker-line.active .text {
+    color: var(--accent-amber);
+  }
+
+  .ticker-line.win {
+    background: rgba(16,185,129,0.08);
+    border-color: var(--accent-mint);
+  }
+  .ticker-line.win .text { color: var(--accent-mint); }
+
+  .ticker-line.trap {
+    background: rgba(235,87,87,0.08);
+    border-color: var(--accent-crimson);
+  }
+  .ticker-line.trap .text { color: var(--accent-crimson); }
+
+  /* 🎬 Interactive HUD Modals & Overlays */
+  .modal-overlay {
+    position: fixed;
     top: 0; left: 0;
-    width: 100%; height: 100%;
+    width: 100vw; height: 100vh;
+    background: rgba(3, 4, 8, 0.85);
+    z-index: 999;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    backdrop-filter: blur(8px);
+    transition: opacity 0.3s ease;
+  }
+
+  .modal-overlay.hidden {
+    opacity: 0;
     pointer-events: none;
   }
 
+  .modal-content {
+    width: 380px;
+    padding: 24px;
+    border-radius: 8px;
+    text-align: center;
+    position: relative;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.8);
+    animation: modalSlide 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+  }
+
+  @keyframes modalSlide {
+    from { transform: translateY(20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+
+  .modal-content .badge {
+    display: inline-block;
+    background: rgba(0, 245, 212, 0.1);
+    border: 1px solid var(--border-teal);
+    color: var(--accent-mint);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 8px;
+    font-weight: 800;
+    padding: 3px 8px;
+    border-radius: 3px;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+  }
+
+  .modal-content h2 {
+    font-size: 18px;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    margin-bottom: 12px;
+  }
+
+  .divider {
+    border: 0;
+    height: 1px;
+    background: linear-gradient(to right, transparent, rgba(255,255,255,0.08), transparent);
+    margin-bottom: 14px;
+  }
+
+  .meta-info {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    font-size: 7.5px;
+    color: var(--text-muted);
+    margin-bottom: 16px;
+  }
+
+  .meta-info span {
+    display: block;
+    color: var(--text-main);
+    font-weight: 600;
+    font-size: 8px;
+    margin-top: 2px;
+  }
+
+  .briefing-box {
+    background: rgba(0,0,0,0.3);
+    border: 1px solid rgba(255,255,255,0.03);
+    border-radius: 4px;
+    padding: 12px;
+    text-align: left;
+    margin-bottom: 20px;
+  }
+
+  .briefing-box h3 {
+    font-size: 8.5px;
+    letter-spacing: 0.5px;
+    color: var(--accent-amber);
+    margin-bottom: 4px;
+    text-transform: uppercase;
+  }
+
+  .briefing-box p {
+    font-size: 10px;
+    color: #b0c0b5;
+    line-height: 1.4;
+  }
+
+  .start-btn {
+    width: 100%;
+    background: var(--accent-amber);
+    border: 0;
+    color: #000;
+    font-weight: 800;
+    font-size: 11px;
+    padding: 10px 0;
+    border-radius: 4px;
+    cursor: pointer;
+    letter-spacing: 0.5px;
+    transition: all 0.2s ease;
+  }
+
+  .start-btn:hover {
+    background: #ffb83d;
+    box-shadow: 0 0 15px rgba(245, 166, 35, 0.4);
+  }
+
+  /* Lose Modal */
+  .error-border {
+    border-color: rgba(235, 87, 87, 0.35) !important;
+    box-shadow: 0 0 30px rgba(235, 87, 87, 0.15), 0 20px 50px rgba(0,0,0,0.8) !important;
+  }
+  .error-text { color: var(--accent-crimson); }
+
+  .modal-content #lose-reason {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    color: var(--text-muted);
+    margin-bottom: 20px;
+    text-transform: uppercase;
+  }
+
+  .modal-actions {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .action-btn {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border-teal);
+    color: var(--text-main);
+    font-size: 10px;
+    font-weight: 800;
+    padding: 9px 0;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .action-btn:hover {
+    background: rgba(255,255,255,0.06);
+    border-color: var(--text-main);
+  }
+
+  .action-btn.error-bg {
+    background: rgba(235, 87, 87, 0.1);
+    border-color: var(--accent-crimson);
+    color: var(--accent-crimson);
+  }
+  .action-btn.error-bg:hover {
+    background: rgba(235, 87, 87, 0.2);
+  }
+
+  /* Result Modal */
+  .success-border {
+    border-color: rgba(16, 185, 129, 0.35) !important;
+    box-shadow: 0 0 30px rgba(16, 185, 129, 0.15), 0 20px 50px rgba(0,0,0,0.8) !important;
+  }
+  .success-text { color: var(--accent-mint); }
+
+  .modal-content #result-drill-name {
+    font-size: 10px;
+    color: var(--text-muted);
+    margin-bottom: 16px;
+    text-transform: uppercase;
+  }
+
+  .result-stats {
+    display: grid;
+    grid-template-columns: 80px 1fr;
+    gap: 16px;
+    align-items: center;
+    background: rgba(0,0,0,0.2);
+    border: 1px solid rgba(255,255,255,0.02);
+    border-radius: 4px;
+    padding: 14px;
+    margin-bottom: 20px;
+  }
+
+  .grade-emblem-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .grade-emblem {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: rgba(245, 166, 35, 0.1);
+    border: 2.5px solid var(--accent-amber);
+    color: #fff;
+    font-size: 22px;
+    font-weight: 800;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    box-shadow: 0 0 15px rgba(245, 166, 35, 0.2);
+  }
+
+  .grade-label {
+    font-size: 6.5px;
+    font-weight: 800;
+    color: var(--text-muted);
+    text-transform: uppercase;
+  }
+
+  .details-container {
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .details-container p {
+    font-size: 10px;
+    color: var(--text-muted);
+  }
+
+  .details-container span {
+    color: var(--text-main);
+    font-weight: 800;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .action-btn.success-bg {
+    background: rgba(16, 185, 129, 0.12);
+    border-color: var(--accent-mint);
+    color: var(--accent-mint);
+  }
+  .action-btn.success-bg:hover {
+    background: rgba(16, 185, 129, 0.2);
+  }
+
+  .share-btn {
+    width: 100%;
+    background: rgba(255,255,255,0.015);
+    border: 1px solid rgba(255,255,255,0.05);
+    color: var(--text-muted);
+    font-size: 9px;
+    font-weight: 800;
+    padding: 7px 0;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .share-btn:hover {
+    background: rgba(255,255,255,0.04);
+    color: var(--text-main);
+  }
+
+  .feedback-msg {
+    font-size: 8px;
+    color: var(--accent-amber);
+    margin-top: 6px;
+    font-weight: 600;
+    height: 10px;
+  }
+
+  /* 📱 Landscape Device Warning */
   #portrait-warning {
     display: none;
     position: fixed;
     top: 0; left: 0;
     width: 100vw; height: 100vh;
-    background: #05050f;
+    background: #030408;
     z-index: 9999;
     color: #fff;
     flex-direction: column;
@@ -72,10 +815,22 @@
     100% { transform: rotate(0deg); }
   }
 
-  @media (orientation: portrait) and (max-width: 768px) {
+  @media (orientation: portrait) and (max-width: 900px) {
     #portrait-warning {
       display: flex;
     }
+  }
+  .editor-tool-card {
+    transition: all 0.2s ease;
+  }
+  .editor-tool-card:hover {
+    background: rgba(255, 255, 255, 0.05) !important;
+    border-color: var(--accent-amber) !important;
+  }
+  .editor-tool-card.active {
+    background: rgba(245, 166, 35, 0.12) !important;
+    border-color: var(--accent-amber) !important;
+    box-shadow: 0 0 12px rgba(245, 166, 35, 0.15) !important;
   }
 </style>
 </head>
@@ -84,1108 +839,387 @@
 <div id="portrait-warning">
   <div class="icon">📱</div>
   <h2>Rotate Your Device</h2>
-  <p style="color: #00f5d4; font-size: 11px; margin-top: 8px; font-weight: 600;">BUILD-UP LAB IS BEST PLAYED IN LANDSCAPE MODE.</p>
+  <p style="color: var(--accent-amber); font-size: 11px; margin-top: 8px; font-weight: 600;">BUILD-UP LAB IS BEST PLAYED IN LANDSCAPE MODE.</p>
 </div>
 
-<div id="game-wrapper">
-  <canvas id="game-canvas"></canvas>
+<!-- 📺 Studio UI container -->
+<div id="studio-container">
+  
+  <!-- Top Scoreboard Header -->
+  <header id="studio-header">
+    <div class="logo">📋 BUILD-UP LAB — <span data-i18n="header.subtitle">MATCHDAY ANALYTICS</span></div>
+    <div class="subtitle" data-i18n="header.board">TACTICAL BOARD V2.0</div>
+    <div style="display: flex; gap: 8px; align-items: center;">
+      <div id="lang-toggle" class="lang-toggle">
+        <button class="lang-btn" data-lang="en">EN</button>
+        <button class="lang-btn" data-lang="ko">한</button>
+        <button class="lang-btn" data-lang="ja">日</button>
+      </div>
+      <button id="hint-btn" class="technical-btn" style="color: var(--accent-amber); border-color: var(--accent-amber); font-weight: bold; background: rgba(245, 166, 35, 0.08); box-shadow: 0 0 8px rgba(245, 166, 35, 0.15); display: flex; align-items: center; gap: 4px;" data-i18n="btn.hint">HINT 💡</button>
+      <button id="audio-toggle-btn" class="technical-btn">AUDIO: ON</button>
+    </div>
+  </header>
+
+  <!-- 🎛️ Three-Column Workspace -->
+  <div id="studio-body">
+    
+    <!-- 📁 Left Sidebar: Scenarios -->
+    <aside id="left-sidebar" class="glass-panel">
+      <div class="panel-header" data-i18n="panel.scenarios">SCENARIOS DIRECTORY</div>
+      <div class="tab-selectors">
+        <button class="tab-btn active" data-tab="0" data-i18n="tab.0">TUTS</button>
+        <button class="tab-btn" data-tab="1" data-i18n="tab.1">PATS</button>
+        <button class="tab-btn" data-tab="2" data-i18n="tab.2">SHAPES</button>
+        <button class="tab-btn" data-tab="3" data-i18n="tab.3">ADV</button>
+        <button class="tab-btn" data-tab="4" data-i18n="tab.4">GED</button>
+      </div>
+      <div id="scenario-list" class="scrollable-list">
+        <!-- populated dynamically -->
+      </div>
+      <div style="padding: 10px; border-top: 1px solid rgba(255,255,255,0.03); display: flex; flex-direction: column; gap: 6px;">
+        <button id="editor-mode-btn" class="technical-btn" style="width: 100%; text-align: center; color: var(--accent-amber); border-color: var(--accent-amber); font-weight: bold;">DRILL EDITOR 🛠️</button>
+      </div>
+    </aside>
+
+    <!-- ⚽ Center Column: Pitch -->
+    <main id="center-column">
+      <div id="pitch-container" class="glass-panel">
+        <canvas id="game-canvas"></canvas>
+      </div>
+
+      <!-- ⚙️ Tactical Actions Toolbar -->
+      <div id="action-toolbar" class="glass-panel">
+        <button class="action-card" data-action="pass">
+          <div class="key">1</div>
+          <div class="card-text">
+            <div class="title" data-i18n="action.pass.title">PASS</div>
+            <div class="subtitle" data-i18n="action.pass.sub">direct lane</div>
+          </div>
+          <div class="count">∞</div>
+        </button>
+        <button class="action-card" data-action="bounce">
+          <div class="key">2</div>
+          <div class="card-text">
+            <div class="title" data-i18n="action.bounce.title">BOUNCE</div>
+            <div class="subtitle" data-i18n="action.bounce.sub">one-two</div>
+          </div>
+          <div id="count-bounce" class="count">x0</div>
+        </button>
+        <button class="action-card" data-action="thirdMan">
+          <div class="key">3</div>
+          <div class="card-text">
+            <div class="title" data-i18n="action.thirdMan.title">3RD MAN</div>
+            <div class="subtitle" data-i18n="action.thirdMan.sub">blind-side</div>
+          </div>
+          <div id="count-thirdMan" class="count">x0</div>
+        </button>
+        <button class="action-card" data-action="switchPlay">
+          <div class="key">4</div>
+          <div class="card-text">
+            <div class="title" data-i18n="action.switchPlay.title">SWITCH</div>
+            <div class="subtitle" data-i18n="action.switchPlay.sub">far-side</div>
+          </div>
+          <div id="count-switchPlay" class="count">x0</div>
+        </button>
+        <button class="action-card" data-action="dropPivot">
+          <div class="key">5</div>
+          <div class="card-text">
+            <div class="title" data-i18n="action.dropPivot.title">DROP DM</div>
+            <div class="subtitle" data-i18n="action.dropPivot.sub">deep support</div>
+          </div>
+          <div id="count-dropPivot" class="count">x0</div>
+        </button>
+      </div>
+
+      <!-- 🛠️ Tactical Editor Toolbar -->
+      <div id="editor-toolbar" class="glass-panel" style="display: none; height: 48px; flex-shrink: 0; grid-template-columns: repeat(7, 1fr); gap: 6px; padding: 6px 12px;">
+        <button class="editor-tool-card active" data-tool="attacker" style="background: rgba(255, 255, 255, 0.015); border: 1px solid rgba(255, 255, 255, 0.04); border-radius: 4px; color: var(--text-main); font-size: 8px; font-weight: 800; cursor: pointer; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 2px;">
+          <span>👤 ATTACKER</span>
+          <span style="font-size: 6px; color: var(--text-muted);">Place player</span>
+        </button>
+        <button class="editor-tool-card" data-tool="defender" style="background: rgba(255, 255, 255, 0.015); border: 1px solid rgba(255, 255, 255, 0.04); border-radius: 4px; color: var(--text-main); font-size: 8px; font-weight: 800; cursor: pointer; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 2px;">
+          <span>🔴 DEFENDER</span>
+          <span style="font-size: 6px; color: var(--text-muted);">Place presser</span>
+        </button>
+        <button class="editor-tool-card" data-tool="target" style="background: rgba(255, 255, 255, 0.015); border: 1px solid rgba(255, 255, 255, 0.04); border-radius: 4px; color: var(--text-main); font-size: 8px; font-weight: 800; cursor: pointer; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 2px;">
+          <span>🎯 TARGET ZONE</span>
+          <span style="font-size: 6px; color: var(--text-muted);">Set escape</span>
+        </button>
+        <button class="editor-tool-card" data-tool="trap" style="background: rgba(255, 255, 255, 0.015); border: 1px solid rgba(255, 255, 255, 0.04); border-radius: 4px; color: var(--text-main); font-size: 8px; font-weight: 800; cursor: pointer; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 2px;">
+          <span>⚠️ TRAP ZONE</span>
+          <span style="font-size: 6px; color: var(--text-muted);">Place trap</span>
+        </button>
+        <button class="editor-tool-card" data-tool="eraser" style="background: rgba(255, 255, 255, 0.015); border: 1px solid rgba(255, 255, 255, 0.04); border-radius: 4px; color: var(--accent-crimson); font-size: 8px; font-weight: 800; cursor: pointer; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 2px;">
+          <span>❌ ERASE</span>
+          <span style="font-size: 6px; color: var(--text-muted);">Remove item</span>
+        </button>
+        <button id="editor-share-btn" class="editor-tool-card" style="background: rgba(245, 166, 35, 0.08); border: 1px solid var(--accent-amber); border-radius: 4px; color: var(--accent-amber); font-size: 8px; font-weight: 800; cursor: pointer; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 2px;">
+          <span>🔗 SHARE</span>
+          <span style="font-size: 6px; color: var(--accent-amber);">Get URL Link</span>
+        </button>
+        <button id="editor-play-btn" class="editor-tool-card" style="background: rgba(16, 185, 129, 0.08); border: 1px solid var(--accent-mint); border-radius: 4px; color: var(--accent-mint); font-size: 8px; font-weight: 800; cursor: pointer; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 2px;">
+          <span>▶️ TEST</span>
+          <span style="font-size: 6px; color: var(--accent-mint);">Play level</span>
+        </button>
+      </div>
+      
+      <!-- Bottom helper feedback -->
+      <div id="coaching-feed-footer" data-i18n="coach.note">
+        COACHING NOTE: Play the direct pass or select a tactical action.
+      </div>
+    </main>
+
+    <!-- 📊 Right Sidebar: Feed & Stats -->
+    <aside id="right-sidebar" class="glass-panel">
+      <div class="panel-header" data-i18n="panel.feed">LIVE ANALYTICAL FEED</div>
+
+      <div class="stats-box">
+        <div class="stat-row">
+          <span class="label" data-i18n="stat.ourShape">OUR SHAPE:</span>
+          <span id="stat-our-shape" class="value">-</span>
+        </div>
+        <div class="stat-row">
+          <span class="label" data-i18n="stat.pressShape">PRESS SHAPE:</span>
+          <span id="stat-opp-shape" class="value">-</span>
+        </div>
+        <div class="stat-row">
+          <span class="label" data-i18n="stat.actionLimit">ACTION LIMIT:</span>
+          <span id="stat-action-limit" class="value">-</span>
+        </div>
+        <div class="stat-row">
+          <span class="label" data-i18n="stat.linesBroken">LINES BROKEN:</span>
+          <span id="stat-lines-broken" class="value">0</span>
+        </div>
+        <div class="stat-row">
+          <span class="label" data-i18n="stat.activeZone">ACTIVE ZONE:</span>
+          <span id="stat-active-zone" class="value">-</span>
+        </div>
+      </div>
+
+      <div class="panel-header" style="border-top: 1px solid rgba(255,255,255,0.03); margin-top: 5px;" data-i18n="panel.ticker">LIVE ACTION TICKER</div>
+      <div id="live-action-ticker" class="scrollable-list ticker-box" style="flex: 1; overflow-y: auto;">
+        <!-- ticker logs populated dynamically -->
+      </div>
+
+      <div class="panel-header" style="border-top: 1px solid rgba(255,255,255,0.03); margin-top: 5px;">TACTICAL GUIDES</div>
+      <div class="guides-box" style="padding: 10px 14px; display: flex; flex-direction: column; gap: 8px; background: rgba(255,255,255,0.01);">
+        <label style="display: flex; align-items: center; gap: 8px; font-size: 8.5px; font-weight: 800; color: var(--text-muted); cursor: pointer; letter-spacing: 0.5px;">
+          <input type="checkbox" id="chk-guide-radius" checked style="accent-color: var(--accent-amber); cursor: pointer; width: 11px; height: 11px;"> PRESSING RADIUS
+        </label>
+        <label style="display: flex; align-items: center; gap: 8px; font-size: 8.5px; font-weight: 800; color: var(--text-muted); cursor: pointer; letter-spacing: 0.5px;">
+          <input type="checkbox" id="chk-guide-shadow" checked style="accent-color: var(--accent-amber); cursor: pointer; width: 11px; height: 11px;"> COVER SHADOWS
+        </label>
+        <label style="display: flex; align-items: center; gap: 8px; font-size: 8.5px; font-weight: 800; color: var(--text-muted); cursor: pointer; letter-spacing: 0.5px;">
+          <input type="checkbox" id="chk-guide-channels" checked style="accent-color: var(--accent-amber); cursor: pointer; width: 11px; height: 11px;"> HALFSPACE CHANNELS
+        </label>
+        <label style="display: flex; align-items: center; gap: 8px; font-size: 8.5px; font-weight: 800; color: var(--text-muted); cursor: pointer; letter-spacing: 0.5px;">
+          <input type="checkbox" id="chk-guide-engagement" checked style="accent-color: var(--accent-amber); cursor: pointer; width: 11px; height: 11px;"> ENGAGEMENT LINES
+        </label>
+      </div>
+    </aside>
+
+  </div>
 </div>
 
+<!-- 🎬 Modals & Overlays -->
+<!-- Intro briefing modal -->
+<div id="intro-modal" class="modal-overlay hidden">
+  <div class="modal-content glass-panel">
+    <div id="intro-drill-label" class="badge">DRILL 01</div>
+    <h2 id="intro-drill-name">FIND THE FREE MAN</h2>
+    <hr class="divider">
+    <div class="meta-info">
+      <div><span data-i18n="intro.formation">OUR FORMATION</span><span id="intro-our-shape">-</span></div>
+      <div><span data-i18n="intro.pressShape">PRESS SHAPE</span><span id="intro-opp-shape">-</span></div>
+      <div><span data-i18n="intro.concept">INTENDED CONCEPT</span><span id="intro-concept">-</span></div>
+    </div>
+    <div class="briefing-box">
+      <h3 data-i18n="intro.situation">TACTICAL SITUATION</h3>
+      <p id="intro-briefing">-</p>
+    </div>
+    <button id="intro-start-btn" class="start-btn" data-i18n="intro.start">EXECUTE DRILL</button>
+  </div>
+</div>
+
+<!-- Fail modal -->
+<div id="lose-modal" class="modal-overlay hidden">
+  <div class="modal-content glass-panel error-border">
+    <div class="badge" style="background: rgba(235, 87, 87, 0.1); border-color: rgba(235, 87, 87, 0.2); color: var(--accent-crimson);" data-i18n="lose.badge">FAIL DETECTED</div>
+    <h2 class="error-text" data-i18n="lose.title">DRILL INTERRUPTED!</h2>
+    <hr class="divider">
+    <p id="lose-reason">PASS ROUTE INTERCEPTED BY OPPONENT BLOCK</p>
+    <div class="modal-actions">
+      <button id="lose-undo-btn" class="action-btn" data-i18n="lose.adjust">ADJUST POSITION [Z]</button>
+      <button id="lose-reset-btn" class="action-btn error-bg" data-i18n="lose.reset">RESET DRILL [R]</button>
+    </div>
+  </div>
+</div>
+
+<!-- Success result modal -->
+<div id="result-modal" class="modal-overlay hidden">
+  <div class="modal-content glass-panel success-border">
+    <div class="badge" style="background: rgba(16, 185, 129, 0.1); border-color: rgba(16, 185, 129, 0.2); color: var(--accent-mint);" data-i18n="result.badge">DRILL ACCOMPLISHED</div>
+    <h2 class="success-text" data-i18n="result.title">PRESS BEATEN!</h2>
+    <h3 id="result-drill-name">DRILL 01: FIND THE FREE MAN</h3>
+    <hr class="divider">
+
+    <div class="result-stats">
+      <div class="grade-emblem-container">
+        <div id="result-grade" class="grade-emblem">S</div>
+        <div class="grade-label" data-i18n="result.grade">TACTICAL GRADE</div>
+      </div>
+      <div class="details-container">
+        <p><span data-i18n="result.actions">ACTIONS USED:</span> <span id="result-actions">-</span></p>
+        <p><span data-i18n="result.lines">LINES BROKEN:</span> <span id="result-lines">-</span></p>
+        <p><span data-i18n="result.outlet">ESCAPE CHANNEL:</span> <span id="result-outlet">-</span></p>
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button id="result-reset-btn" class="action-btn" data-i18n="result.retry">RETRY SETUP</button>
+      <button id="result-next-btn" class="action-btn success-bg" data-i18n="result.next">NEXT SETUP</button>
+    </div>
+    <button id="result-share-btn" class="share-btn" data-i18n="result.share">SHARE PERFORMANCE SUMMARY</button>
+    <div id="result-share-feedback" class="feedback-msg"></div>
+  </div>
+</div>
+
+<!-- Refactored modules: data, i18n, then the tactical/physics engine (all define globals + window.*) -->
+<script src="js/levels.js"></script>
+<script src="js/i18n.js"></script>
+<script src="js/tactical-engine.js"></script>
+<script src="js/storage.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/renderer.js"></script>
 <script>
 // ═══════════════════════════════════════════════════
 // 빌드업 랩 — 압박 탈출 전술 퍼즐
 // Build-Up Lab — Beat the Press Tactical Puzzle
-// Single-file Implementation (Canvas 2D)
 // ═══════════════════════════════════════════════════
 
 (() => {
 'use strict';
 
-// ─── Constants ───────────────────────────────────
+// Import from levels.js & tactical-engine.js loaded globally
+const LEVELS = window.LEVELS;
+const FIELD_X0 = window.FIELD_X0;
+const FIELD_X1 = window.FIELD_X1;
+const FIELD_Y0 = window.FIELD_Y0;
+const FIELD_Y1 = window.FIELD_Y1;
+const CHANNELS = window.CHANNELS;
+const PLAYER_RADIUS = window.PLAYER_RADIUS;
+const BALL_RADIUS = window.BALL_RADIUS;
+const HIT_RADIUS = window.HIT_RADIUS;
+const PASS_SPEED = window.PASS_SPEED;
+// Internal canvas resolution (logical px); the board renders at this size and is scaled to fit.
 const INTERNAL_W = 384;
 const INTERNAL_H = 256;
 const PIXEL_SCALE = 3;
-const PLAYER_RADIUS = 8;
-const BALL_RADIUS = 3;
-const HIT_RADIUS = 14; // click/touch snap radius (internal coords)
-const PASS_SPEED = 120; // Slightly faster pass for punchy feel
+const TACTICAL_ACTION_ORDER = window.TACTICAL_ACTION_ORDER;
+const TACTICAL_ACTIONS = window.TACTICAL_ACTIONS;
 
-// ─── Positional Play: pitch interior & 5 vertical channels ───
-// Field interior (matches drawField border): x[10..374], y[10..246]. Attack goes left → right.
-const FIELD_X0 = 10, FIELD_X1 = 374, FIELD_Y0 = 10, FIELD_Y1 = 246;
-// 5 channels by y: wing / half-space / centre / half-space / wing
-const CHANNELS = [
-  { y0: 10,  y1: 57,  short: 'LW',  label: 'LEFT WING' },
-  { y0: 57,  y1: 104, short: 'LHS', label: 'LEFT HALF-SPACE' },
-  { y0: 104, y1: 152, short: 'C',   label: 'CENTRE' },
-  { y0: 152, y1: 199, short: 'RHS', label: 'RIGHT HALF-SPACE' },
-  { y0: 199, y1: 246, short: 'RW',  label: 'RIGHT WING' },
-];
-function channelOf(y) {
-  for (let i = 0; i < CHANNELS.length; i++) {
-    if (y < CHANNELS[i].y1) return i;
-  }
-  return CHANNELS.length - 1;
-}
+const dist = window.dist;
+const lerp = window.lerp;
+const channelOf = window.channelOf;
+const lineCircleIntersect = window.lineCircleIntersect;
+const pointInRect = window.pointInRect;
+const pointInTrapZone = window.pointInTrapZone;
+const pointInCoverShadow = window.pointInCoverShadow;
+const lineIntersectsCoverShadow = window.lineIntersectsCoverShadow;
+const stepDefender = window.stepDefender;
+const getLevelTacticalMetadata = window.getLevelTacticalMetadata;
+const getPlayerLabel = window.getPlayerLabel;
+const getActionLogLabel = window.getActionLogLabel;
+const formatLaneForLog = window.formatLaneForLog;
+const getDefenderLabel = window.getDefenderLabel;
+const getLevelTacticalLabel = window.getLevelTacticalLabel;
+const evaluateLane = window.evaluateLane;
+const combineLaneResults = window.combineLaneResults;
+const receiverState = window.receiverState;
+
+// i18n (EN/KO/JA) from js/i18n.js
+const t = window.t;
+const tLevel = window.tLevel;
+const tChannel = window.tChannel;
+const getLang = window.getLang;
+const setLang = window.setLang;
+const I18N_LANGS = window.I18N_LANGS;
 
 // ─── Colors (Tactical Dark Board Palette) ────────
-const C = {
-  fieldGreen:    '#0e2216', // Dark tactic board background
-  fieldDark:     '#0a1a11',
-  fieldLine:     '#1e3d2a',
-  playerBlue:    '#3a86ff', // Attackers
-  playerOutline: '#1b4a9a',
-  playerHighlight: '#00f5d4', // Selected / Active
-  defenderRed:   '#ff5c5c', // Pressing defenders
-  defenderOutline: '#9a2a2a',
-  defenderRange: 'rgba(255,92,92,0.1)', // Light pressing circle
-  defenderRangeStroke: 'rgba(255,92,92,0.22)',
-  coverShadow:   'rgba(242,100,25,0.15)', // Cover shadow cone orange
-  coverShadowStroke: 'rgba(242,100,25,0.3)',
-  patrolRange:   'rgba(242,160,25,0.1)',
-  patrolStroke:  'rgba(242,160,25,0.22)',
-  chaseRange:    'rgba(200,92,255,0.1)',
-  chaseStroke:   'rgba(200,92,255,0.22)',
-  ball:          '#ffffff', // High-visibility white tactical ball
-  ballOutline:   '#00f5d4',
-  goalPost:      '#e8e8e8',
-  goalNet:       'rgba(232,232,232,0.15)',
-  passSafe:      'rgba(0,245,212,0.65)', // Cyan safe path
-  passRisky:     'rgba(242,160,25,0.65)', // Orange risky path (near defender)
-  passBlocked:   'rgba(255,92,92,0.65)', // Red blocked path (cover shadow / block radius)
-  passRange:     'rgba(0,245,212,0.08)',
-  passRangeStroke: 'rgba(0,245,212,0.22)',
-  targetZone:    'rgba(0,180,216,0.14)', // Target escape zone blue
-  targetZoneStroke: 'rgba(0,180,216,0.4)',
-  targetZoneText: '#00f5d4',
-  uiBg:          'rgba(5,5,15,0.92)',
-  uiText:        '#e2e8f0',
-  uiAccent:      '#00f5d4',
-  uiFail:        '#ff5c5c',
-  starGold:      '#ffd700',
-  starEmpty:     '#222538',
-  titleBg:       '#05050f',
-  titleGradTop:  '#0e2216',
-  titleGradBot:  '#05050f',
-  levelLocked:   '#222538',
-  levelUnlocked: '#3a86ff',
-  levelClear:    '#00f5d4',
-  btnBg:         '#1b3a3a',
-  btnHover:      '#2a5a5a',
-  btnText:       '#00f5d4',
-  btnActive:     '#00f5d4',
-};
+// Imported managers and drawing helpers
+const StorageMgr = window.StorageMgr;
+const AudioMgr = window.AudioMgr;
+const AdMgr = window.AdMgr;
+const C = window.C;
+const fitCanvasText = window.fitCanvasText;
+const drawPixelCircle = window.drawPixelCircle;
+const serializeLevel = window.serializeLevel;
+const deserializeLevel = window.deserializeLevel;
+const getPlayerSubRole = window.getPlayerSubRole;
+const getClosestPointOnSegment = window.getClosestPointOnSegment;
+const drawCutBadge = window.drawCutBadge;
+const drawPlayer = window.drawPlayer;
+const getDefenderSubRole = window.getDefenderSubRole;
+const drawDefender = window.drawDefender;
+const drawBall = window.drawBall;
+const drawTargetZone = window.drawTargetZone;
+const drawTrapZone = window.drawTrapZone;
+const drawField = window.drawField;
+const drawChannels = window.drawChannels;
+const drawLinesOfEngagement = window.drawLinesOfEngagement;
 
-// ─── Audio Manager (Web Audio API, 8-bit) ────────
-const AudioMgr = {
-  ctx: null,
-  muted: false,
-  volume: 0.3,
-
-  // BGM scheduler properties
-  bgmInterval: null,
-  bgmIndex: 0,
-  bgmSequence: [
-    // Cheerfully simple C-major arpeggios for pleasant retro game flow
-    261.63, 329.63, 392.00, 523.25, 392.00, 329.63,
-    293.66, 349.23, 440.00, 587.33, 440.00, 349.23,
-    329.63, 392.00, 493.88, 659.25, 493.88, 392.00,
-    349.23, 440.00, 523.25, 698.46, 523.25, 440.00
-  ],
-
-  init() {
-    if (this.ctx) return;
-    try {
-      this.ctx = new (window.AudioContext || window.webkitAudioContext)();
-    } catch(e) { /* no audio */ }
-  },
-
-  play(type) {
-    if (!this.ctx || this.muted) return;
-    const now = this.ctx.currentTime;
-    switch(type) {
-      case 'pass': this._beep(440, 0.08, 'square', 660); break;
-      case 'fail': this._beep(220, 0.25, 'sawtooth', 110); break;
-      case 'goal': this._fanfare(); break;
-      case 'star': this._beep(880, 0.1, 'square', 1100); break;
-      case 'click': this._beep(600, 0.04, 'square', 600); break;
-      case 'undo': this._beep(330, 0.06, 'triangle', 220); break;
-      case 'lock': this._beep(150, 0.15, 'sawtooth', 100); break;
-    }
-  },
-
-  _beep(freq, dur, wave, endFreq) {
-    const osc = this.ctx.createOscillator();
-    const gain = this.ctx.createGain();
-    osc.type = wave;
-    osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
-    osc.frequency.linearRampToValueAtTime(endFreq || freq, this.ctx.currentTime + dur);
-    gain.gain.setValueAtTime(this.volume * 0.5, this.ctx.currentTime);
-    gain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + dur);
-    osc.connect(gain);
-    gain.connect(this.ctx.destination);
-    osc.start();
-    osc.stop(this.ctx.currentTime + dur);
-  },
-
-  _fanfare() {
-    const notes = [523, 659, 784, 1047];
-    notes.forEach((f, i) => {
-      setTimeout(() => this._beep(f, 0.15, 'square', f), i * 120);
-    });
-  },
-
-  startBGM() {
-    this.init();
-    if (!this.ctx || this.muted || this.bgmInterval) return;
-    this.bgmIndex = 0;
-    this.bgmInterval = setInterval(() => {
-      if (this.muted || !this.ctx || this.ctx.state === 'suspended') return;
-      const note = this.bgmSequence[this.bgmIndex];
-      this._playBgmNote(note, 0.12);
-      this.bgmIndex = (this.bgmIndex + 1) % this.bgmSequence.length;
-    }, 180);
-  },
-
-  stopBGM() {
-    if (this.bgmInterval) {
-      clearInterval(this.bgmInterval);
-      this.bgmInterval = null;
-    }
-  },
-
-  _playBgmNote(freq, dur) {
-    if (!this.ctx || this.muted) return;
-    try {
-      const osc = this.ctx.createOscillator();
-      const gain = this.ctx.createGain();
-      osc.type = 'triangle';
-      osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
-      gain.gain.setValueAtTime(this.volume * 0.12, this.ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + dur);
-      osc.connect(gain);
-      gain.connect(this.ctx.destination);
-      osc.start();
-      osc.stop(this.ctx.currentTime + dur);
-    } catch (e) {}
-  }
-};
-
-// ─── Storage Manager ─────────────────────────────
-const SAVE_KEY = 'buildup-lab:v1';
-const StorageMgr = {
-  data: null,
-
-  load() {
-    try {
-      const raw = localStorage.getItem(SAVE_KEY);
-      if (raw) {
-        this.data = JSON.parse(raw);
-      }
-    } catch(e) { /* corrupt */ }
-    if (!this.data || typeof this.data !== 'object') {
-      this.data = this._defaults();
-    }
-    // merge defaults for missing keys
-    const def = this._defaults();
-    for (const k in def) {
-      if (!(k in this.data)) this.data[k] = def[k];
-    }
-  },
-
-  save() {
-    try {
-      localStorage.setItem(SAVE_KEY, JSON.stringify(this.data));
-    } catch(e) { /* full */ }
-  },
-
-  _defaults() {
-    return {
-      levels: {},   // { "1": { stars: 0, bestPasses: 99 }, ... }
-      unlocked: 1,
-      muted: false,
-      volume: 0.3,
-    };
-  },
-
-  getLevelData(id) {
-    return this.data.levels[id] || { stars: 0, bestPasses: 99 };
-  },
-
-  setLevelData(id, stars, passes) {
-    const cur = this.getLevelData(id);
-    if (stars > cur.stars || (stars === cur.stars && passes < cur.bestPasses)) {
-      this.data.levels[id] = { stars: Math.max(cur.stars, stars), bestPasses: Math.min(cur.bestPasses, passes) };
-    }
-    if (id >= this.data.unlocked) {
-      this.data.unlocked = Number(id) + 1;
-    }
-    this.save();
-  },
-
-  // Tactical grade emblem from internal star count (3=S, 2=A, 1=B)
-  starsToGrade(stars) {
-    return stars >= 3 ? 'S' : (stars === 2 ? 'A' : 'B');
-  }
-};
-
-const LEVELS = [
-  // ─── Phase 1: Free Man & Blocked Lanes (Levels 1-5) ───
-  {
-    id: 1,
-    name: 'Find the Free Man',
-    intro: 'Pass to the unmarked teammate in the Pivot Zone!',
-    passLimit: 3,
-    optimalPasses: 2,
-    players: [
-      { x: 50, y: 128, hasBall: true },
-      { x: 170, y: 80 },
-      { x: 280, y: 128 }
-    ],
-    defenders: [
-      { x: 170, y: 140, type: 'static', blockRadius: 28 } // blocks the lower space
-    ],
-    targetZone: { x: 250, y: 90, w: 70, h: 76, label: 'Pivot Zone' },
-    tacticalActions: { bounce: 0, thirdMan: 0, switchPlay: 0, dropPivot: 0 },
-  },
-  {
-    id: 2,
-    name: 'Avoid the Press',
-    intro: 'Navigate around the defender\'s pressing circle!',
-    passLimit: 3,
-    optimalPasses: 2,
-    players: [
-      { x: 50, y: 60, hasBall: true },
-      { x: 140, y: 130 },
-      { x: 230, y: 60 }
-    ],
-    defenders: [
-      { x: 140, y: 55, type: 'static', blockRadius: 32 }
-    ],
-    targetZone: { x: 210, y: 35, w: 60, h: 60, label: 'Wing Area' },
-    tacticalActions: { bounce: 0, thirdMan: 0, switchPlay: 0, dropPivot: 0 },
-  },
-  {
-    id: 3,
-    name: 'Cover Shadow Entry',
-    intro: 'Beware of the defender\'s orange cover shadow blocking the lane!',
-    passLimit: 3,
-    optimalPasses: 2,
-    players: [
-      { x: 45, y: 128, hasBall: true },
-      { x: 150, y: 65 },
-      { x: 170, y: 190 },
-      { x: 290, y: 128 }
-    ],
-    defenders: [
-      { x: 150, y: 110, type: 'presser', blockRadius: 18, coverShadowAngle: 40, coverShadowLength: 90 }
-    ],
-    targetZone: { x: 260, y: 90, w: 75, h: 76, label: 'Half-Space' },
-    tacticalActions: { bounce: 0, thirdMan: 0, switchPlay: 0, dropPivot: 0 },
-  },
-  {
-    id: 4,
-    name: 'Dynamic Press Shift',
-    intro: 'Wait for the patrolling midfielder to move away!',
-    passLimit: 4,
-    optimalPasses: 3,
-    players: [
-      { x: 45, y: 128, hasBall: true },
-      { x: 150, y: 70 },
-      { x: 220, y: 190 },
-      { x: 300, y: 110 }
-    ],
-    defenders: [
-      { x: 150, y: 140, type: 'static', blockRadius: 28 },
-      { x: 210, y: 80, type: 'patrol', blockRadius: 24, patrolPath: [{x:210,y:50},{x:210,y:150}], speed: 1.2 }
-    ],
-    targetZone: { x: 270, y: 80, w: 70, h: 70, label: 'Pocket Area' },
-    tacticalActions: { bounce: 0, thirdMan: 0, switchPlay: 0, dropPivot: 0 },
-  },
-  {
-    id: 5,
-    name: 'Mid-Block Barrier',
-    intro: 'Find a way through a 2-man defensive line!',
-    passLimit: 4,
-    optimalPasses: 3,
-    players: [
-      { x: 40, y: 128, hasBall: true },
-      { x: 120, y: 55 },
-      { x: 130, y: 200 },
-      { x: 230, y: 128 },
-      { x: 310, y: 128 }
-    ],
-    defenders: [
-      { x: 120, y: 110, type: 'presser', blockRadius: 18, coverShadowAngle: 35, coverShadowLength: 75 },
-      { x: 210, y: 70, type: 'static', blockRadius: 26 }
-    ],
-    targetZone: { x: 280, y: 90, w: 70, h: 76, label: 'Advanced Pivot' },
-    tacticalActions: { bounce: 0, thirdMan: 0, switchPlay: 0, dropPivot: 0 },
-  },
-
-  // ─── Phase 2: Tactical Actions Basics (Levels 6-10) ───
-  {
-    id: 6,
-    name: 'Bounce Pass Intro',
-    intro: 'Activate [Bounce] to bypass the press with a quick one-two!',
-    passLimit: 2,
-    optimalPasses: 1,
-    players: [
-      { x: 45, y: 128, hasBall: true },
-      { x: 160, y: 128 }, // Connector player
-      { x: 290, y: 80 }   // Final receiver
-    ],
-    defenders: [
-      { x: 180, y: 90, type: 'presser', blockRadius: 20, coverShadowAngle: 35, coverShadowLength: 90 }
-    ],
-    targetZone: { x: 250, y: 40, w: 90, h: 70, label: 'Weak Side Wing' },
-    tacticalActions: { bounce: 1, thirdMan: 0, switchPlay: 0, dropPivot: 0 },
-  },
-  {
-    id: 7,
-    name: 'Third-Man Combination',
-    intro: 'Use [Third Man] action to connect and trigger a blind-side run!',
-    passLimit: 2,
-    optimalPasses: 1,
-    players: [
-      { x: 45, y: 128, hasBall: true },
-      { x: 160, y: 70 },   // Connector
-      { x: 170, y: 190 },  // Intermediary
-      { x: 290, y: 128 }   // Runner
-    ],
-    defenders: [
-      { x: 130, y: 130, type: 'presser', blockRadius: 22, coverShadowAngle: 40, coverShadowLength: 90 },
-      { x: 230, y: 138, type: 'static', blockRadius: 24 } // Shifted down to block straight pass
-    ],
-    targetZone: { x: 260, y: 90, w: 70, h: 76, label: 'Between Lines' },
-    tacticalActions: { bounce: 0, thirdMan: 1, switchPlay: 0, dropPivot: 0 },
-  },
-  {
-    id: 8,
-    name: 'Switch Play!',
-    intro: 'Unlock the weak-side winger using the [Switch] action!',
-    passLimit: 2,
-    optimalPasses: 1,
-    players: [
-      { x: 45, y: 190, hasBall: true },
-      { x: 150, y: 190 }, // Sideline fullback
-      { x: 280, y: 65 }   // Opposite winger
-    ],
-    defenders: [
-      { x: 110, y: 160, type: 'static', blockRadius: 26 },
-      { x: 180, y: 140, type: 'presser', blockRadius: 20, coverShadowAngle: 40, coverShadowLength: 100 }
-    ],
-    targetZone: { x: 240, y: 30, w: 100, h: 70, label: 'Isolation Zone' },
-    tacticalActions: { bounce: 0, thirdMan: 0, switchPlay: 1, dropPivot: 0 },
-  },
-  {
-    id: 9,
-    name: 'Drop Pivot Support',
-    intro: 'Use [Drop Pivot] to drop a midfielder deep to create a passing angle!',
-    passLimit: 3,
-    optimalPasses: 2,
-    players: [
-      { x: 45, y: 180, hasBall: true },
-      { x: 160, y: 80 },  // Midfielder
-      { x: 220, y: 160 }
-    ],
-    defenders: [
-      { x: 105, y: 90, type: 'static', blockRadius: 24 },
-      { x: 180, y: 110, type: 'presser', blockRadius: 20, coverShadowAngle: 35, coverShadowLength: 80 }
-    ],
-    targetZone: { x: 200, y: 130, w: 80, h: 60, label: 'Free Space' },
-    tacticalActions: { bounce: 0, thirdMan: 0, switchPlay: 0, dropPivot: 1 },
-  },
-  {
-    id: 10,
-    name: 'Action Convergence',
-    intro: 'Decide whether a [Bounce] or [Third Man] is better to escape!',
-    passLimit: 2,
-    optimalPasses: 1,
-    players: [
-      { x: 40, y: 128, hasBall: true },
-      { x: 130, y: 60 },
-      { x: 130, y: 190 },
-      { x: 240, y: 128 },
-      { x: 310, y: 60 }
-    ],
-    defenders: [
-      { x: 120, y: 125, type: 'presser', blockRadius: 20, coverShadowAngle: 35, coverShadowLength: 85 },
-      { x: 210, y: 80, type: 'chase', blockRadius: 22, alertRange: 80, speed: 1.0 }
-    ],
-    targetZone: { x: 270, y: 30, w: 80, h: 65, label: 'Advanced Half-space' },
-    tacticalActions: { bounce: 1, thirdMan: 1, switchPlay: 0, dropPivot: 0 },
-  },
-
-  // ─── Phase 3: Switches & Side Traps (Levels 11-15) ───
-  {
-    id: 11,
-    name: 'Overloaded Sideline',
-    intro: 'The opponent overloaded your left flank. Switch play!',
-    passLimit: 2,
-    optimalPasses: 1,
-    players: [
-      { x: 50, y: 190, hasBall: true },
-      { x: 120, y: 180 },
-      { x: 140, y: 220 },
-      { x: 280, y: 60 }
-    ],
-    defenders: [
-      { x: 90, y: 180, type: 'static', blockRadius: 24 },
-      { x: 150, y: 180, type: 'presser', blockRadius: 22, coverShadowAngle: 45, coverShadowLength: 90 },
-      { x: 200, y: 130, type: 'static', blockRadius: 25 }
-    ],
-    targetZone: { x: 240, y: 30, w: 90, h: 70, label: 'Weak Side Escape' },
-    tacticalActions: { bounce: 0, thirdMan: 0, switchPlay: 1, dropPivot: 0 },
-  },
-  {
-    id: 12,
-    name: 'The Chasing Sentinel',
-    intro: 'A fast chaser blocks the middle. Use tactical movements!',
-    passLimit: 2,
-    optimalPasses: 1,
-    players: [
-      { x: 45, y: 60, hasBall: true },
-      { x: 150, y: 190 },
-      { x: 230, y: 60 },
-      { x: 300, y: 128 }
-    ],
-    defenders: [
-      { x: 140, y: 90, type: 'chase', blockRadius: 22, alertRange: 100, speed: 1.4 },
-      { x: 230, y: 140, type: 'static', blockRadius: 26 }
-    ],
-    targetZone: { x: 260, y: 95, w: 80, h: 65, label: 'Pocket Zone' },
-    tacticalActions: { bounce: 1, thirdMan: 0, switchPlay: 0, dropPivot: 1 },
-  },
-  {
-    id: 13,
-    name: 'Sideline Press Trap',
-    intro: 'Break the sideline trap using a drop pivot or third-man sequence!',
-    passLimit: 4,
-    optimalPasses: 3,
-    players: [
-      { x: 45, y: 190, hasBall: true },
-      { x: 140, y: 110 },
-      { x: 150, y: 200 },
-      { x: 290, y: 160 }
-    ],
-    defenders: [
-      { x: 95, y: 180, type: 'static', blockRadius: 25 },
-      { x: 150, y: 170, type: 'presser', blockRadius: 20, coverShadowAngle: 40, coverShadowLength: 85 }
-    ],
-    targetZone: { x: 250, y: 120, w: 90, h: 70, label: 'Free Pocket' },
-    tacticalActions: { bounce: 0, thirdMan: 1, switchPlay: 0, dropPivot: 1 },
-  },
-  {
-    id: 14,
-    name: 'Central Congestion',
-    intro: 'The center is congested. Work around the block!',
-    passLimit: 3,
-    optimalPasses: 2,
-    players: [
-      { x: 40, y: 128, hasBall: true },
-      { x: 110, y: 70 },
-      { x: 110, y: 180 },
-      { x: 200, y: 128 },
-      { x: 280, y: 128 }
-    ],
-    defenders: [
-      { x: 110, y: 125, type: 'presser', blockRadius: 22, coverShadowAngle: 35, coverShadowLength: 80 },
-      { x: 180, y: 75, type: 'static', blockRadius: 24 },
-      { x: 180, y: 180, type: 'static', blockRadius: 24 }
-    ],
-    targetZone: { x: 250, y: 95, w: 80, h: 65, label: 'Zone 14' },
-    tacticalActions: { bounce: 1, thirdMan: 1, switchPlay: 0, dropPivot: 0 },
-  },
-  {
-    id: 15,
-    name: 'Half-Space Penetration',
-    intro: 'Penetrate the defensive block into the targeted Half-space!',
-    passLimit: 2,
-    optimalPasses: 1,
-    players: [
-      { x: 45, y: 80, hasBall: true },
-      { x: 130, y: 160 },
-      { x: 150, y: 50 },
-      { x: 220, y: 100 },
-      { x: 290, y: 180 }
-    ],
-    defenders: [
-      { x: 100, y: 100, type: 'static', blockRadius: 25 },
-      { x: 170, y: 110, type: 'presser', blockRadius: 22, coverShadowAngle: 40, coverShadowLength: 90 },
-      { x: 220, y: 170, type: 'patrol', blockRadius: 22, patrolPath: [{x:220,y:140},{x:220,y:200}], speed: 1.0 }
-    ],
-    targetZone: { x: 250, y: 140, w: 90, h: 70, label: 'Half-Space Right' },
-    tacticalActions: { bounce: 1, thirdMan: 0, switchPlay: 1, dropPivot: 0 },
-  },
-
-  // ─── Phase 4: Full Pressing Blocks (Levels 16-20) ───
-  {
-    id: 16,
-    name: 'Beat the 4-4-2 High Press',
-    intro: 'Opponent defends in a compact 4-4-2. Break their first lines!',
-    passLimit: 5,
-    optimalPasses: 4,
-    players: [
-      { x: 45, y: 180, hasBall: true }, // LCB
-      { x: 45, y: 80 },  // RCB
-      { x: 140, y: 128 }, // DM (Pivot)
-      { x: 160, y: 210 }, // LB
-      { x: 290, y: 128 }  // AM
-    ],
-    defenders: [
-      { x: 100, y: 175, type: 'presser', blockRadius: 26, coverShadowAngle: 35, coverShadowLength: 80 }, // Fwd 1 (Shifted down to block direct LB/DM pass)
-      { x: 100, y: 90, type: 'static', blockRadius: 24 },  // Fwd 2
-      { x: 200, y: 128, type: 'chase', blockRadius: 22, alertRange: 80, speed: 1.1 }  // CM
-    ],
-    targetZone: { x: 250, y: 95, w: 90, h: 65, label: 'Between the Lines' },
-    tacticalActions: { bounce: 1, thirdMan: 1, switchPlay: 0, dropPivot: 1 },
-  },
-  {
-    id: 17,
-    name: 'Beat the 4-3-3 Mid Press',
-    intro: 'Escape the 3-man frontline pressing trap!',
-    passLimit: 2,
-    optimalPasses: 1,
-    players: [
-      { x: 40, y: 128, hasBall: true }, // GK
-      { x: 90, y: 60 },   // LCB
-      { x: 90, y: 196 },  // RCB
-      { x: 180, y: 128 }, // DM
-      { x: 280, y: 128 }  // CM
-    ],
-    defenders: [
-      { x: 120, y: 95, type: 'presser', blockRadius: 20, coverShadowAngle: 35, coverShadowLength: 75 }, // LW
-      { x: 120, y: 160, type: 'presser', blockRadius: 20, coverShadowAngle: 35, coverShadowLength: 75 }, // RW
-      { x: 140, y: 128, type: 'static', blockRadius: 22 }, // CF
-      { x: 220, y: 128, type: 'chase', blockRadius: 22, alertRange: 70, speed: 1.0 }  // CM
-    ],
-    targetZone: { x: 250, y: 95, w: 80, h: 65, label: 'Deep Pivot' },
-    tacticalActions: { bounce: 1, thirdMan: 1, switchPlay: 0, dropPivot: 1 },
-  },
-  {
-    id: 18,
-    name: 'Man-Oriented Block',
-    intro: 'Every teammate is tightly marked. Shift them with tactical runs!',
-    passLimit: 4,
-    optimalPasses: 3,
-    players: [
-      { x: 40, y: 128, hasBall: true },
-      { x: 130, y: 70 },
-      { x: 130, y: 180 },
-      { x: 230, y: 128 },
-      { x: 320, y: 170 } // Moved outside target zone to force an extra pass
-    ],
-    defenders: [
-      { x: 130, y: 105, type: 'static', blockRadius: 24 }, // Mark player 1
-      { x: 130, y: 145, type: 'presser', blockRadius: 20, coverShadowAngle: 40, coverShadowLength: 80 }, // Mark center
-      { x: 220, y: 160, type: 'chase', blockRadius: 22, alertRange: 80, speed: 1.2 }
-    ],
-    targetZone: { x: 260, y: 70, w: 90, h: 65, label: 'Pivot Hole' },
-    tacticalActions: { bounce: 1, thirdMan: 1, switchPlay: 0, dropPivot: 1 },
-  },
-  {
-    id: 19,
-    name: 'The Wing Trap Escape',
-    intro: 'Opponent seals the flank. Switch or bounce to escape!',
-    passLimit: 2,
-    optimalPasses: 1,
-    players: [
-      { x: 50, y: 200, hasBall: true },
-      { x: 130, y: 200 },
-      { x: 150, y: 140 },
-      { x: 280, y: 60 }
-    ],
-    defenders: [
-      { x: 90, y: 190, type: 'static', blockRadius: 24 },
-      { x: 150, y: 195, type: 'presser', blockRadius: 22, coverShadowAngle: 45, coverShadowLength: 85 },
-      { x: 180, y: 150, type: 'static', blockRadius: 26 },
-      { x: 220, y: 100, type: 'chase', blockRadius: 22, alertRange: 90, speed: 1.0 }
-    ],
-    targetZone: { x: 240, y: 30, w: 90, h: 70, label: 'Isolation Area' },
-    tacticalActions: { bounce: 0, thirdMan: 1, switchPlay: 1, dropPivot: 1 },
-  },
-  {
-    id: 20,
-    name: 'Build-Up Masterclass',
-    intro: 'Beat the aggressive high press block using every tactical tool!',
-    passLimit: 3,
-    optimalPasses: 2,
-    players: [
-      { x: 35, y: 128, hasBall: true }, // GK
-      { x: 95, y: 60 },   // LCB
-      { x: 95, y: 196 },  // RCB
-      { x: 175, y: 128 }, // DM
-      { x: 200, y: 55 },   // LB
-      { x: 325, y: 215 }  // AM (deep wing — a lone switch can't reach the zone)
-    ],
-    defenders: [
-      { x: 105, y: 100, type: 'presser', blockRadius: 22, coverShadowAngle: 35, coverShadowLength: 80 },
-      { x: 105, y: 155, type: 'presser', blockRadius: 22, coverShadowAngle: 35, coverShadowLength: 80 },
-      { x: 195, y: 105, type: 'chase', blockRadius: 22, alertRange: 90, speed: 1.3 }, // Shifted up to press DM from top-right and clear AM-to-DM pass lane
-      { x: 250, y: 75, type: 'patrol', blockRadius: 20, patrolPath: [{x:220,y:75},{x:270,y:75}], speed: 1.1 },
-      { x: 225, y: 128, type: 'presser', blockRadius: 22, coverShadowAngle: 35, coverShadowLength: 85 } // Screens the central entry to the escape zone
-    ],
-    targetZone: { x: 255, y: 95, w: 90, h: 65, label: 'Escape Zone' },
-    tacticalActions: { bounce: 1, thirdMan: 1, switchPlay: 1, dropPivot: 1 },
-  }
-];
-
-// ─── Utility Functions ───────────────────────────
-function dist(a, b) {
-  return Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2);
-}
-
-function lerp(a, b, t) {
-  return a + (b - a) * t;
-}
-
-// Line segment (p1→p2) intersection with circle (c, r)
-function lineCircleIntersect(p1, p2, c, r) {
-  const dx = p2.x - p1.x;
-  const dy = p2.y - p1.y;
-  const fx = p1.x - c.x;
-  const fy = p1.y - c.y;
-  const a = dx * dx + dy * dy;
-  const b = 2 * (fx * dx + fy * dy);
-  const cc = fx * fx + fy * fy - r * r;
-  let disc = b * b - 4 * a * cc;
-  if (disc < 0) return false;
-  disc = Math.sqrt(disc);
-  const t1 = (-b - disc) / (2 * a);
-  const t2 = (-b + disc) / (2 * a);
-  if (t1 >= 0 && t1 <= 1) return true;
-  if (t2 >= 0 && t2 <= 1) return true;
-  if (t1 < 0 && t2 > 1) return true;
-  return false;
-}
-
-// Point in rect
-function pointInRect(px, py, rx, ry, rw, rh) {
-  return px >= rx && px <= rx + rw && py >= ry && py <= ry + rh;
-}
-
-// Check if point p is in the cover shadow of defender d from holder h
-function pointInCoverShadow(p, d, h) {
-  // vector from holder to defender
-  const vHD = { x: d.x - h.x, y: d.y - h.y };
-  const distHD = Math.sqrt(vHD.x * vHD.x + vHD.y * vHD.y);
-  if (distHD === 0) return false;
-  const dirHD = { x: vHD.x / distHD, y: vHD.y / distHD };
-
-  // vector from defender to point p
-  const vDP = { x: p.x - d.x, y: p.y - d.y };
-  const distDP = Math.sqrt(vDP.x * vDP.x + vDP.y * vDP.y);
-  if (distDP === 0) return false;
-  if (distDP > d.coverShadowLength) return false;
-  const dirDP = { x: vDP.x / distDP, y: vDP.y / distDP };
-
-  // cosine of angle between dirHD and dirDP
-  const dot = dirHD.x * dirDP.x + dirHD.y * dirDP.y;
-  if (dot <= 0) return false; // must be behind defender
-
-  const angle = Math.acos(dot) * 180 / Math.PI;
-  return angle <= (d.coverShadowAngle / 2);
-}
-
-// Sampling based line-cone intersection check
-function lineIntersectsCoverShadow(p1, p2, d, h) {
-  const samples = 16;
-  for (let i = 1; i <= samples; i++) {
-    const t = i / samples;
-    const p = {
-      x: p1.x + (p2.x - p1.x) * t,
-      y: p1.y + (p2.y - p1.y) * t
-    };
-    if (pointInCoverShadow(p, d, h)) {
-      return true;
-    }
-  }
-  return false;
-}
-
-// ─── Collective pressing block movement (shared by runtime + solver) ───
-// One pure step for a single defender so runtime and BFS solver stay identical.
-// Triggers: back-pass step-up, touchline trap; statics slide ball-side (compactness).
-const COHESION_Y = 4;          // static ball-side vertical slide per turn
-const PRESS_BACKPASS_BONUS = 4; // pressers/chasers step up further when ball goes back
-const PRESS_TRAP_BONUS = 4;     // pressers tighten when holder is pinned on a wing
-function stepDefender(d, holder, prevHolderX) {
-  const nd = { ...d, patrolPath: d.patrolPath ? d.patrolPath.map(p => ({ ...p })) : null };
-  if (!holder) return nd;
-  const backPass = (prevHolderX != null) && (holder.x < prevHolderX - 2);
-  const ch = channelOf(holder.y);
-  const onWing = (ch === 0 || ch === 4);
-
-  if (d.type === 'patrol' && d.patrolPath) {
-    nd.patrolIdx = d.patrolIdx || 0;
-    nd.patrolDir = d.patrolDir || 1;
-    const target = d.patrolPath[nd.patrolIdx];
-    const dx = target.x - d.x, dy = target.y - d.y;
-    const dd = Math.sqrt(dx * dx + dy * dy);
-    const moveAmt = 15;
-    if (dd <= moveAmt) {
-      nd.x = target.x; nd.y = target.y;
-      nd.patrolIdx += nd.patrolDir;
-      if (nd.patrolIdx >= d.patrolPath.length || nd.patrolIdx < 0) {
-        nd.patrolDir *= -1;
-        nd.patrolIdx += nd.patrolDir * 2;
-        nd.patrolIdx = Math.max(0, Math.min(nd.patrolIdx, d.patrolPath.length - 1));
-      }
-    } else {
-      nd.x += (dx / dd) * moveAmt;
-      nd.y += (dy / dd) * moveAmt;
-    }
-  } else if (d.type === 'chase') {
-    if (dist(d, holder) < (d.alertRange || 80)) {
-      const dx = holder.x - d.x, dy = holder.y - d.y;
-      const dd = Math.sqrt(dx * dx + dy * dy);
-      const moveAmt = 12 + (backPass ? PRESS_BACKPASS_BONUS : 0);
-      if (dd > 0) {
-        nd.x += (dx / dd) * Math.min(moveAmt, dd);
-        nd.y += (dy / dd) * Math.min(moveAmt, dd);
-      }
-    }
-  } else if (d.type === 'presser') {
-    if (dist(d, holder) < 100) {
-      const dx = holder.x - d.x, dy = holder.y - d.y;
-      const dd = Math.sqrt(dx * dx + dy * dy);
-      const moveAmt = 8 + (backPass ? PRESS_BACKPASS_BONUS : 0) + (onWing ? PRESS_TRAP_BONUS : 0);
-      if (dd > 20) {
-        nd.x += (dx / dd) * moveAmt;
-        nd.y += (dy / dd) * moveAmt;
-      }
-    }
-  } else {
-    // static: block cohesion — slide ball-side in y only (x stays as a line anchor)
-    const dy = holder.y - d.y;
-    if (Math.abs(dy) > COHESION_Y) nd.y += Math.sign(dy) * COHESION_Y;
-    else nd.y = holder.y;
-  }
-  return nd;
-}
-
-// ─── Vector Sprite Helpers (High Resolution & Sub-pixel Precise) ────────────────────
-function drawPixelCircle(ctx, x, y, r, fill, stroke, strokeW) {
-  ctx.beginPath();
-  ctx.arc(x, y, r, 0, Math.PI * 2);
-  if (fill) { ctx.fillStyle = fill; ctx.fill(); }
-  if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = strokeW || 1; ctx.stroke(); }
-}
-
-function drawPlayer(ctx, x, y, hasBall, highlighted, passRange) {
-  if (highlighted && passRange) {
-    drawPixelCircle(ctx, x, y, passRange, C.passRange, C.passRangeStroke, 1);
-  }
-
-  const bodyColor = highlighted ? C.playerHighlight : C.playerBlue;
-  drawPixelCircle(ctx, x, y, PLAYER_RADIUS, bodyColor, C.playerOutline, 1.5);
-
-  ctx.fillStyle = '#fff';
-  ctx.fillRect(x - 2, y - 2, 4, 4);
-
-  if (hasBall) {
-    ctx.save();
-    ctx.globalAlpha = 0.3 + 0.15 * Math.sin(Date.now() / 200);
-    drawPixelCircle(ctx, x, y, PLAYER_RADIUS + 4, null, C.uiAccent, 2);
-    ctx.restore();
-  }
-}
-
-function getLevelTacticalLabel(id) {
-  if (id <= 5) return `DRILL 0${id}`;
-  if (id <= 10) return `PATTERN 0${id - 5}`;
-  if (id <= 15) return `SCENARIO 0${id - 10}`;
-  return `CHALLENGE 0${id - 15}`;
-}
-
-function drawDefender(ctx, d, time) {
-  const px = d.x;
-  const py = d.y;
-
-  // Presser cover shadow cone drawing
-  if (d.type === 'presser' && d.coverShadowAngle && d.coverShadowLength) {
-    const holder = Game.players[Game.currentPlayerIdx];
-    if (holder) {
-      const dx = d.x - holder.x;
-      const dy = d.y - holder.y;
-      const baseAngle = Math.atan2(dy, dx);
-      const halfAngle = (d.coverShadowAngle * Math.PI / 180) / 2;
-
-      ctx.save();
-      ctx.fillStyle = C.coverShadow;
-      ctx.strokeStyle = C.coverShadowStroke;
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(d.x, d.y);
-      ctx.arc(d.x, d.y, d.coverShadowLength, baseAngle - halfAngle, baseAngle + halfAngle);
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
-      ctx.restore();
-    }
-  }
-
-  // Block range circle
-  let rangeColor, strokeColor;
-  if (d.type === 'patrol') {
-    rangeColor = C.patrolRange;
-    strokeColor = C.patrolStroke;
-  } else if (d.type === 'chase') {
-    rangeColor = C.chaseRange;
-    strokeColor = C.chaseStroke;
-  } else {
-    rangeColor = C.defenderRange;
-    strokeColor = C.defenderRangeStroke;
-  }
-  drawPixelCircle(ctx, px, py, d.blockRadius, rangeColor, strokeColor, 1);
-
-  // Patrol path visualization
-  if (d.type === 'patrol' && d.patrolPath) {
-    ctx.save();
-    ctx.setLineDash([2, 4]);
-    ctx.strokeStyle = C.patrolStroke;
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(d.patrolPath[0].x, d.patrolPath[0].y);
-    for (let i = 1; i < d.patrolPath.length; i++) {
-      ctx.lineTo(d.patrolPath[i].x, d.patrolPath[i].y);
-    }
-    ctx.stroke();
-    ctx.restore();
-    ctx.setLineDash([]);
-  }
-
-  // Body
-  const bodyColor = d.type === 'chase' ? '#a050d0' : (d.type === 'patrol' ? '#d9a04a' : C.defenderRed);
-  const outColor = d.type === 'chase' ? '#6a2a9a' : (d.type === 'patrol' ? '#9a6a2a' : C.defenderOutline);
-  drawPixelCircle(ctx, px, py, PLAYER_RADIUS - 1, bodyColor, outColor, 1.5);
-
-  // Shape icon
-  ctx.fillStyle = '#fff';
-  if (d.type === 'static' || d.type === 'presser') {
-    ctx.fillRect(px - 2, py - 2, 4, 4);
-  } else if (d.type === 'patrol') {
-    ctx.fillRect(px - 3, py - 1, 6, 2);
-    ctx.fillRect(px - 3, py - 2, 1, 4);
-    ctx.fillRect(px + 2, py - 2, 1, 4);
-  } else if (d.type === 'chase') {
-    ctx.beginPath();
-    ctx.moveTo(px, py - 3);
-    ctx.lineTo(px + 3, py + 2);
-    ctx.lineTo(px - 3, py + 2);
-    ctx.closePath();
-    ctx.fill();
-  }
-}
-
-function drawBall(ctx, x, y) {
-  drawPixelCircle(ctx, x, y, BALL_RADIUS, C.ball, C.ballOutline, 1);
-}
-
-function drawTargetZone(ctx, tz) {
-  if (!tz) return;
-  ctx.save();
-  ctx.fillStyle = C.targetZone;
-  ctx.strokeStyle = C.targetZoneStroke;
-  ctx.lineWidth = 1.5;
-  ctx.setLineDash([4, 3]);
-  ctx.fillRect(tz.x, tz.y, tz.w, tz.h);
-  ctx.strokeRect(tz.x, tz.y, tz.w, tz.h);
-  ctx.setLineDash([]);
-
-  // Label Text + the positional-play channel it sits in
-  const cx = tz.x + tz.w / 2;
-  const cy = tz.y + tz.h / 2;
-  ctx.fillStyle = C.targetZoneText;
-  ctx.font = 'bold 7px Outfit';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(tz.label.toUpperCase(), cx, cy - 4);
-  ctx.fillStyle = 'rgba(0,180,216,0.7)';
-  ctx.font = '600 5px Outfit';
-  ctx.fillText(CHANNELS[channelOf(cy)].label, cx, cy + 5);
-  ctx.restore();
-}
-
-function drawField(ctx, w, h) {
-  // Base
-  ctx.fillStyle = C.fieldGreen;
-  ctx.fillRect(0, 0, w, h);
-
-  // Stripes
-  const stripeW = 32;
-  ctx.fillStyle = C.fieldDark;
-  for (let i = 0; i < w; i += stripeW * 2) {
-    ctx.fillRect(i, 0, stripeW, h);
-  }
-
-  // Border
-  ctx.strokeStyle = C.fieldLine;
-  ctx.lineWidth = 2;
-  ctx.strokeRect(10, 10, w - 20, h - 20);
-
-  // Center line
-  ctx.beginPath();
-  ctx.moveTo(w / 2, 10);
-  ctx.lineTo(w / 2, h - 10);
-  ctx.stroke();
-
-  // Center circle
-  ctx.beginPath();
-  ctx.arc(w / 2, h / 2, 30, 0, Math.PI * 2);
-  ctx.stroke();
-
-  // Penalty areas
-  ctx.strokeRect(10, h/2 - 40, 50, 80);
-  ctx.strokeRect(w - 60, h/2 - 40, 50, 80);
-}
-
-// Positional-play channel overlay: subtle half-space shading + separators + labels
-function drawChannels(ctx) {
-  ctx.save();
-  // Highlight the two half-spaces (highest-value build-up channels)
-  ctx.fillStyle = 'rgba(0,245,212,0.035)';
-  ctx.fillRect(FIELD_X0, CHANNELS[1].y0, FIELD_X1 - FIELD_X0, CHANNELS[1].y1 - CHANNELS[1].y0);
-  ctx.fillRect(FIELD_X0, CHANNELS[3].y0, FIELD_X1 - FIELD_X0, CHANNELS[3].y1 - CHANNELS[3].y0);
-
-  // Channel separators
-  ctx.strokeStyle = 'rgba(120,160,140,0.10)';
-  ctx.lineWidth = 0.5;
-  ctx.setLineDash([2, 4]);
-  for (let i = 1; i < CHANNELS.length; i++) {
-    ctx.beginPath();
-    ctx.moveTo(FIELD_X0, CHANNELS[i].y0);
-    ctx.lineTo(FIELD_X1, CHANNELS[i].y0);
-    ctx.stroke();
-  }
-  ctx.setLineDash([]);
-
-  // Channel short labels down the left edge
-  ctx.fillStyle = 'rgba(150,180,165,0.30)';
-  ctx.font = '600 5px "Outfit"';
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'middle';
-  for (const ch of CHANNELS) {
-    ctx.fillText(ch.short, FIELD_X0 + 2, (ch.y0 + ch.y1) / 2);
-  }
-  ctx.restore();
-}
-
-// Lines of engagement: cluster defenders by x and draw faint vertical pressing lines
-function drawLinesOfEngagement(ctx, defenders) {
-  if (!defenders.length) return;
-  const xs = defenders.map(d => d.x).sort((a, b) => a - b);
-  const lines = [];
-  for (const x of xs) {
-    if (lines.length && Math.abs(x - lines[lines.length - 1]) < 22) {
-      lines[lines.length - 1] = (lines[lines.length - 1] + x) / 2;
-    } else {
-      lines.push(x);
-    }
-  }
-  ctx.save();
-  ctx.strokeStyle = 'rgba(255,92,92,0.12)';
-  ctx.lineWidth = 0.5;
-  ctx.setLineDash([1, 5]);
-  for (const x of lines) {
-    ctx.beginPath();
-    ctx.moveTo(x, FIELD_Y0);
-    ctx.lineTo(x, FIELD_Y1);
-    ctx.stroke();
-  }
-  ctx.setLineDash([]);
-  ctx.restore();
-}
-
-function drawStar(ctx, cx, cy, r, filled) {
-  const spikes = 5;
-  const outerR = r;
-  const innerR = r * 0.45;
-  ctx.beginPath();
-  for (let i = 0; i < spikes * 2; i++) {
-    const radius = i % 2 === 0 ? outerR : innerR;
-    const angle = (Math.PI / spikes) * i - Math.PI / 2;
-    const x = cx + Math.cos(angle) * radius;
-    const y = cy + Math.sin(angle) * radius;
-    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-  }
-  ctx.closePath();
-  ctx.fillStyle = filled ? C.starGold : C.starEmpty;
-  ctx.fill();
-  if (filled) {
-    ctx.strokeStyle = '#b8960a';
-    ctx.lineWidth = 0.5;
-    ctx.stroke();
-  }
-}
-
-// ─── Game State Machine ──────────────────────────
+// ─── Game States ─────────────────────────────────
 const States = {
-  TITLE: 'title',
-  LEVEL_MAP: 'levelMap',
   GAME_IDLE: 'idle',
   GAME_PASSING: 'passing',
-  GAME_RESOLVE: 'resolve',
   GAME_WIN: 'win',
   GAME_LOSE: 'lose',
-  RESULT: 'result',
 };
 
 // ─── Main Game Object ────────────────────────────
 const Game = {
   canvas: null,
   ctx: null,
-  state: States.TITLE,
+  state: States.GAME_IDLE,
   time: 0,
   dt: 0,
 
-  // Field cache
   fieldCanvas: null,
   fieldCtx: null,
 
-  // Current level
   currentLevel: null,
-  levelId: 0,
+  levelId: 1,
   players: [],
   defenders: [],
   targetZone: null,
+  trapZones: [],
   ball: { x: 0, y: 0, targetX: 0, targetY: 0, startX: 0, startY: 0, state: 'held', progress: 0, stage: 1, scaleEffect: 1.0 },
   passCount: 0,
   passLimit: 0,
   currentPlayerIdx: -1,
   trail: [],
-  passHistory: [], // for undo
+  passHistory: [],
+  actionLog: [],
 
-  // Hover
   hoveredPlayerIdx: -1,
+  guides: { radius: true, shadow: true, channels: true, engagement: true },
+  editorMode: false,
+  activeTool: 'attacker',
 
-  // Effects
   shake: { amount: 0, decay: 0.9 },
-  failMark: null,   // {x, y, alpha}
-  goalAnim: null,    // {frame, maxFrame}
-  starAnim: [],      // [{star, frame, maxFrame}]
+  failMark: null,
+  lastFailReason: '',
+  lastReceiverState: { status: 'free', reason: '' },
+  goalAnim: null,
   particles: [],
 
-  // Result
   resultStars: 0,
   resultPasses: 0,
 
-  // Level map
-  mapScroll: 0,
-  mapHovered: -1,
-  activeTab: 0,
+  activeTab: 0, // Left Sidebar category (0: Tuts, 1: Pats, 2: Shapes, 3: Adv)
 
-  // UI Buttons (computed)
-  buttons: [],
-
-  // Intro overlay
-  showIntro: false,
-  introTimer: 0,
-
-  // Tactical Actions System
-  tacticalActions: {}, // { bounce: 0, thirdMan: 0, switchPlay: 0, dropPivot: 0 }
-  activeAction: 'pass', // 'pass' | 'bounce' | 'thirdMan' | 'switchPlay' | 'dropPivot'
+  tacticalActions: {},
+  activeAction: 'pass',
   
   passUsesBounce: false,
   passUsesThirdMan: false,
@@ -1201,6 +1235,7 @@ const Game = {
 
   // ─── Init ───
   init() {
+    AdMgr.init();
     this.canvas = document.getElementById('game-canvas');
     this.ctx = this.canvas.getContext('2d');
 
@@ -1210,7 +1245,7 @@ const Game = {
     this.resize();
     window.addEventListener('resize', () => this.resize());
 
-    // Input
+    // Input listeners (Field Snap Clicking Only)
     this.canvas.addEventListener('click', (e) => this.onClick(e));
     this.canvas.addEventListener('mousemove', (e) => this.onMouseMove(e));
     this.canvas.addEventListener('touchstart', (e) => {
@@ -1222,7 +1257,7 @@ const Game = {
       this.onClick(fakeEvt);
     }, { passive: false });
 
-    // Keyboard
+    // Keyboard Hotkeys
     window.addEventListener('keydown', (e) => this.onKey(e));
 
     // Prerender field
@@ -1232,16 +1267,42 @@ const Game = {
     this.fieldCtx = this.fieldCanvas.getContext('2d');
     drawField(this.fieldCtx, INTERNAL_W, INTERNAL_H);
 
+    // HTML UI Bindings
+    this.bindHTMLUI();
+
     // Load save
     StorageMgr.load();
     AudioMgr.muted = StorageMgr.data.muted;
     AudioMgr.volume = StorageMgr.data.volume;
+    this.updateAudioButtonState();
+
+    // Check for drill parameter in URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const drillHash = urlParams.get('drill');
+    let startLevelId = StorageMgr.data.unlocked || 1;
+    
+    if (drillHash) {
+      const customLvl = deserializeLevel(drillHash);
+      if (customLvl) {
+        // Register to LEVELS array
+        const existing99Idx = LEVELS.findIndex(l => l.id === 99);
+        if (existing99Idx >= 0) {
+          LEVELS[existing99Idx] = customLvl;
+        } else {
+          LEVELS.push(customLvl);
+        }
+        startLevelId = 99;
+      }
+    }
+
+    // Start on first level
+    this.loadLevel(startLevelId);
 
     // Start loop
     this.lastTime = performance.now();
     requestAnimationFrame((t) => this.loop(t));
 
-    // Auto-start BGM on user interaction to comply with autoplay policy
+    // Auto-start BGM on user interaction
     const startBgmOnce = () => {
       AudioMgr.startBGM();
       window.removeEventListener('click', startBgmOnce);
@@ -1254,11 +1315,13 @@ const Game = {
   },
 
   resize() {
-    const wrapper = document.getElementById('game-wrapper');
-    const maxW = window.innerWidth - 20;
-    const maxH = window.innerHeight - 20;
+    const container = document.getElementById('pitch-container');
     const aspect = INTERNAL_W / INTERNAL_H;
-
+    
+    // Fit canvas cleanly within the center Glass Panel
+    const maxW = container.clientWidth - 20;
+    const maxH = container.clientHeight - 20;
+    
     let w, h;
     if (maxW / maxH > aspect) {
       h = maxH;
@@ -1267,9 +1330,6 @@ const Game = {
       w = maxW;
       h = w / aspect;
     }
-
-    wrapper.style.width = w + 'px';
-    wrapper.style.height = h + 'px';
 
     const dpr = window.devicePixelRatio || 1;
     this.canvas.width = w * dpr;
@@ -1289,6 +1349,600 @@ const Game = {
     };
   },
 
+  // ─── Modern HTML/CSS UI Event Bindings ───
+  bindHTMLUI() {
+    // Tabs in Scenarios panel
+    const tabs = document.querySelectorAll('.tab-btn');
+    tabs.forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        tabs.forEach(t => t.classList.remove('active'));
+        btn.classList.add('active');
+        this.activeTab = parseInt(btn.dataset.tab, 10);
+        AudioMgr.play('click');
+        this.renderScenarioList();
+      });
+    });
+
+    // Toolbar Action buttons
+    const actionCards = document.querySelectorAll('.action-card');
+    actionCards.forEach(card => {
+      card.addEventListener('click', () => {
+        const action = card.dataset.action;
+        if (action === 'pass') {
+          this.setActiveAction('pass');
+          AudioMgr.play('click');
+        } else {
+          const uses = this.tacticalActions[action] || 0;
+          if (uses > 0) {
+            this.setActiveAction(action);
+            AudioMgr.play('click');
+          } else {
+            AudioMgr.play('lock');
+          }
+        }
+      });
+    });
+
+    // Audio button header
+    const audioBtn = document.getElementById('audio-toggle-btn');
+    audioBtn.addEventListener('click', () => {
+      AudioMgr.muted = !AudioMgr.muted;
+      StorageMgr.data.muted = AudioMgr.muted;
+      StorageMgr.save();
+      this.updateAudioButtonState();
+      if (AudioMgr.muted) AudioMgr.stopBGM();
+      else AudioMgr.startBGM();
+      AudioMgr.play('click');
+    });
+
+    // Language toggle (EN / 한 / 日)
+    document.querySelectorAll('.lang-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        setLang(btn.getAttribute('data-lang'));
+        this.applyI18n();
+        AudioMgr.play('click');
+      });
+    });
+
+    // Modals buttons
+    document.getElementById('intro-start-btn').addEventListener('click', () => {
+      this.hideModal('intro-modal');
+      AudioMgr.play('click');
+    });
+
+    document.getElementById('lose-undo-btn').addEventListener('click', () => {
+      this.undo();
+    });
+
+    document.getElementById('lose-reset-btn').addEventListener('click', () => {
+      AdMgr.commercialBreak(() => {
+        this.loadLevel(this.levelId);
+        AudioMgr.play('click');
+      });
+    });
+
+    document.getElementById('result-reset-btn').addEventListener('click', () => {
+      AdMgr.commercialBreak(() => {
+        this.loadLevel(this.levelId);
+        AudioMgr.play('click');
+      });
+    });
+
+    document.getElementById('result-next-btn').addEventListener('click', () => {
+      AdMgr.commercialBreak(() => {
+        const nextId = this.levelId + 1;
+        if (LEVELS.find(l => l.id === nextId)) {
+          this.loadLevel(nextId);
+        } else {
+          // finished game
+          this.loadLevel(1);
+        }
+        AudioMgr.play('click');
+      });
+    });
+
+    document.getElementById('result-share-btn').addEventListener('click', () => {
+      this.copySummaryToClipboard();
+    });
+
+    // Hint button click handler (Rewarded Ad)
+    document.getElementById('hint-btn').addEventListener('click', () => {
+      if (this.state !== States.GAME_IDLE && this.state !== States.GAME_LOSE) return;
+      
+      AdMgr.gameplayStop();
+
+      AdMgr.rewardedBreak((success) => {
+        AdMgr.gameplayStart();
+
+        if (success) {
+          const solution = window._test.solveLevel(this.levelId);
+          if (solution && solution.success && solution.path) {
+            const cleanPath = solution.path.slice(1).map(step => {
+              if (step.startsWith('PASS(')) {
+                const idx = parseInt(step.match(/\d+/)[0], 10);
+                const label = getPlayerLabel(this.players[idx] || {}, idx);
+                return `Pass ${label}`;
+              } else if (step.startsWith('BOUNCE(')) {
+                const matches = step.match(/\d+/g);
+                const cIdx = parseInt(matches[0], 10);
+                const tIdx = parseInt(matches[1], 10);
+                const cLabel = getPlayerLabel(this.players[cIdx] || {}, cIdx);
+                const tLabel = getPlayerLabel(this.players[tIdx] || {}, tIdx);
+                return `Bounce ${cLabel}➔${tLabel}`;
+              } else if (step.startsWith('SWITCH(')) {
+                const idx = parseInt(step.match(/\d+/)[0], 10);
+                const label = getPlayerLabel(this.players[idx] || {}, idx);
+                return `Switch ${label}`;
+              } else if (step.startsWith('3RD_MAN(')) {
+                const matches = step.match(/\d+/g);
+                const cIdx = parseInt(matches[0], 10);
+                const tIdx = parseInt(matches[1], 10);
+                const cLabel = getPlayerLabel(this.players[cIdx] || {}, cIdx);
+                const tLabel = getPlayerLabel(this.players[tIdx] || {}, tIdx);
+                return `3rd Man ${cLabel}➔${tLabel}`;
+              } else if (step.startsWith('DROP_PIVOT(')) {
+                const idx = parseInt(step.match(/\d+/)[0], 10);
+                const label = getPlayerLabel(this.players[idx] || {}, idx);
+                return `Drop DM ${label}`;
+              } else if (step === 'ESCAPE_ZONE') {
+                return 'Target Zone';
+              }
+              return step;
+            }).join(' ➔ ');
+
+            const footer = document.getElementById('coaching-feed-footer');
+            footer.innerHTML = `HINT: <span style="color: var(--accent-amber); font-weight: bold;">${cleanPath.toUpperCase()}</span> (Reset [R] to follow)`;
+            AudioMgr.play('pass');
+          } else {
+            const footer = document.getElementById('coaching-feed-footer');
+            footer.innerHTML = `<span style="color: var(--accent-crimson); font-weight: bold;">NO SOLUTION PATH FOUND</span>`;
+            AudioMgr.play('fail');
+          }
+        } else {
+          AudioMgr.play('lock');
+        }
+      });
+    });
+
+    // Tactical Guides checkbox bindings
+    const chkRadius = document.getElementById('chk-guide-radius');
+    const chkShadow = document.getElementById('chk-guide-shadow');
+    const chkChannels = document.getElementById('chk-guide-channels');
+    const chkEngagement = document.getElementById('chk-guide-engagement');
+
+    const updateGuidesState = () => {
+      this.guides.radius = chkRadius.checked;
+      this.guides.shadow = chkShadow.checked;
+      this.guides.channels = chkChannels.checked;
+      this.guides.engagement = chkEngagement.checked;
+      AudioMgr.play('click');
+    };
+
+    chkRadius.addEventListener('change', updateGuidesState);
+    chkShadow.addEventListener('change', updateGuidesState);
+    chkChannels.addEventListener('change', updateGuidesState);
+    chkEngagement.addEventListener('change', updateGuidesState);
+
+    // Editor mode button toggle
+    const editorModeBtn = document.getElementById('editor-mode-btn');
+    editorModeBtn.addEventListener('click', () => {
+      this.editorMode = !this.editorMode;
+      AudioMgr.play('click');
+      
+      const actionToolbar = document.getElementById('action-toolbar');
+      const editorToolbar = document.getElementById('editor-toolbar');
+      
+      if (this.editorMode) {
+        editorModeBtn.textContent = "PLAY MODE ⚽";
+        editorModeBtn.style.color = "var(--accent-mint)";
+        editorModeBtn.style.borderColor = "var(--accent-mint)";
+        
+        actionToolbar.style.display = "none";
+        editorToolbar.style.display = "grid";
+        
+        // Initialize custom empty level
+        const customLevel = {
+          id: 99,
+          name: "Custom Drill",
+          intendedConcept: "Custom Strategy",
+          optimalPasses: 3,
+          passLimit: 3,
+          players: [],
+          defenders: [],
+          targetZone: null,
+          trapZones: [],
+          tacticalActions: { bounce: 0, thirdMan: 0, switchPlay: 0, dropPivot: 0 }
+        };
+        
+        const existing99Idx = LEVELS.findIndex(l => l.id === 99);
+        if (existing99Idx >= 0) {
+          LEVELS[existing99Idx] = customLevel;
+        } else {
+          LEVELS.push(customLevel);
+        }
+        
+        this.loadLevel(99);
+      } else {
+        editorModeBtn.textContent = "DRILL EDITOR 🛠️";
+        editorModeBtn.style.color = "var(--accent-amber)";
+        editorModeBtn.style.borderColor = "var(--accent-amber)";
+        
+        actionToolbar.style.display = "grid";
+        editorToolbar.style.display = "none";
+        
+        const restoreId = (this.levelId === 99) ? 1 : this.levelId;
+        this.loadLevel(restoreId);
+      }
+    });
+
+    // Editor tool card selection
+    const toolCards = document.querySelectorAll('.editor-tool-card[data-tool]');
+    toolCards.forEach(card => {
+      card.addEventListener('click', () => {
+        const tool = card.dataset.tool;
+        this.activeTool = tool;
+        AudioMgr.play('click');
+        
+        toolCards.forEach(c => c.classList.remove('active'));
+        card.classList.add('active');
+      });
+    });
+
+    // Editor Share Button
+    document.getElementById('editor-share-btn').addEventListener('click', () => {
+      if (this.players.length === 0) {
+        AudioMgr.play('lock');
+        const footer = document.getElementById('coaching-feed-footer');
+        footer.innerHTML = `<span style="color: var(--accent-crimson); font-weight: bold;">CANNOT SHARE EMPTY LEVEL. PLACE ATTACKERS FIRST!</span>`;
+        return;
+      }
+      
+      const lvl = {
+        id: 99,
+        name: "Custom Drill",
+        intendedConcept: "Custom Strategy",
+        optimalPasses: this.passLimit,
+        passLimit: this.passLimit,
+        players: this.players.map(p => ({ x: p.x, y: p.y, hasBall: p.hasBall, passRange: p.passRange })),
+        defenders: this.defenders.map(d => ({ x: d.x, y: d.y, type: d.type, blockRadius: d.blockRadius, coverShadowAngle: d.coverShadowAngle, coverShadowLength: d.coverShadowLength, patrolPath: d.patrolPath })),
+        targetZone: this.targetZone,
+        trapZones: this.trapZones,
+        tacticalActions: { ...this.tacticalActions }
+      };
+      
+      const hash = serializeLevel(lvl);
+      const shareUrl = `${window.location.origin}${window.location.pathname}?drill=${hash}`;
+      
+      const handleFeedback = () => {
+        this.spawnParticles(INTERNAL_W / 2, INTERNAL_H / 2, C.uiAccent, 8);
+        AudioMgr.play('pass');
+        const footer = document.getElementById('coaching-feed-footer');
+        footer.innerHTML = `SHARE LINK COPIED: <span style="color: var(--accent-amber); font-weight: bold;">${shareUrl}</span>`;
+      };
+      
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(shareUrl).then(handleFeedback).catch(() => {
+          const textArea = document.createElement("textarea");
+          textArea.value = shareUrl;
+          document.body.appendChild(textArea);
+          textArea.select();
+          try { document.execCommand('copy'); handleFeedback(); } catch (err) {}
+          document.body.removeChild(textArea);
+        });
+      } else {
+        const textArea = document.createElement("textarea");
+        textArea.value = shareUrl;
+        document.body.appendChild(textArea);
+        textArea.select();
+        try { document.execCommand('copy'); handleFeedback(); } catch (err) {}
+        document.body.removeChild(textArea);
+      }
+    });
+
+    // Editor Play Test Button
+    document.getElementById('editor-play-btn').addEventListener('click', () => {
+      if (this.players.length === 0) {
+        AudioMgr.play('lock');
+        const footer = document.getElementById('coaching-feed-footer');
+        footer.innerHTML = `<span style="color: var(--accent-crimson); font-weight: bold;">CANNOT PLAY EMPTY LEVEL. PLACE ATTACKERS FIRST!</span>`;
+        return;
+      }
+      if (!this.players.some(p => p.hasBall)) {
+        this.players[0].hasBall = true;
+        this.currentPlayerIdx = 0;
+      }
+      
+      this.editorMode = false;
+      AudioMgr.play('goal');
+      
+      editorModeBtn.textContent = "DRILL EDITOR 🛠️";
+      editorModeBtn.style.color = "var(--accent-amber)";
+      editorModeBtn.style.borderColor = "var(--accent-amber)";
+      
+      document.getElementById('action-toolbar').style.display = "grid";
+      document.getElementById('editor-toolbar').style.display = "none";
+      
+      const lvl = {
+        id: 99,
+        name: "Custom Drill",
+        intendedConcept: "Custom Strategy",
+        optimalPasses: this.passLimit,
+        passLimit: this.passLimit,
+        players: this.players.map(p => ({ x: p.x, y: p.y, hasBall: p.hasBall, passRange: p.passRange })),
+        defenders: this.defenders.map(d => ({ x: d.x, y: d.y, type: d.type, blockRadius: d.blockRadius, coverShadowAngle: d.coverShadowAngle, coverShadowLength: d.coverShadowLength, patrolPath: d.patrolPath })),
+        targetZone: this.targetZone,
+        trapZones: this.trapZones,
+        tacticalActions: { ...this.tacticalActions }
+      };
+      
+      const existing99Idx = LEVELS.findIndex(l => l.id === 99);
+      if (existing99Idx >= 0) {
+        LEVELS[existing99Idx] = lvl;
+      } else {
+        LEVELS.push(lvl);
+      }
+      
+      this.loadLevel(99);
+    });
+
+    // Apply persisted language to all static [data-i18n] nodes + dynamic surfaces
+    this.applyI18n();
+  },
+
+  updateAudioButtonState() {
+    const audioBtn = document.getElementById('audio-toggle-btn');
+    if (AudioMgr.muted) {
+      audioBtn.textContent = t('audio.off');
+      audioBtn.style.color = "var(--accent-crimson)";
+    } else {
+      audioBtn.textContent = t('audio.on');
+      audioBtn.style.color = "var(--accent-amber)";
+    }
+  },
+
+  renderScenarioList() {
+    const listContainer = document.getElementById('scenario-list');
+    listContainer.innerHTML = "";
+
+    const startIndex = this.activeTab * 5;
+    const unlocked = StorageMgr.data.unlocked;
+
+    for (let i = 0; i < 5; i++) {
+      const idx = startIndex + i;
+      const lvl = LEVELS[idx];
+      if (!lvl) continue;
+
+      const isUnlocked = lvl.id <= unlocked;
+      const isActive = lvl.id === this.levelId;
+      const data = StorageMgr.getLevelData(lvl.id);
+      
+      const card = document.createElement('div');
+      card.className = `scenario-card ${isActive ? 'active' : ''} ${!isUnlocked ? 'locked' : ''}`;
+      
+      let gradeEl = '<div class="card-grade">-</div>';
+      if (isUnlocked && data.stars > 0) {
+        const grade = StorageMgr.starsToGrade(data.stars);
+        gradeEl = `<div class="card-grade grade-${grade.toLowerCase()}">${grade}</div>`;
+      } else if (!isUnlocked) {
+        gradeEl = `<div class="card-grade">🔒</div>`;
+      }
+
+      card.innerHTML = `
+        <div class="card-info">
+          <span class="card-label">${getLevelTacticalLabel(lvl.id)}</span>
+          <span class="card-name">${tLevel(lvl.id, 'name')}</span>
+          <span class="card-meta">${t('card.subtitle')}</span>
+        </div>
+        ${gradeEl}
+      `;
+
+      if (isUnlocked) {
+        card.addEventListener('click', () => {
+          this.loadLevel(lvl.id);
+          AudioMgr.play('click');
+        });
+      }
+
+      listContainer.appendChild(card);
+    }
+
+    // Add Custom Level Card if loaded
+    const customLvl = LEVELS.find(l => l.id === 99);
+    if (customLvl) {
+      const isActive = this.levelId === 99;
+      const card = document.createElement('div');
+      card.className = `scenario-card ${isActive ? 'active' : ''}`;
+      card.innerHTML = `
+        <div class="card-info">
+          <span class="card-label">CUSTOM DRILL 🛠️</span>
+          <span class="card-name">${customLvl.name}</span>
+          <span class="card-meta">USER CREATED LEVEL</span>
+        </div>
+        <div class="card-grade">★</div>
+      `;
+      card.addEventListener('click', () => {
+        this.loadLevel(99);
+        AudioMgr.play('click');
+      });
+      listContainer.appendChild(card);
+    }
+  },
+
+  updateActionToolbar() {
+    // Pass Button
+    const passBtn = document.querySelector('.action-card[data-action="pass"]');
+    passBtn.className = `action-card ${this.activeAction === 'pass' ? 'active' : ''}`;
+
+    // Action quantities
+    const actions = ['bounce', 'thirdMan', 'switchPlay', 'dropPivot'];
+    actions.forEach(act => {
+      const btn = document.querySelector(`.action-card[data-action="${act}"]`);
+      const countEl = document.getElementById(`count-${act}`);
+      const uses = this.tacticalActions[act] || 0;
+      
+      countEl.textContent = `x${uses}`;
+      
+      let classes = `action-card ${this.activeAction === act ? 'active' : ''}`;
+      if (uses <= 0) classes += ' disabled';
+      btn.className = classes;
+    });
+  },
+
+  updateLiveFeed() {
+    // Header & Info (defaults are localized; levels carry no shape fields)
+    document.getElementById('stat-our-shape').textContent = t('val.ourShape');
+    document.getElementById('stat-opp-shape').textContent = t('val.pressShape');
+
+    // Action Limit checkmarks
+    let indicatorText = '';
+    for (let i = 0; i < this.passLimit; i++) {
+      indicatorText += (i < this.passCount) ? '■ ' : '□ ';
+    }
+    const limitEl = document.getElementById('stat-action-limit');
+    limitEl.textContent = indicatorText;
+    limitEl.style.color = (this.passCount >= this.passLimit) ? "var(--accent-crimson)" : "var(--accent-amber)";
+
+    // Lines & Active Channels
+    document.getElementById('stat-lines-broken').textContent = this.resultLinesBroken || 0;
+    const zoneName = this.targetZone ? tChannel(CHANNELS[channelOf(this.targetZone.y + this.targetZone.h / 2)].short) : t('val.freeSpace');
+    document.getElementById('stat-active-zone').textContent = zoneName;
+
+    // Logs Feed ticker rendering (rebuilt from structured entries so it follows the language)
+    const ticker = document.getElementById('live-action-ticker');
+    ticker.innerHTML = "";
+
+    this.actionLog.forEach(entry => {
+      const line = document.createElement('div');
+      let typeClass = "";
+      if (entry.action === 'trap') typeClass = "trap";
+      else if (entry.laneStatus === 'blocked') typeClass = "trap";
+
+      line.className = `ticker-line ${typeClass}`;
+      line.innerHTML = `
+        <span class="step">${String(entry.step).padStart(2, '0')}.</span>
+        <span class="text">${this.tickerText(entry)}</span>
+      `;
+      ticker.appendChild(line);
+    });
+
+    if (this.state === States.GAME_WIN) {
+      const line = document.createElement('div');
+      line.className = `ticker-line win`;
+      const zone = this.resultTargetChannelShort ? tChannel(this.resultTargetChannelShort) : t('val.freeSpace');
+      line.innerHTML = `
+        <span class="step">WIN</span>
+        <span class="text">${t('log.win', { zone })}</span>
+      `;
+      ticker.appendChild(line);
+    }
+
+    // Auto scroll ticker down
+    ticker.scrollTop = ticker.scrollHeight;
+  },
+
+  // Localized one-line ticker text from a structured action-log entry.
+  tickerText(entry) {
+    if (entry.action === 'trap') {
+      return t('log.trap', { zone: entry.from || '' });
+    }
+    const action = t('action.' + entry.action + '.title');
+    let lane;
+    switch (entry.laneStatus) {
+      case 'lineBreaking': lane = t('lane.lineBreaking', { n: entry.breaksLines || 1 }); break;
+      case 'risky':        lane = t('lane.risky', { reason: t('reason.' + (entry.reason || 'pressureRadius')) }); break;
+      case 'baited':       lane = t('lane.baited'); break;
+      case 'blocked':      lane = t('lane.blocked', { reason: t('reason.' + (entry.reason || 'pressureRadius')) }); break;
+      default:             lane = t('lane.safe');
+    }
+    return `${action} ${entry.from}→${entry.to} · ${lane}`;
+  },
+
+  showModal(id, options = {}) {
+    AdMgr.gameplayStop();
+    const modal = document.getElementById(id);
+    if (!modal) return;
+    
+    if (id === 'intro-modal') {
+      const lvl = this.currentLevel;
+      document.getElementById('intro-drill-label').textContent = getLevelTacticalLabel(lvl.id);
+      document.getElementById('intro-drill-name').textContent = tLevel(lvl.id, 'name').toUpperCase();
+      document.getElementById('intro-our-shape').textContent = t('val.ourShape');
+      document.getElementById('intro-opp-shape').textContent = t('val.pressShape');
+      document.getElementById('intro-concept').textContent = t('val.concept');
+      document.getElementById('intro-briefing').textContent = tLevel(lvl.id, 'intro');
+    } else if (id === 'lose-modal') {
+      document.getElementById('lose-reason').textContent = this.failReasonText().toUpperCase();
+      if (this.passHistory.length === 0) {
+        document.getElementById('lose-undo-btn').style.display = "none";
+      } else {
+        document.getElementById('lose-undo-btn').style.display = "block";
+      }
+    } else if (id === 'result-modal') {
+      const lvl = this.currentLevel;
+      document.getElementById('result-drill-name').textContent = `${getLevelTacticalLabel(lvl.id)}: ${tLevel(lvl.id, 'name').toUpperCase()}`;
+
+      const grade = StorageMgr.starsToGrade(this.resultStars);
+      const gradeEl = document.getElementById('result-grade');
+      gradeEl.textContent = grade;
+      gradeEl.className = `grade-emblem`; // reset
+      if (grade === 'S') gradeEl.style.borderColor = "var(--accent-amber)";
+      else if (grade === 'A') gradeEl.style.borderColor = "var(--accent-mint)";
+      else gradeEl.style.borderColor = "var(--text-main)";
+
+      document.getElementById('result-actions').textContent = `${this.resultPasses} / ${lvl.optimalPasses}`;
+      document.getElementById('result-lines').textContent = this.resultLinesBroken;
+      document.getElementById('result-outlet').textContent = this.resultTargetChannelShort ? tChannel(this.resultTargetChannelShort) : '-';
+      document.getElementById('result-share-feedback').textContent = "";
+    }
+
+    modal.classList.remove('hidden');
+  },
+
+  hideModal(id) {
+    const modal = document.getElementById(id);
+    if (modal) {
+      modal.classList.add('hidden');
+      if (id === 'intro-modal' && this.state === States.GAME_IDLE) {
+        AdMgr.gameplayStart();
+      }
+    }
+  },
+
+  // Localized failure reason from stored state (set by triggerIntercept / soft-lock).
+  failReasonText() {
+    if (this.passCount >= this.passLimit) return t('fail.limit');
+    const key = this.lastFailKey || 'fail.intercept';
+    if (key === 'fail.trappedBy') {
+      const code = (this.lastFailVars && this.lastFailVars.reasonCode) || 'pressureRadius';
+      return t('fail.trappedBy', { reason: t('reason.' + code) });
+    }
+    return t(key);
+  },
+
+  // Apply current language to all static [data-i18n] nodes + dynamic surfaces.
+  applyI18n() {
+    const lang = getLang();
+    document.documentElement.lang = lang;
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+      el.textContent = t(el.getAttribute('data-i18n'));
+    });
+    // Active toggle button
+    document.querySelectorAll('.lang-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.getAttribute('data-lang') === lang);
+    });
+    // Audio button reflects state in the chosen language
+    const audioBtn = document.getElementById('audio-toggle-btn');
+    if (audioBtn) audioBtn.textContent = AudioMgr.muted ? t('audio.off') : t('audio.on');
+    // Re-render dynamic text surfaces (guard: may run before save/level are ready)
+    if (StorageMgr.data) this.renderScenarioList();
+    if (this.currentLevel) this.updateLiveFeed();
+    // Refresh an open intro modal so its localized fields update live
+    const introModal = document.getElementById('intro-modal');
+    if (this.currentLevel && introModal && !introModal.classList.contains('hidden')) {
+      this.showModal('intro-modal');
+    }
+  },
+
   // ─── Game Loop ───
   loop(now) {
     this.dt = Math.min((now - this.lastTime) / 1000, 0.05);
@@ -1303,20 +1957,17 @@ const Game = {
 
   // ─── Update ───
   update() {
-    // Shake decay
     if (this.shake.amount > 0.1) {
       this.shake.amount *= this.shake.decay;
     } else {
       this.shake.amount = 0;
     }
 
-    // Fail mark fade
     if (this.failMark) {
       this.failMark.alpha -= this.dt * 1.5;
       if (this.failMark.alpha <= 0) this.failMark = null;
     }
 
-    // Particles
     for (let i = this.particles.length - 1; i >= 0; i--) {
       const p = this.particles[i];
       p.x += p.vx * this.dt;
@@ -1325,34 +1976,10 @@ const Game = {
       if (p.life <= 0) this.particles.splice(i, 1);
     }
 
-    // Star anim
-    for (let i = this.starAnim.length - 1; i >= 0; i--) {
-      this.starAnim[i].frame++;
-      if (this.starAnim[i].frame > this.starAnim[i].maxFrame) {
-        this.starAnim.splice(i, 1);
-      }
-    }
-
-    // Intro timer
-    if (this.showIntro) {
-      this.introTimer -= this.dt;
-      if (this.introTimer <= 0) this.showIntro = false;
-    }
-
-    // Game state updates
     if (this.state === States.GAME_PASSING) {
       this.updatePassing();
     }
 
-    // Goal anim
-    if (this.goalAnim) {
-      this.goalAnim.frame++;
-      if (this.goalAnim.frame > this.goalAnim.maxFrame) {
-        this.goalAnim = null;
-      }
-    }
-
-    // Celebration update
     if (this.state === States.GAME_WIN && this.scorerCelebration) {
       const sc = this.scorerCelebration;
       sc.progress += this.dt * sc.speed;
@@ -1375,13 +2002,11 @@ const Game = {
     const b = this.ball;
     const from = this.players[this.currentPlayerIdx];
 
-    // Bounce and Third-Man runs involve routing through a connector player
     if (this.passUsesBounce || this.passUsesThirdMan) {
       const connIdx = this.passUsesBounce ? this.bounceConnectorIdx : this.thirdManConnectorIdx;
       const conn = this.players[connIdx];
       
       if (b.stage === 1) {
-        // Stage 1: to connector
         b.progress += PASS_SPEED * this.dt / dist({x: b.startX, y: b.startY}, conn);
         b.progress = Math.min(b.progress, 1);
         b.x = lerp(b.startX, conn.x, b.progress);
@@ -1391,7 +2016,6 @@ const Game = {
           this.trail.push({ x: b.x, y: b.y, alpha: 1 });
         }
 
-        // Intercept check (uses initial passer as holder)
         this.checkInterception(b, from);
         if (b.state === 'intercepted') return;
 
@@ -1403,7 +2027,6 @@ const Game = {
           AudioMgr.play('pass');
         }
       } else {
-        // Stage 2: from connector to final target
         b.progress += PASS_SPEED * this.dt / dist({x: b.startX, y: b.startY}, {x: b.targetX, y: b.targetY});
         b.progress = Math.min(b.progress, 1);
         b.x = lerp(b.startX, b.targetX, b.progress);
@@ -1413,7 +2036,6 @@ const Game = {
           this.trail.push({ x: b.x, y: b.y, alpha: 1 });
         }
 
-        // Intercept check (uses connector as holder)
         this.checkInterception(b, conn);
         if (b.state === 'intercepted') return;
 
@@ -1422,13 +2044,11 @@ const Game = {
         }
       }
     } else {
-      // Normal pass or Switch lob pass
       b.progress += PASS_SPEED * this.dt / dist({x: b.startX, y: b.startY}, {x: b.targetX, y: b.targetY});
       b.progress = Math.min(b.progress, 1);
       b.x = lerp(b.startX, b.targetX, b.progress);
       b.y = lerp(b.startY, b.targetY, b.progress);
 
-      // Lob ball sizing effect for Switch Play
       if (this.passUsesSwitch) {
         b.scaleEffect = 1.0 + 1.2 * Math.sin(b.progress * Math.PI);
       } else {
@@ -1439,7 +2059,6 @@ const Game = {
         this.trail.push({ x: b.x, y: b.y, alpha: 1 });
       }
 
-      // Check interception (Switch passes fly OVER defenders, so skip check)
       if (!this.passUsesSwitch) {
         this.checkInterception(b, from);
         if (b.state === 'intercepted') return;
@@ -1452,30 +2071,41 @@ const Game = {
   },
 
   checkInterception(b, holder) {
-    const activeHolder = holder || this.players[this.currentPlayerIdx];
-    for (const d of this.defenders) {
-      // Check block radius
-      if (dist(b, d) < d.blockRadius) {
-        this.triggerIntercept(b);
-        return;
+    if (!b.willBeIntercepted || !b.interceptor) return;
+
+    const currentStage = (this.passUsesBounce || this.passUsesThirdMan) ? b.stage : 1;
+    if (currentStage !== b.interceptStage) return;
+
+    const d = b.interceptor;
+    const distToD = dist(b, d);
+    let intercepted = false;
+
+    if (distToD < d.blockRadius) {
+      intercepted = true;
+    } else if (d.type === 'presser' && holder) {
+      if (pointInCoverShadow(b, d, holder)) {
+        intercepted = true;
       }
-      // Check cover shadows for pressers
-      if (d.type === 'presser' && activeHolder) {
-        if (pointInCoverShadow(b, d, activeHolder)) {
-          this.triggerIntercept(b);
-          return;
-        }
-      }
+    }
+
+    if (intercepted) {
+      this.triggerIntercept(b, 'fail.intercept');
     }
   },
 
-  triggerIntercept(b) {
+  triggerIntercept(b, failKey = 'fail.intercept', failVars = null) {
     this.state = States.GAME_LOSE;
     b.state = 'intercepted';
+    this.lastFailKey = failKey;
+    this.lastFailVars = failVars;
     this.shake.amount = 6;
     this.failMark = { x: b.x, y: b.y, alpha: 1.5 };
     AudioMgr.play('fail');
     this.spawnParticles(b.x, b.y, C.uiFail, 8);
+    
+    // HTML Overlay synchronization
+    this.updateLiveFeed();
+    this.showModal('lose-modal');
   },
 
   resolvePassing() {
@@ -1484,7 +2114,6 @@ const Game = {
     b.progress = 0;
     b.scaleEffect = 1.0;
 
-    // Check target reached target zone
     let reachedTargetZone = false;
     if (this.passTargetIsTargetZone) {
       reachedTargetZone = true;
@@ -1505,165 +2134,187 @@ const Game = {
       const py = this.targetZone ? this.targetZone.y + this.targetZone.h / 2 : b.y;
       this.spawnParticles(px, py, C.starGold, 20);
 
-      // Stars/Grade calculation
       const opt = this.currentLevel.optimalPasses;
       if (this.passCount <= opt) this.resultStars = 3;
       else if (this.passCount <= opt + 1) this.resultStars = 2;
       else this.resultStars = 1;
       this.resultPasses = this.passCount;
 
-      // Lines broken: pressing lines (defenders) the ball got behind, net of the start position
       const finalX = b.x;
       const startX = (this.startHolderX != null) ? this.startHolderX : finalX;
       const behindFinal = this.defenders.filter(d => d.x < finalX - PLAYER_RADIUS).length;
       const behindStart = this.defenders.filter(d => d.x < startX - PLAYER_RADIUS).length;
       this.resultLinesBroken = Math.max(0, behindFinal - behindStart);
-      this.resultTargetChannel = this.targetZone ? CHANNELS[channelOf(this.targetZone.y + this.targetZone.h / 2)].label : '';
+      this.resultTargetChannelShort = this.targetZone ? CHANNELS[channelOf(this.targetZone.y + this.targetZone.h / 2)].short : '';
 
       StorageMgr.setLevelData(this.levelId, this.resultStars, this.resultPasses);
-
-      for (let i = 0; i < this.resultStars; i++) {
-        this.starAnim.push({ star: i, frame: -i * 15, maxFrame: 30 });
-      }
+      
+      // Update HTML lists with new unlocks and grades
+      this.renderScenarioList();
+      this.updateLiveFeed();
 
       setTimeout(() => {
         if (this.state === States.GAME_WIN) {
-          this.state = States.RESULT;
+          this.showModal('result-modal');
         }
-      }, 1800);
+      }, 1000);
       return;
     }
 
-    // Set ball holder
     this.players[this.currentPlayerIdx].hasBall = false;
     this.currentPlayerIdx = this.passTargetIdx;
     this.players[this.currentPlayerIdx].hasBall = true;
     b.x = this.players[this.currentPlayerIdx].x;
     b.y = this.players[this.currentPlayerIdx].y;
 
-    // Reset active action
     this.activeAction = 'pass';
 
-    // Move defenders (turn-based: after each pass) — pass the previous holder x so
-    // the block can read a back-pass trigger and step up collectively.
     const snap = this.passHistory[this.passHistory.length - 1];
     const prevHolderX = snap ? snap.players[snap.playerIdx].x : null;
-    this.advanceDefenders(prevHolderX);
 
-    // After defender move, check if receiver is trapped inside block range or cover shadow
-    const rec = this.players[this.currentPlayerIdx];
-    for (const d of this.defenders) {
-      if (dist(rec, d) < d.blockRadius) {
-        this.triggerIntercept(b);
-        return;
-      }
-      if (d.type === 'presser' && snap) {
-        const prevHolder = snap.players[snap.playerIdx];
-        if (pointInCoverShadow(rec, d, prevHolder)) {
-          this.triggerIntercept(b);
-          return;
-        }
-      }
+    // Advance the block once, folding the trap collapse into the same call — mirrors the
+    // solver's advanceDefs (single step; trap-side defenders step twice) so runtime and
+    // the BFS oracle stay identical instead of the block double-moving on a trap.
+    const triggeredTrap = pointInTrapZone(this.players[this.currentPlayerIdx], this.trapZones);
+    this.advanceDefenders(prevHolderX, triggeredTrap);
+    if (triggeredTrap) {
+      this.actionLog.push({
+        step: this.actionLog.length + 1,
+        action: 'trap',
+        label: 'TRAP',
+        from: triggeredTrap.label || 'TRAP',
+        to: getPlayerLabel(this.players[this.currentPlayerIdx], this.currentPlayerIdx),
+        laneStatus: 'baited',
+        reason: 'trapZone',
+        text: `TRAP ${triggeredTrap.label || 'Trap Zone'} - press collapses`
+      });
     }
 
-    // Check soft-lock
+    const rec = this.players[this.currentPlayerIdx];
+    // Action-specific "previous holder" so cover-shadow / back-pass reads match the solver:
+    // bounce & third-man relay through the connector, a switch lofts over (no relay point).
+    let prevHolder;
+    if (this.passUsesSwitch) prevHolder = null;
+    else if (this.passUsesBounce) prevHolder = this.players[this.bounceConnectorIdx] || null;
+    else if (this.passUsesThirdMan) prevHolder = this.players[this.thirdManConnectorIdx] || null;
+    else prevHolder = snap ? snap.players[snap.playerIdx] : null;
+    const rState = receiverState(rec, this.defenders, {
+      prevHolder,
+      teammates: this.players,
+      receiverIdx: this.currentPlayerIdx
+    });
+    this.lastReceiverState = { status: rState.status, reason: rState.reason };
+    if (rState.status === 'trapped') {
+      if (rState.reason === 'noOutlet') {
+        this.triggerIntercept(b, 'fail.trappedShift');
+      } else {
+        this.triggerIntercept(b, 'fail.trappedBy', { reasonCode: rState.reason });
+      }
+      return;
+    }
+
     if (this.checkSoftLock()) {
       this.state = States.GAME_LOSE;
+      this.lastFailKey = 'fail.noOutlet';
+      this.lastFailVars = null;
       AudioMgr.play('lock');
       this.failMark = { x: b.x, y: b.y, alpha: 1.5 };
+      this.showModal('lose-modal');
+      this.updateLiveFeed();
       return;
     }
 
     this.state = States.GAME_IDLE;
     AudioMgr.play('pass');
     this.spawnParticles(b.x, b.y, C.uiAccent, 6);
+
+    this.updateActionToolbar();
+    this.updateLiveFeed();
   },
 
-  advanceDefenders(prevHolderX) {
+  advanceDefenders(prevHolderX, trapZone = null) {
     const holder = this.players[this.currentPlayerIdx];
-    this.defenders = this.defenders.map(d => stepDefender(d, holder, prevHolderX));
+    this.defenders = this.defenders.map(d => {
+      let nd = stepDefender(d, holder, prevHolderX);
+      if (trapZone && dist(d, { x: trapZone.x + trapZone.w / 2, y: trapZone.y + trapZone.h / 2 }) < 150) {
+        nd = stepDefender(nd, holder, prevHolderX);
+      }
+      return nd;
+    });
   },
 
   checkSoftLock() {
     if (this.passCount >= this.passLimit) return true;
     const holder = this.players[this.currentPlayerIdx];
-    const pRange = holder.passRange || 150;
 
-    // 1. Check if direct target zone is open
     if (this.targetZone) {
       const tzCenter = { x: this.targetZone.x + this.targetZone.w / 2, y: this.targetZone.y + this.targetZone.h / 2 };
-      if (dist(holder, tzCenter) <= pRange) {
-        let blocked = false;
-        for (const d of this.defenders) {
-          if (lineCircleIntersect(holder, tzCenter, d, d.blockRadius) || lineIntersectsCoverShadow(holder, tzCenter, d, holder)) {
-            blocked = true; break;
-          }
-        }
-        if (!blocked) return false;
-      }
+      const lane = evaluateLane(holder, tzCenter, this.defenders, { trapZones: this.trapZones });
+      if (lane.status !== 'blocked') return false;
     }
 
-    // 2. Check direct passes to teammates
     for (let i = 0; i < this.players.length; i++) {
       if (i === this.currentPlayerIdx) continue;
       const p = this.players[i];
-      if (dist(holder, p) > pRange) continue;
-      
-      let blocked = false;
-      for (const d of this.defenders) {
-        if (lineCircleIntersect(holder, p, d, d.blockRadius) || lineIntersectsCoverShadow(holder, p, d, holder)) {
-          blocked = true; break;
-        }
-      }
-      if (!blocked) return false;
+      const lane = evaluateLane(holder, p, this.defenders, { trapZones: this.trapZones });
+      if (lane.status !== 'blocked') return false;
     }
 
-    // 3. Assume possible if tactical actions with uses remaining exist
     const hasActions = (this.tacticalActions.bounce > 0 || this.tacticalActions.thirdMan > 0 || this.tacticalActions.switchPlay > 0 || this.tacticalActions.dropPivot > 0);
     if (hasActions) return false;
 
-    return true; // lock
+    return true;
   },
 
-  // ─── Load Level ───
-  loadLevel(id) {
-    const lvl = LEVELS.find(l => l.id === id);
-    if (!lvl) return;
+  loadLevel(idOrObj) {
+    let lvl;
+    if (typeof idOrObj === 'object' && idOrObj !== null) {
+      lvl = idOrObj;
+      this.levelId = 99;
+    } else {
+      lvl = LEVELS.find(l => l.id === idOrObj);
+      if (!lvl) return;
+      this.levelId = idOrObj;
+    }
+
+    // Reset Modals
+    this.hideModal('intro-modal');
+    this.hideModal('lose-modal');
+    this.hideModal('result-modal');
 
     this.currentLevel = lvl;
-    this.levelId = id;
     this.passCount = 0;
     this.passLimit = lvl.passLimit;
     this.trail = [];
     this.passHistory = [];
+    this.actionLog = [];
     this.particles = [];
     this.failMark = null;
+    this.lastFailKey = '';
+    this.lastFailVars = null;
+    this.lastReceiverState = { status: 'free', reason: '' };
     this.goalAnim = null;
-    this.starAnim = [];
     this.shake.amount = 0;
     this.hoveredPlayerIdx = -1;
 
-    // Tactical Actions initialization
     this.tacticalActions = { ...lvl.tacticalActions };
     this.activeAction = 'pass';
     this.passUsesBounce = false;
     this.passUsesThirdMan = false;
     this.passUsesSwitch = false;
     this.passTargetIsTargetZone = false;
-    
+
     this.thirdManRunnerIdx = -1;
     this.thirdManOriginalPos = null;
     this.dropPivotIdx = -1;
     this.dropPivotOriginalPos = null;
 
-    // Clone players
     this.players = lvl.players.map(p => ({
       x: p.x, y: p.y,
       hasBall: !!p.hasBall,
       passRange: p.passRange || 150,
     }));
 
-    // Clone defenders
     this.defenders = lvl.defenders.map(d => ({
       x: d.x, y: d.y,
       type: d.type,
@@ -1677,37 +2328,62 @@ const Game = {
       alertRange: d.alertRange || 80,
     }));
 
-    // Target Zone
     this.targetZone = lvl.targetZone ? { ...lvl.targetZone } : null;
+    this.trapZones = lvl.trapZones ? lvl.trapZones.map(z => ({ ...z })) : [];
 
-    // Find ball holder
     this.currentPlayerIdx = this.players.findIndex(p => p.hasBall);
-    this.startHolderX = this.players[this.currentPlayerIdx].x;
+    if (this.currentPlayerIdx < 0 && this.players.length > 0) {
+      this.currentPlayerIdx = 0;
+      this.players[0].hasBall = true;
+    }
+    this.startHolderX = this.currentPlayerIdx >= 0 ? this.players[this.currentPlayerIdx].x : 0;
     this.resultLinesBroken = 0;
-    this.resultTargetChannel = '';
-    this.ball = {
-      x: this.players[this.currentPlayerIdx].x,
-      y: this.players[this.currentPlayerIdx].y,
-      targetX: 0, targetY: 0,
-      startX: 0, startY: 0,
-      state: 'held',
-      progress: 0,
-      stage: 1,
-      scaleEffect: 1.0
-    };
+    this.resultTargetChannelShort = '';
+    
+    if (this.currentPlayerIdx >= 0) {
+      this.ball = {
+        x: this.players[this.currentPlayerIdx].x,
+        y: this.players[this.currentPlayerIdx].y,
+        targetX: 0, targetY: 0,
+        startX: 0, startY: 0,
+        state: 'held',
+        progress: 0,
+        stage: 1,
+        scaleEffect: 1.0
+      };
+    } else {
+      this.ball = { x: 0, y: 0, targetX: 0, targetY: 0, startX: 0, startY: 0, state: 'held', progress: 0, stage: 1, scaleEffect: 1.0 };
+    }
 
     this.state = States.GAME_IDLE;
-    this.scorerCelebration = null;
     AudioMgr.startBGM();
 
-    this.showIntro = true;
-    this.introTimer = 2.5;
+    // Determine the Left Sidebar tab to highlight for this level
+    if (this.levelId !== 99) {
+      const groupTab = Math.floor((this.levelId - 1) / 5);
+      this.activeTab = groupTab;
+      const tabs = document.querySelectorAll('.tab-btn');
+      tabs.forEach((t, i) => {
+        if (i === groupTab) t.classList.add('active');
+        else t.classList.remove('active');
+      });
+    }
 
+    // Populate Sidebar Scenario items & stats
+    this.renderScenarioList();
+    this.updateActionToolbar();
+    this.updateLiveFeed();
+
+    // Show Scenario briefing briefing overlay
+    if (!this.editorMode) {
+      this.showModal('intro-modal');
+    }
+
+    // Trigger grid field repaint
     this.fieldCtx.clearRect(0, 0, INTERNAL_W, INTERNAL_H);
     drawField(this.fieldCtx, INTERNAL_W, INTERNAL_H);
   },
 
-  // ─── Pass attempt ───
   tryPass(targetIdx) {
     if (this.state !== States.GAME_IDLE) return;
     if (targetIdx === this.currentPlayerIdx) return;
@@ -1715,15 +2391,12 @@ const Game = {
 
     const from = this.players[this.currentPlayerIdx];
     const target = this.players[targetIdx];
-    const pRange = from.passRange || 150;
 
-    // Tactical Actions Check
     let usesBounce = (this.activeAction === 'bounce' && this.tacticalActions.bounce > 0);
     let usesThirdMan = (this.activeAction === 'thirdMan' && this.tacticalActions.thirdMan > 0);
     let usesSwitch = (this.activeAction === 'switchPlay' && this.tacticalActions.switchPlay > 0);
     let usesDropPivot = (this.activeAction === 'dropPivot' && this.tacticalActions.dropPivot > 0);
 
-    // Target player verification for Third-Man and Drop Pivot
     if (usesThirdMan && targetIdx !== this.thirdManRunnerIdx) {
       AudioMgr.play('fail');
       this.shake.amount = 2;
@@ -1735,41 +2408,8 @@ const Game = {
       return;
     }
 
-    // Switch action distance validation (must be long range)
-    if (usesSwitch && dist(from, target) < 140) {
-      AudioMgr.play('fail');
-      this.shake.amount = 2;
-      return;
-    }
-    // Normal pass distance validation
-    if (!usesSwitch && dist(from, target) > pRange) {
-      AudioMgr.play('fail');
-      this.shake.amount = 2;
-      return;
-    }
-
-    // Save state for undo
-    this.passHistory.push({
-      playerIdx: this.currentPlayerIdx,
-      players: this.players.map(p => ({...p})),
-      defenders: this.defenders.map(d => ({...d, patrolPath: d.patrolPath ? d.patrolPath.map(pp => ({...pp})) : null})),
-      passCount: this.passCount,
-      ballX: this.ball.x, ballY: this.ball.y,
-      trail: [...this.trail],
-      tacticalActions: { ...this.tacticalActions },
-      activeAction: this.activeAction
-    });
-
-    this.passUsesBounce = false;
-    this.passUsesThirdMan = false;
-    this.passUsesSwitch = false;
-    this.passTargetIsTargetZone = false;
-
+    let connIdx = -1;
     if (usesBounce) {
-      this.passUsesBounce = true;
-      this.tacticalActions.bounce--;
-      // Find automatic connector between from and target
-      let connIdx = -1;
       let minDist = 9999;
       for (let i = 0; i < this.players.length; i++) {
         if (i !== this.currentPlayerIdx && i !== targetIdx) {
@@ -1781,11 +2421,81 @@ const Game = {
         }
       }
       this.bounceConnectorIdx = connIdx;
-      this.passCount++; // One action unit for One-Two sequence
+    } else if (usesThirdMan) {
+      connIdx = this.thirdManConnectorIdx;
+    }
+
+    let lane1 = null, lane2 = null;
+    let mainLane = null;
+
+    if (usesBounce || usesThirdMan) {
+      const conn = this.players[connIdx];
+      lane1 = evaluateLane(from, conn, this.defenders, { ignoreRange: true, trapZones: this.trapZones });
+      lane2 = evaluateLane(conn, target, this.defenders, { ignoreRange: true, trapZones: this.trapZones });
+    } else {
+      mainLane = evaluateLane(from, target, this.defenders, { switchPlay: usesSwitch, trapZones: this.trapZones });
+    }
+
+    if (usesBounce || usesThirdMan) {
+      if (lane1.status === 'blocked' && (lane1.reason === 'outOfRange' || lane1.reason === 'switchRange')) {
+        AudioMgr.play('fail'); this.shake.amount = 2; return;
+      }
+      if (lane2.status === 'blocked' && (lane2.reason === 'outOfRange' || lane2.reason === 'switchRange')) {
+        AudioMgr.play('fail'); this.shake.amount = 2; return;
+      }
+    } else {
+      if (mainLane.status === 'blocked' && (mainLane.reason === 'outOfRange' || mainLane.reason === 'switchRange')) {
+        AudioMgr.play('fail'); this.shake.amount = 2; return;
+      }
+    }
+
+    this.passHistory.push({
+      playerIdx: this.currentPlayerIdx,
+      players: this.players.map(p => ({...p})),
+      defenders: this.defenders.map(d => ({...d, patrolPath: d.patrolPath ? d.patrolPath.map(pp => ({...pp})) : null})),
+      passCount: this.passCount,
+      ballX: this.ball.x, ballY: this.ball.y,
+      trail: [...this.trail],
+      actionLog: this.actionLog.map(entry => ({ ...entry })),
+      tacticalActions: { ...this.tacticalActions },
+      activeAction: this.activeAction
+    });
+
+    this.passUsesBounce = false;
+    this.passUsesThirdMan = false;
+    this.passUsesSwitch = false;
+    this.passTargetIsTargetZone = false;
+
+    this.ball.willBeIntercepted = false;
+    this.ball.interceptor = null;
+    this.ball.interceptStage = 1;
+
+    if (usesBounce) {
+      this.passUsesBounce = true;
+      this.tacticalActions.bounce--;
+      this.passCount++;
+      if (lane1.status === 'blocked') {
+        this.ball.willBeIntercepted = true;
+        this.ball.interceptor = lane1.byDefender;
+        this.ball.interceptStage = 1;
+      } else if (lane2.status === 'blocked') {
+        this.ball.willBeIntercepted = true;
+        this.ball.interceptor = lane2.byDefender;
+        this.ball.interceptStage = 2;
+      }
     } else if (usesThirdMan) {
       this.passUsesThirdMan = true;
       this.tacticalActions.thirdMan--;
       this.passCount++;
+      if (lane1.status === 'blocked') {
+        this.ball.willBeIntercepted = true;
+        this.ball.interceptor = lane1.byDefender;
+        this.ball.interceptStage = 1;
+      } else if (lane2.status === 'blocked') {
+        this.ball.willBeIntercepted = true;
+        this.ball.interceptor = lane2.byDefender;
+        this.ball.interceptStage = 2;
+      }
     } else if (usesSwitch) {
       this.passUsesSwitch = true;
       this.tacticalActions.switchPlay--;
@@ -1795,9 +2505,30 @@ const Game = {
         this.tacticalActions.dropPivot--;
       }
       this.passCount++;
+      if (mainLane.status === 'blocked') {
+        this.ball.willBeIntercepted = true;
+        this.ball.interceptor = mainLane.byDefender;
+        this.ball.interceptStage = 1;
+      }
     }
 
     this.passTargetIdx = targetIdx;
+
+    const logAction = usesBounce ? 'bounce' : (usesThirdMan ? 'thirdMan' : (usesSwitch ? 'switchPlay' : (usesDropPivot ? 'dropPivot' : 'pass')));
+    const logLane = (usesBounce || usesThirdMan) ? combineLaneResults([lane1, lane2]) : mainLane;
+    const logFrom = getPlayerLabel(from, this.currentPlayerIdx);
+    const logTarget = getPlayerLabel(target, targetIdx);
+    this.actionLog.push({
+      step: this.actionLog.length + 1,
+      action: logAction,
+      label: getActionLogLabel(logAction),
+      from: logFrom,
+      to: logTarget,
+      laneStatus: logLane.status,
+      reason: logLane.reason,
+      text: `${getActionLogLabel(logAction)} ${logFrom}->${logTarget} - ${formatLaneForLog(logLane)}`
+    });
+
     this.ball.startX = from.x;
     this.ball.startY = from.y;
     this.ball.targetX = target.x;
@@ -1808,11 +2539,13 @@ const Game = {
     this.state = States.GAME_PASSING;
     this.trail = [];
     
-    // Clear active runner backups as they are now set at target positions
     this.thirdManRunnerIdx = -1;
     this.thirdManOriginalPos = null;
     this.dropPivotIdx = -1;
     this.dropPivotOriginalPos = null;
+
+    this.updateActionToolbar();
+    this.updateLiveFeed();
   },
 
   tryPassToTargetZone() {
@@ -1820,7 +2553,6 @@ const Game = {
     if (this.passCount >= this.passLimit) return;
     if (!this.targetZone) return;
     
-    // Prohibit any tactical action state when passing directly to the target zone
     if (this.activeAction !== 'pass') {
       AudioMgr.play('fail');
       this.shake.amount = 2;
@@ -1829,15 +2561,14 @@ const Game = {
 
     const from = this.players[this.currentPlayerIdx];
     const tzCenter = { x: this.targetZone.x + this.targetZone.w / 2, y: this.targetZone.y + this.targetZone.h / 2 };
-    const pRange = from.passRange || 150;
+    const mainLane = evaluateLane(from, tzCenter, this.defenders, { trapZones: this.trapZones });
 
-    if (dist(from, tzCenter) > pRange) {
+    if (mainLane.status === 'blocked' && (mainLane.reason === 'outOfRange' || mainLane.reason === 'switchRange')) {
       AudioMgr.play('fail');
       this.shake.amount = 2;
       return;
     }
 
-    // Save state for undo
     this.passHistory.push({
       playerIdx: this.currentPlayerIdx,
       players: this.players.map(p => ({...p})),
@@ -1845,6 +2576,7 @@ const Game = {
       passCount: this.passCount,
       ballX: this.ball.x, ballY: this.ball.y,
       trail: [...this.trail],
+      actionLog: this.actionLog.map(entry => ({ ...entry })),
       tacticalActions: { ...this.tacticalActions },
       activeAction: this.activeAction
     });
@@ -1854,8 +2586,28 @@ const Game = {
     this.passUsesSwitch = false;
     this.passTargetIsTargetZone = true;
     this.passTargetIdx = -1;
+    this.actionLog.push({
+      step: this.actionLog.length + 1,
+      action: 'pass',
+      label: getActionLogLabel('pass'),
+      from: getPlayerLabel(from, this.currentPlayerIdx),
+      to: this.targetZone.label || 'ZONE',
+      laneStatus: mainLane.status,
+      reason: mainLane.reason,
+      text: `PASS ${getPlayerLabel(from, this.currentPlayerIdx)}->${this.targetZone.label || 'ZONE'} - ${formatLaneForLog(mainLane)}`
+    });
+
+    this.ball.willBeIntercepted = false;
+    this.ball.interceptor = null;
+    this.ball.interceptStage = 1;
     
     this.passCount++;
+    if (mainLane.status === 'blocked') {
+      this.ball.willBeIntercepted = true;
+      this.ball.interceptor = mainLane.byDefender;
+      this.ball.interceptStage = 1;
+    }
+
     this.ball.startX = from.x;
     this.ball.startY = from.y;
     this.ball.targetX = tzCenter.x;
@@ -1864,6 +2616,9 @@ const Game = {
     this.ball.state = 'moving';
     this.state = States.GAME_PASSING;
     this.trail = [];
+
+    this.updateActionToolbar();
+    this.updateLiveFeed();
   },
 
   undo() {
@@ -1877,24 +2632,34 @@ const Game = {
     this.players = snap.players;
     this.defenders = snap.defenders;
     this.passCount = snap.passCount;
+    this.lastFailKey = '';
+    this.lastFailVars = null;
+    this.lastReceiverState = { status: 'free', reason: '' };
     this.ball.x = snap.ballX;
     this.ball.y = snap.ballY;
     this.ball.state = 'held';
     this.ball.progress = 0;
     this.ball.scaleEffect = 1.0;
     this.trail = snap.trail;
+    this.actionLog = snap.actionLog ? snap.actionLog.map(entry => ({ ...entry })) : [];
     this.failMark = null;
     this.tacticalActions = { ...snap.tacticalActions };
     this.activeAction = snap.activeAction || 'pass';
     this.state = States.GAME_IDLE;
     AudioMgr.play('undo');
+
+    this.hideModal('lose-modal');
+    this.updateActionToolbar();
+    this.updateLiveFeed();
   },
 
   setActiveAction(action) {
+    if (!TACTICAL_ACTIONS[action]) return;
     this.restoreTacticalPositions();
 
     if (this.activeAction === action) {
       this.activeAction = 'pass';
+      this.updateActionToolbar();
       return;
     }
 
@@ -1913,11 +2678,9 @@ const Game = {
         const runner = this.players[runnerIdx];
         this.thirdManRunnerIdx = runnerIdx;
         this.thirdManOriginalPos = { x: runner.x, y: runner.y };
-        // Trigger forward run animation effect coordinates
         runner.x += 40;
         runner.y = runner.y < 128 ? runner.y + 15 : runner.y - 15;
 
-        // Automatically assign connecting element
         let connIdx = -1;
         let minDist = 9999;
         const holder = this.players[this.currentPlayerIdx];
@@ -1944,11 +2707,12 @@ const Game = {
         const pivot = this.players[pivotIdx];
         this.dropPivotIdx = pivotIdx;
         this.dropPivotOriginalPos = { x: pivot.x, y: pivot.y };
-        // Drops deep between defense center backs
         pivot.x = 95;
         pivot.y = 128;
       }
     }
+
+    this.updateActionToolbar();
   },
 
   restoreTacticalPositions() {
@@ -1968,202 +2732,18 @@ const Game = {
     this.dropPivotOriginalPos = null;
   },
 
-  // ─── Input Handlers ───
   onClick(e) {
     AudioMgr.init();
     const pos = this.screenToGame(e.clientX, e.clientY);
 
-    switch (this.state) {
-      case States.TITLE:
-        this.onTitleClick(pos);
-        break;
-      case States.LEVEL_MAP:
-        this.onLevelMapClick(pos);
-        break;
-      case States.GAME_IDLE:
-        this.onGameClick(pos);
-        break;
-      case States.GAME_LOSE:
-        this.onLoseClick(pos);
-        break;
-      case States.RESULT:
-        this.onResultClick(pos);
-        break;
-      case States.GAME_WIN:
-        // Clicking during win animation skips to result
-        this.state = States.RESULT;
-        break;
-    }
-  },
-
-  onMouseMove(e) {
-    const pos = this.screenToGame(e.clientX, e.clientY);
-
-    if (this.state === States.GAME_IDLE) {
-      // Find nearest valid pass target
-      const from = this.players[this.currentPlayerIdx];
-      const pRange = from.passRange || 999;
-      let nearestIdx = -1;
-      let nearestDist = HIT_RADIUS;
-
-      for (let i = 0; i < this.players.length; i++) {
-        if (i === this.currentPlayerIdx) continue;
-        const d = dist(pos, this.players[i]);
-        if (d < nearestDist && dist(from, this.players[i]) <= pRange) {
-          nearestDist = d;
-          nearestIdx = i;
-        }
-      }
-
-      // Check target zone hover
-      if (this.targetZone) {
-        const tzCenter = { x: this.targetZone.x + this.targetZone.w / 2, y: this.targetZone.y + this.targetZone.h / 2 };
-        const inside = pointInRect(pos.x, pos.y, this.targetZone.x, this.targetZone.y, this.targetZone.w, this.targetZone.h);
-        if (inside || dist(pos, tzCenter) < HIT_RADIUS + 8) {
-          this.hoveredPlayerIdx = -2; // special target zone hover code
-        } else {
-          this.hoveredPlayerIdx = nearestIdx;
-        }
-      } else {
-        this.hoveredPlayerIdx = nearestIdx;
-      }
-    } else if (this.state === States.LEVEL_MAP) {
-      this.mapHovered = -1;
-      if (pos.x >= 10 && pos.x <= 374) {
-        const cardH = 26;
-        const cardYStart = 74;
-        for (let i = 0; i < 5; i++) {
-          const cy = cardYStart + i * 32;
-          if (pos.y >= cy && pos.y <= cy + cardH) {
-            this.mapHovered = this.activeTab * 5 + i;
-            break;
-          }
-        }
-      }
-    }
-  },
-
-  onTitleClick(pos) {
-    if (pos.y > INTERNAL_H / 2 + 10 && pos.y < INTERNAL_H / 2 + 40) {
-      this.state = States.LEVEL_MAP;
-      AudioMgr.play('click');
-    }
-    if (pos.x > INTERNAL_W - 30 && pos.y < 20) {
-      AudioMgr.muted = !AudioMgr.muted;
-      StorageMgr.data.muted = AudioMgr.muted;
-      StorageMgr.save();
-      if (AudioMgr.muted) AudioMgr.stopBGM();
-      else AudioMgr.startBGM();
-    }
-  },
-
-  onLevelMapClick(pos) {
-    if (pos.x < 40 && pos.y < 25) {
-      this.state = States.TITLE;
-      AudioMgr.play('click');
+    if (this.editorMode) {
+      this.onEditorClick(pos);
       return;
     }
 
-    // 1. Tab Click
-    if (pos.y >= 35 && pos.y <= 52) {
-      const tabW = 88;
-      const tabGap = 4;
-      const startX = 10;
-      for (let i = 0; i < 4; i++) {
-        const tx = startX + i * (tabW + tabGap);
-        if (pos.x >= tx && pos.x <= tx + tabW) {
-          this.activeTab = i;
-          AudioMgr.play('click');
-          this.mapHovered = -1;
-          return;
-        }
-      }
-    }
+    if (this.state !== States.GAME_IDLE) return;
 
-    // 2. Card Click
-    if (pos.x >= 10 && pos.x <= 374) {
-      const cardH = 26;
-      const cardYStart = 74;
-      for (let i = 0; i < 5; i++) {
-        const cy = cardYStart + i * 32;
-        if (pos.y >= cy && pos.y <= cy + cardH) {
-          const levelIdx = this.activeTab * 5 + i;
-          const lvl = LEVELS[levelIdx];
-          if (lvl) {
-            if (lvl.id <= StorageMgr.data.unlocked) {
-              this.loadLevel(lvl.id);
-              AudioMgr.play('click');
-            } else {
-              AudioMgr.play('lock');
-              this.shake.amount = 2;
-            }
-          }
-          return;
-        }
-      }
-    }
-  },
-
-  onGameClick(pos) {
-    if (this.showIntro) {
-      this.showIntro = false;
-      return;
-    }
-
-    // UI Buttons
-    // Undo
-    if (pos.x > INTERNAL_W - 50 && pos.x < INTERNAL_W - 25 && pos.y > INTERNAL_H - 22 && pos.y < INTERNAL_H - 6) {
-      this.undo();
-      return;
-    }
-    // Reset
-    if (pos.x > INTERNAL_W - 24 && pos.y > INTERNAL_H - 22 && pos.y < INTERNAL_H - 6) {
-      this.loadLevel(this.levelId);
-      AudioMgr.play('click');
-      return;
-    }
-    // Back
-    if (pos.x < 30 && pos.y > INTERNAL_H - 22 && pos.y < INTERNAL_H - 6) {
-      this.state = States.LEVEL_MAP;
-      AudioMgr.play('click');
-      return;
-    }
-    // Mute
-    if (pos.x > INTERNAL_W - 20 && pos.y < 16) {
-      AudioMgr.muted = !AudioMgr.muted;
-      StorageMgr.data.muted = AudioMgr.muted;
-      StorageMgr.save();
-      if (AudioMgr.muted) AudioMgr.stopBGM();
-      else AudioMgr.startBGM();
-      return;
-    }
-
-    // Tactical Actions Toolbar Click: y in [224, 254] (taller snap target for mobile guidelines)
-    if (pos.y > 224 && pos.y < 254) {
-      const actions = ['pass', 'bounce', 'thirdMan', 'switchPlay', 'dropPivot'];
-      const btnW = 55;
-      const spacing = 18;
-      for (let i = 0; i < actions.length; i++) {
-        const bx = spacing + i * (btnW + spacing);
-        if (pos.x > bx && pos.x < bx + btnW) {
-          const action = actions[i];
-          if (action === 'pass') {
-            this.setActiveAction('pass');
-            AudioMgr.play('click');
-          } else {
-            if (this.tacticalActions[action] > 0) {
-              this.setActiveAction(action);
-              AudioMgr.play('click');
-            } else {
-              AudioMgr.play('lock');
-            }
-          }
-          return;
-        }
-      }
-    }
-
-    // Target Zone Click
+    // Target Zone click detection
     if (this.targetZone) {
       const tzCenter = { x: this.targetZone.x + this.targetZone.w / 2, y: this.targetZone.y + this.targetZone.h / 2 };
       const inside = pointInRect(pos.x, pos.y, this.targetZone.x, this.targetZone.y, this.targetZone.w, this.targetZone.h);
@@ -2193,162 +2773,208 @@ const Game = {
     }
   },
 
-  onLoseClick(pos) {
-    const btnY = INTERNAL_H / 2 + 20;
-    if (pos.y > btnY - 8 && pos.y < btnY + 8) {
-      if (pos.x > INTERNAL_W/2 - 60 && pos.x < INTERNAL_W/2 - 10) {
-        this.undo();
+  onEditorClick(pos) {
+    const gridX = Math.round(pos.x);
+    const gridY = Math.round(pos.y);
+
+    if (this.activeTool === 'eraser') {
+      const pIdx = this.players.findIndex(p => dist(pos, p) < HIT_RADIUS);
+      if (pIdx >= 0) {
+        this.players.splice(pIdx, 1);
+        if (this.currentPlayerIdx === pIdx) {
+          this.currentPlayerIdx = this.players.length > 0 ? 0 : -1;
+          if (this.currentPlayerIdx >= 0) this.players[this.currentPlayerIdx].hasBall = true;
+        } else if (pIdx < this.currentPlayerIdx) {
+          this.currentPlayerIdx--;
+        }
+        AudioMgr.play('click');
+        this.updateLiveFeed();
         return;
       }
-      if (pos.x > INTERNAL_W/2 + 10 && pos.x < INTERNAL_W/2 + 60) {
-        this.loadLevel(this.levelId);
+      const dIdx = this.defenders.findIndex(d => dist(pos, d) < HIT_RADIUS);
+      if (dIdx >= 0) {
+        this.defenders.splice(dIdx, 1);
+        AudioMgr.play('click');
+        this.updateLiveFeed();
+        return;
+      }
+      if (this.targetZone && pointInRect(pos.x, pos.y, this.targetZone.x, this.targetZone.y, this.targetZone.w, this.targetZone.h)) {
+        this.targetZone = null;
+        AudioMgr.play('click');
+        this.updateLiveFeed();
+        return;
+      }
+      const tIdx = this.trapZones.findIndex(z => pointInRect(pos.x, pos.y, z.x, z.y, z.w, z.h));
+      if (tIdx >= 0) {
+        this.trapZones.splice(tIdx, 1);
+        AudioMgr.play('click');
+        this.updateLiveFeed();
+        return;
+      }
+      return;
+    }
+
+    if (this.activeTool === 'attacker') {
+      const pIdx = this.players.findIndex(p => dist(pos, p) < PLAYER_RADIUS + 3);
+      if (pIdx >= 0) {
+        this.players.forEach((p, idx) => p.hasBall = (idx === pIdx));
+        this.currentPlayerIdx = pIdx;
         AudioMgr.play('click');
         return;
       }
-    }
-    if (pos.y > btnY + 12 && pos.y < btnY + 28) {
-      this.state = States.LEVEL_MAP;
-      AudioMgr.play('click');
-    }
-  },
-
-  onResultClick(pos) {
-    const cy = INTERNAL_H / 2;
-    // Retry button click
-    if (pos.x > INTERNAL_W/2 - 70 && pos.x < INTERNAL_W/2 - 10 && pos.y > cy + 40 && pos.y < cy + 60) {
-      this.loadLevel(this.levelId);
-      AudioMgr.play('click');
-      return;
-    }
-    // Next button click
-    if (pos.x > INTERNAL_W/2 + 10 && pos.x < INTERNAL_W/2 + 70 && pos.y > cy + 40 && pos.y < cy + 60) {
-      const nextId = this.levelId + 1;
-      if (LEVELS.find(l => l.id === nextId)) {
-        this.loadLevel(nextId);
-      } else {
-        this.state = States.LEVEL_MAP;
-        AudioMgr.startBGM();
+      if (this.players.length >= 6) {
+        AudioMgr.play('lock');
+        return;
       }
+      const hasBall = (this.players.length === 0);
+      if (hasBall) this.currentPlayerIdx = 0;
+      this.players.push({
+        x: gridX,
+        y: gridY,
+        hasBall: hasBall,
+        passRange: 150
+      });
       AudioMgr.play('click');
-      return;
-    }
-    // Copy Summary button click
-    if (pos.x > INTERNAL_W/2 - 45 && pos.x < INTERNAL_W/2 + 45 && pos.y > cy + 60 && pos.y < cy + 78) {
-      this.copySummaryToClipboard();
-      return;
-    }
-    // Tap to map footer click (anywhere else at bottom)
-    if (pos.y > cy + 78) {
-      this.state = States.LEVEL_MAP;
+    } else if (this.activeTool === 'defender') {
+      const dIdx = this.defenders.findIndex(d => dist(pos, d) < PLAYER_RADIUS + 3);
+      if (dIdx >= 0) {
+        const d = this.defenders[dIdx];
+        const roles = ['presser', 'chase', 'patrol', 'static'];
+        let nextIdx = (roles.indexOf(d.type) + 1) % roles.length;
+        d.type = roles[nextIdx];
+        if (d.type === 'patrol') {
+          d.patrolPath = [
+            { x: d.x, y: d.y },
+            { x: d.x, y: Math.max(10, d.y - 40) },
+            { x: d.x, y: Math.min(246, d.y + 40) }
+          ];
+        } else {
+          d.patrolPath = null;
+        }
+        AudioMgr.play('click');
+        return;
+      }
+      if (this.defenders.length >= 6) {
+        AudioMgr.play('lock');
+        return;
+      }
+      this.defenders.push({
+        x: gridX,
+        y: gridY,
+        type: 'presser',
+        blockRadius: 10,
+        coverShadowAngle: 45,
+        coverShadowLength: 60
+      });
       AudioMgr.play('click');
-      AudioMgr.startBGM();
+    } else if (this.activeTool === 'target') {
+      this.targetZone = {
+        x: Math.max(10, gridX - 25),
+        y: Math.max(10, gridY - 25),
+        w: 50,
+        h: 50,
+        label: 'TARGET'
+      };
+      AudioMgr.play('click');
+    } else if (this.activeTool === 'trap') {
+      if (this.trapZones.length >= 2) {
+        AudioMgr.play('lock');
+        return;
+      }
+      this.trapZones.push({
+        x: Math.max(10, gridX - 20),
+        y: Math.max(10, gridY - 20),
+        w: 40,
+        h: 40,
+        label: 'TRAP'
+      });
+      AudioMgr.play('click');
     }
   },
 
-  copySummaryToClipboard() {
-    const grade = StorageMgr.starsToGrade(this.resultStars);
-    const steps = this.passHistory.map((h, i) => {
-      const act = h.activeAction || 'pass';
-      return act.toUpperCase();
-    });
-    steps.push('ESCAPE');
-    const route = steps.join(' -> ');
-    
-    const summary = `[BUILD-UP LAB] PRESS ESCAPED!\n${getLevelTacticalLabel(this.levelId)}: ${this.currentLevel.name}\nTactical Grade: [${grade}] (${this.resultPasses} Actions)\nTactical Route: ${route}\nPlay Build-Up Lab & Beat the Press!`;
+  onMouseMove(e) {
+    const pos = this.screenToGame(e.clientX, e.clientY);
+    if (this.editorMode || this.state !== States.GAME_IDLE) {
+      this.hoveredPlayerIdx = -1;
+      return;
+    }
 
-    const handleFeedback = () => {
-      this.spawnParticles(INTERNAL_W / 2, INTERNAL_H / 2 + 68, C.uiAccent, 8);
-      AudioMgr.play('pass');
-      this.shareFeedbackMsg = "Summary Copied!";
-      setTimeout(() => { this.shareFeedbackMsg = ""; }, 1500);
-    };
+    const from = this.players[this.currentPlayerIdx];
+    if (!from) {
+      this.hoveredPlayerIdx = -1;
+      return;
+    }
+    const pRange = from.passRange || 999;
+    let nearestIdx = -1;
+    let nearestDist = HIT_RADIUS;
 
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(summary).then(handleFeedback).catch(() => {
-        // fallback
-        const textArea = document.createElement("textarea");
-        textArea.value = summary;
-        document.body.appendChild(textArea);
-        textArea.select();
-        try {
-          document.execCommand('copy');
-          handleFeedback();
-        } catch (err) {}
-        document.body.removeChild(textArea);
-      });
+    for (let i = 0; i < this.players.length; i++) {
+      if (i === this.currentPlayerIdx) continue;
+      const d = dist(pos, this.players[i]);
+      if (d < nearestDist && dist(from, this.players[i]) <= pRange) {
+        nearestDist = d;
+        nearestIdx = i;
+      }
+    }
+
+    if (this.targetZone) {
+      const tzCenter = { x: this.targetZone.x + this.targetZone.w / 2, y: this.targetZone.y + this.targetZone.h / 2 };
+      const inside = pointInRect(pos.x, pos.y, this.targetZone.x, this.targetZone.y, this.targetZone.w, this.targetZone.h);
+      if (inside || dist(pos, tzCenter) < HIT_RADIUS + 8) {
+        this.hoveredPlayerIdx = -2; // target zone hover
+      } else {
+        this.hoveredPlayerIdx = nearestIdx;
+      }
     } else {
-      const textArea = document.createElement("textarea");
-      textArea.value = summary;
-      document.body.appendChild(textArea);
-      textArea.select();
-      try {
-        document.execCommand('copy');
-        handleFeedback();
-      } catch (err) {}
-      document.body.removeChild(textArea);
+      this.hoveredPlayerIdx = nearestIdx;
     }
   },
 
   onKey(e) {
-    const inGame = this.state === States.GAME_IDLE || this.state === States.GAME_LOSE || this.state === States.GAME_PASSING;
+    if (this.editorMode) {
+      switch (e.key.toLowerCase()) {
+        case 'q':
+          this.tacticalActions.bounce = (this.tacticalActions.bounce + 1) % 4;
+          this.updateActionToolbar();
+          AudioMgr.play('click');
+          break;
+        case 'w':
+          this.tacticalActions.thirdMan = (this.tacticalActions.thirdMan + 1) % 4;
+          this.updateActionToolbar();
+          AudioMgr.play('click');
+          break;
+        case 'e':
+          this.tacticalActions.switchPlay = (this.tacticalActions.switchPlay + 1) % 4;
+          this.updateActionToolbar();
+          AudioMgr.play('click');
+          break;
+        case 'r':
+          this.tacticalActions.dropPivot = (this.tacticalActions.dropPivot + 1) % 4;
+          this.updateActionToolbar();
+          AudioMgr.play('click');
+          break;
+        case 't':
+          this.passLimit = (this.passLimit % 6) + 1;
+          this.updateLiveFeed();
+          AudioMgr.play('click');
+          break;
+      }
+      return;
+    }
+
+    if (this.state !== States.GAME_IDLE && this.state !== States.GAME_LOSE) return;
+    
     switch (e.key.toLowerCase()) {
-      case '1':
-        if (this.state === States.GAME_IDLE) {
-          this.setActiveAction('pass');
-          AudioMgr.play('click');
-        }
-        break;
-      case '2':
-        if (this.state === States.GAME_IDLE) {
-          if (this.tacticalActions.bounce > 0) this.setActiveAction('bounce');
-          else AudioMgr.play('lock');
-        }
-        break;
-      case '3':
-        if (this.state === States.GAME_IDLE) {
-          if (this.tacticalActions.thirdMan > 0) this.setActiveAction('thirdMan');
-          else AudioMgr.play('lock');
-        }
-        break;
-      case '4':
-        if (this.state === States.GAME_IDLE) {
-          if (this.tacticalActions.switchPlay > 0) this.setActiveAction('switchPlay');
-          else AudioMgr.play('lock');
-        }
-        break;
-      case '5':
-        if (this.state === States.GAME_IDLE) {
-          if (this.tacticalActions.dropPivot > 0) this.setActiveAction('dropPivot');
-          else AudioMgr.play('lock');
-        }
-        break;
-      case 'z':
-        // undo() guards on GAME_IDLE/GAME_LOSE; never cancel a pass mid-flight
-        this.undo();
-        break;
-      case 'r':
-        if (inGame) {
-          this.loadLevel(this.levelId);
-          AudioMgr.play('click');
-        }
-        break;
-      case 'escape':
-        if (inGame) {
-          this.state = States.LEVEL_MAP;
-          AudioMgr.play('click');
-        }
-        break;
-      case 'm':
-        AudioMgr.muted = !AudioMgr.muted;
-        StorageMgr.data.muted = AudioMgr.muted;
-        StorageMgr.save();
-        if (AudioMgr.muted) AudioMgr.stopBGM();
-        else AudioMgr.startBGM();
-        break;
+      case '1': this.setActiveAction('pass'); AudioMgr.play('click'); break;
+      case '2': if (this.tacticalActions.bounce > 0) this.setActiveAction('bounce'); else AudioMgr.play('lock'); break;
+      case '3': if (this.tacticalActions.thirdMan > 0) this.setActiveAction('thirdMan'); else AudioMgr.play('lock'); break;
+      case '4': if (this.tacticalActions.switchPlay > 0) this.setActiveAction('switchPlay'); else AudioMgr.play('lock'); break;
+      case '5': if (this.tacticalActions.dropPivot > 0) this.setActiveAction('dropPivot'); else AudioMgr.play('lock'); break;
+      case 'z': this.undo(); break;
+      case 'r': this.loadLevel(this.levelId); AudioMgr.play('click'); break;
     }
   },
 
-  // ─── Particles ───
   spawnParticles(x, y, color, count) {
     for (let i = 0; i < count; i++) {
       const angle = Math.random() * Math.PI * 2;
@@ -2364,244 +2990,62 @@ const Game = {
     }
   },
 
-  // ─── Level Map Position ───
-  getLevelMapPos(idx) {
-    const cols = 5;
-    const startX = 50;
-    const startY = 65;
-    const gapX = 62;
-    const gapY = 65;
-    const row = Math.floor(idx / cols);
-    const col = idx % cols;
-    // Zigzag path
-    const x = row % 2 === 0 ? startX + col * gapX : startX + (cols - 1 - col) * gapX;
-    const y = startY + row * gapY;
-    return { x, y };
+  copySummaryToClipboard() {
+    const grade = StorageMgr.starsToGrade(this.resultStars);
+    const zone = this.resultTargetChannelShort ? tChannel(this.resultTargetChannelShort) : t('val.freeSpace');
+    const steps = this.actionLog.map(entry => `${String(entry.step).padStart(2, '0')} ${this.tickerText(entry)}`);
+    steps.push(t('log.win', { zone }));
+    const route = steps.join('\n');
+
+    const summary = `[BUILD-UP LAB] ${t('canvas.escaped')}\n${getLevelTacticalLabel(this.levelId)}: ${tLevel(this.levelId, 'name')}\n${t('intro.situation')}: ${tLevel(this.levelId, 'intro')}\n${t('result.grade')}: [${grade}] (${this.resultPasses}/${this.currentLevel.optimalPasses})\n${t('result.outlet')} ${zone}\n${route}`;
+
+    const handleFeedback = () => {
+      this.spawnParticles(INTERNAL_W / 2, INTERNAL_H / 2, C.uiAccent, 8);
+      AudioMgr.play('pass');
+      const feedback = document.getElementById('result-share-feedback');
+      feedback.textContent = t('result.copied');
+      setTimeout(() => { feedback.textContent = ""; }, 1500);
+    };
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(summary).then(handleFeedback).catch(() => {
+        const textArea = document.createElement("textarea");
+        textArea.value = summary;
+        document.body.appendChild(textArea);
+        textArea.select();
+        try { document.execCommand('copy'); handleFeedback(); } catch (err) {}
+        document.body.removeChild(textArea);
+      });
+    } else {
+      const textArea = document.createElement("textarea");
+      textArea.value = summary;
+      document.body.appendChild(textArea);
+      textArea.select();
+      try { document.execCommand('copy'); handleFeedback(); } catch (err) {}
+      document.body.removeChild(textArea);
+    }
   },
 
-  // ─── Render ───
+  checkSoftLockMsg() {
+    if (this.passCount >= this.passLimit) return 'Exceeded allowable passes';
+    const holder = this.players[this.currentPlayerIdx];
+    if (!holder) return null;
+    const pRange = holder.passRange || 150;
+    let allOutOfRange = true;
+    for (let i = 0; i < this.players.length; i++) {
+      if (i === this.currentPlayerIdx) continue;
+      if (dist(holder, this.players[i]) <= pRange) { allOutOfRange = false; break; }
+    }
+    if (allOutOfRange) return 'All support options are out of pass range';
+    return 'Opponent cover shadows block all open lanes';
+  },
+
+  // ─── Render Game Field on Canvas ───
   render() {
     const ctx = this.ctx;
     ctx.save();
     ctx.scale(this.displayScale * (this.dpr || 1), this.displayScale * (this.dpr || 1));
     ctx.clearRect(0, 0, INTERNAL_W, INTERNAL_H);
-
-    switch (this.state) {
-      case States.TITLE:
-        this.renderTitle(ctx);
-        break;
-      case States.LEVEL_MAP:
-        this.renderLevelMap(ctx);
-        break;
-      case States.GAME_IDLE:
-      case States.GAME_PASSING:
-      case States.GAME_RESOLVE:
-      case States.GAME_WIN:
-      case States.GAME_LOSE:
-        this.renderGame(ctx);
-        break;
-      case States.RESULT:
-        this.renderResult(ctx);
-        break;
-    }
-    ctx.restore();
-  },
-
-  // ─── Title Screen ───
-  renderTitle(ctx) {
-    const grad = ctx.createLinearGradient(0, 0, 0, INTERNAL_H);
-    grad.addColorStop(0, C.titleGradTop);
-    grad.addColorStop(1, C.titleGradBot);
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, INTERNAL_W, INTERNAL_H);
-
-    ctx.globalAlpha = 0.08;
-    drawField(ctx, INTERNAL_W, INTERNAL_H);
-    ctx.globalAlpha = 1;
-
-    // Title
-    ctx.fillStyle = C.uiText;
-    ctx.textAlign = 'center';
-    ctx.font = 'bold 22px "Outfit"';
-    ctx.fillText('BUILD-UP LAB', INTERNAL_W / 2, INTERNAL_H / 2 - 34);
-
-    ctx.font = '600 11px "Outfit"';
-    ctx.fillStyle = C.uiAccent;
-    ctx.fillText('Beat the Press - Tactical Puzzle', INTERNAL_W / 2, INTERNAL_H / 2 - 14);
-
-    // Start Drill Button
-    const btnW = 110, btnH = 22;
-    const btnX = INTERNAL_W / 2 - btnW / 2;
-    const btnY = INTERNAL_H / 2 + 12;
-    ctx.fillStyle = C.btnBg;
-    ctx.fillRect(btnX, btnY, btnW, btnH);
-    ctx.strokeStyle = C.uiAccent;
-    ctx.lineWidth = 1.5;
-    ctx.strokeRect(btnX, btnY, btnW, btnH);
-    ctx.fillStyle = C.btnText;
-    ctx.font = '600 11px "Outfit"';
-    ctx.fillText('Start Drill', INTERNAL_W / 2, btnY + 14);
-
-    // Mute
-    ctx.font = 'bold 8px "Outfit"';
-    ctx.fillStyle = AudioMgr.muted ? '#666' : C.uiAccent;
-    ctx.textAlign = 'right';
-    ctx.fillText(AudioMgr.muted ? 'MUTED' : 'AUDIO', INTERNAL_W - 8, 16);
-    ctx.textAlign = 'center';
-
-    // Footer
-    ctx.font = '500 7px "Outfit"';
-    ctx.fillStyle = '#444';
-    ctx.fillText('Tactical Board V2.0', INTERNAL_W / 2, INTERNAL_H - 10);
-
-    const ballX = INTERNAL_W / 2 + Math.sin(this.time / 500) * 40;
-    const ballY = INTERNAL_H / 2 + 48 + Math.sin(this.time / 300) * 4;
-    drawBall(ctx, ballX, ballY);
-  },
-
-  // ─── Level Map ───
-  renderLevelMap(ctx) {
-    ctx.fillStyle = C.titleBg;
-    ctx.fillRect(0, 0, INTERNAL_W, INTERNAL_H);
-
-    ctx.fillStyle = C.uiText;
-    ctx.textAlign = 'center';
-    ctx.font = 'bold 12px "Outfit"';
-    ctx.fillText('TACTICAL TRAINING BOARD', INTERNAL_W / 2, 23);
-
-    // Back button
-    ctx.textAlign = 'left';
-    ctx.font = '600 9px "Outfit"';
-    ctx.fillStyle = C.uiAccent;
-    ctx.fillText('< BACK', 10, 16);
-
-    const tabLabels = ['TUTORIALS', 'PATTERNS', 'PRESS SHAPES', 'ADVANCED'];
-    const tabW = 88;
-    const tabH = 17;
-    const tabGap = 4;
-    const startX = 10;
-    const tabY = 35;
-
-    // Draw tabs
-    for (let i = 0; i < 4; i++) {
-      const tx = startX + i * (tabW + tabGap);
-      const isSelected = this.activeTab === i;
-
-      ctx.fillStyle = isSelected ? 'rgba(0, 245, 212, 0.12)' : 'rgba(255, 255, 255, 0.02)';
-      ctx.fillRect(tx, tabY, tabW, tabH);
-
-      ctx.strokeStyle = isSelected ? C.uiAccent : '#222538';
-      ctx.lineWidth = 1;
-      ctx.strokeRect(tx, tabY, tabW, tabH);
-
-      ctx.fillStyle = isSelected ? C.uiAccent : '#888';
-      ctx.font = 'bold 8px "Outfit"';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(tabLabels[i], tx + tabW / 2, tabY + tabH / 2 + 0.5);
-    }
-
-    // Active Tab Description
-    const tabDescriptions = [
-      'Learn the basics: Find the free man, bypass cover shadows, and locate safe lanes.',
-      'Master tactical patterns: Bounce passes, third-man runs, switches, and drop supports.',
-      'Escape coordinate traps: Overloaded flanks, sideline traps, and shifting press blocks.',
-      'Break advanced blocks: 4-4-2 high press, 4-3-3 mid press, and tight man-oriented markings.'
-    ];
-    ctx.fillStyle = '#aaa';
-    ctx.font = '500 7px "Outfit"';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(tabDescriptions[this.activeTab], INTERNAL_W / 2, 60);
-
-    const cardW = 364;
-    const cardH = 26;
-    const cardYStart = 74;
-    const unlocked = StorageMgr.data.unlocked;
-
-    // Draw level cards for the active tab
-    for (let i = 0; i < 5; i++) {
-      const levelIdx = this.activeTab * 5 + i;
-      const lvl = LEVELS[levelIdx];
-      if (!lvl) continue;
-
-      const cy = cardYStart + i * 32;
-      const isUnlocked = lvl.id <= unlocked;
-      const data = StorageMgr.getLevelData(lvl.id);
-      const isHovered = this.mapHovered === levelIdx;
-
-      // Card Container
-      ctx.fillStyle = isUnlocked ? (isHovered ? 'rgba(0, 245, 212, 0.06)' : 'rgba(255, 255, 255, 0.02)') : 'rgba(10, 10, 20, 0.4)';
-      ctx.fillRect(startX, cy, cardW, cardH);
-
-      ctx.strokeStyle = isUnlocked ? (isHovered ? C.uiAccent : '#1e3d2a') : '#111222';
-      ctx.lineWidth = isHovered ? 1.2 : 1;
-      ctx.strokeRect(startX, cy, cardW, cardH);
-
-      if (isUnlocked) {
-        // Label & Title
-        ctx.fillStyle = isHovered ? C.uiAccent : C.uiText;
-        ctx.font = 'bold 9px "Outfit"';
-        ctx.textAlign = 'left';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(`${getLevelTacticalLabel(lvl.id)}: ${lvl.name.toUpperCase()}`, startX + 10, cy + cardH / 2 + 0.5);
-
-        // Stats
-        ctx.fillStyle = '#888';
-        ctx.font = '500 7px "Outfit"';
-        ctx.textAlign = 'right';
-        ctx.fillText(`Limit: ${lvl.passLimit} | Best: ${data.bestPasses === 99 ? '-' : data.bestPasses}`, startX + cardW - 35, cy + cardH / 2 + 0.5);
-
-        // Grade Emblem
-        const emblemX = startX + cardW - 16;
-        const emblemY = cy + cardH / 2;
-        if (data.stars > 0) {
-          const grade = StorageMgr.starsToGrade(data.stars);
-          ctx.beginPath();
-          ctx.arc(emblemX, emblemY, 8, 0, Math.PI * 2);
-          ctx.fillStyle = grade === 'S' ? C.uiAccent : (grade === 'A' ? C.passRisky : C.playerBlue);
-          ctx.fill();
-
-          ctx.fillStyle = '#000';
-          ctx.font = 'bold 9px "Outfit"';
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillText(grade, emblemX, emblemY + 0.5);
-        } else {
-          ctx.save();
-          ctx.strokeStyle = '#2d5e3f';
-          ctx.lineWidth = 1;
-          ctx.setLineDash([2, 2]);
-          ctx.beginPath();
-          ctx.arc(emblemX, emblemY, 8, 0, Math.PI * 2);
-          ctx.stroke();
-          ctx.restore();
-        }
-      } else {
-        // Locked
-        ctx.fillStyle = '#444';
-        ctx.font = 'bold 9px "Outfit"';
-        ctx.textAlign = 'left';
-        ctx.textBaseline = 'middle';
-        ctx.fillText('CLASSIFIED SCENARIO DRILL', startX + 10, cy + cardH / 2 + 0.5);
-
-        ctx.fillStyle = '#444';
-        ctx.font = '8px "Outfit"';
-        ctx.textAlign = 'center';
-        ctx.fillText('🔒', startX + cardW - 16, cy + cardH / 2);
-      }
-    }
-
-    ctx.fillStyle = '#666';
-    ctx.font = '500 7px "Outfit"';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('SELECT DRILL TO BEGIN TACTICAL STUDY', INTERNAL_W / 2, 245);
-  },
-
-  // ─── Game Render ───
-  renderGame(ctx) {
-    ctx.save();
 
     if (this.shake.amount > 0) {
       const sx = (Math.random() - 0.5) * this.shake.amount * 2;
@@ -2609,18 +3053,32 @@ const Game = {
       ctx.translate(sx, sy);
     }
 
-    drawField(ctx, INTERNAL_W, INTERNAL_H);
-    drawChannels(ctx);
-    drawLinesOfEngagement(ctx, this.defenders);
+    // Prerendered Pitch background
+    ctx.drawImage(this.fieldCanvas, 0, 0);
+    
+    // Channels
+    if (Game.guides.channels) {
+      drawChannels(ctx);
+    }
+    if (Game.guides.engagement) {
+      drawLinesOfEngagement(ctx, this.defenders);
+    }
+
+    // Trap Zones
+    for (const zone of this.trapZones) {
+      drawTrapZone(ctx, zone);
+    }
 
     // Target zone Escape boundary
     if (this.targetZone) {
       drawTargetZone(ctx, this.targetZone);
     }
 
-    // Draw defenders with cover shadow cones
-    for (const d of this.defenders) {
-      drawDefender(ctx, d, this.time);
+    // Draw defenders with cover shadows
+    for (let i = 0; i < this.defenders.length; i++) {
+      const d = this.defenders[i];
+      const labelText = getDefenderLabel(d, i);
+      drawDefender(ctx, d, this.time, labelText);
     }
 
     // Draw pass guides
@@ -2633,92 +3091,120 @@ const Game = {
         target = this.players[this.hoveredPlayerIdx];
       }
 
-      let activeAction = this.activeAction;
-      let isBounce = (activeAction === 'bounce' && this.tacticalActions.bounce > 0);
-      let isThirdMan = (activeAction === 'thirdMan' && this.tacticalActions.thirdMan > 0);
-      let isSwitch = (activeAction === 'switchPlay' && this.tacticalActions.switchPlay > 0);
+      if (from && target) {
+        let activeAction = this.activeAction;
+        let isBounce = (activeAction === 'bounce' && this.tacticalActions.bounce > 0);
+        let isThirdMan = (activeAction === 'thirdMan' && this.tacticalActions.thirdMan > 0);
+        let isSwitch = (activeAction === 'switchPlay' && this.tacticalActions.switchPlay > 0);
 
-      ctx.save();
-      ctx.setLineDash([3, 3]);
+        ctx.save();
+        ctx.setLineDash([3, 3]);
 
-      if (isBounce || isThirdMan) {
-        // Multi-stage path rendering
-        const connIdx = isBounce ? this.bounceConnectorIdx : this.thirdManConnectorIdx;
-        const conn = this.players[connIdx];
-        
-        if (conn) {
-          // Check collision on both lanes
-          let blocked1 = false, blocked2 = false;
-          for (const d of this.defenders) {
-            if (lineCircleIntersect(from, conn, d, d.blockRadius) || lineIntersectsCoverShadow(from, conn, d, from)) blocked1 = true;
-            if (lineCircleIntersect(conn, target, d, d.blockRadius) || lineIntersectsCoverShadow(conn, target, d, conn)) blocked2 = true;
+        if (isBounce || isThirdMan) {
+          const connIdx = isBounce ? this.bounceConnectorIdx : this.thirdManConnectorIdx;
+          const conn = this.players[connIdx];
+          
+          if (conn) {
+            const lane1 = evaluateLane(from, conn, this.defenders, { ignoreRange: true, trapZones: this.trapZones });
+            const lane2 = evaluateLane(conn, target, this.defenders, { ignoreRange: true, trapZones: this.trapZones });
+            const lane = combineLaneResults([lane1, lane2]);
+            const status = lane.status;
+
+            let color = C.passSafe;
+            if (status === 'blocked') color = C.passBlocked;
+            else if (status === 'risky' || status === 'baited') color = C.passRisky;
+
+            ctx.strokeStyle = color;
+            ctx.lineWidth = status === 'lineBreaking' ? 2.0 : 1.2;
+            
+            ctx.beginPath();
+            ctx.moveTo(from.x, from.y);
+            ctx.lineTo(conn.x, conn.y);
+            ctx.stroke();
+            
+            ctx.beginPath();
+            ctx.moveTo(conn.x, conn.y);
+            ctx.lineTo(target.x, target.y);
+            ctx.stroke();
+
+            ctx.fillStyle = C.uiAccent;
+            ctx.font = 'bold 6px Outfit';
+            ctx.textAlign = 'center';
+            ctx.fillText(isBounce ? 'BOUNCE' : '3RD MAN', (from.x + conn.x)/2, (from.y + conn.y)/2 - 4);
+
+            if (lane1.status === 'blocked') {
+              drawCutBadge(ctx, from, conn, lane1.byDefender);
+            }
+            if (lane2.status === 'blocked') {
+              drawCutBadge(ctx, conn, target, lane2.byDefender);
+            }
           }
+        } else if (isSwitch) {
+          const lane = evaluateLane(from, target, this.defenders, { switchPlay: true, trapZones: this.trapZones });
+          ctx.strokeStyle = lane.status === 'blocked' ? C.passBlocked : C.passSafe;
+          ctx.lineWidth = 1.5;
           
-          ctx.strokeStyle = (blocked1 || blocked2) ? C.passBlocked : C.passSafe;
-          ctx.lineWidth = 1.2;
+          const midX = (from.x + target.x) / 2;
+          const midY = (from.y + target.y) / 2 - 25;
           
-          // Draw lane 1
           ctx.beginPath();
           ctx.moveTo(from.x, from.y);
-          ctx.lineTo(conn.x, conn.y);
+          ctx.quadraticCurveTo(midX, midY, target.x, target.y);
           ctx.stroke();
-          
-          // Draw lane 2
+
+          // Render Tactical Label for Switch
+          ctx.save();
+          ctx.fillStyle = C.uiAccent;
+          ctx.font = 'bold 5.5px "Outfit"';
+          ctx.textAlign = 'center';
+          ctx.fillText('SWITCH PLAY', midX, midY + 12);
+          ctx.restore();
+
+          if (lane.status === 'blocked') {
+            drawCutBadge(ctx, from, target, lane.byDefender);
+          }
+        } else {
+          const lane = evaluateLane(from, target, this.defenders, { trapZones: this.trapZones });
+          let color = C.passSafe;
+          if (lane.status === 'blocked') color = C.passBlocked;
+          else if (lane.status === 'risky' || lane.status === 'baited') color = C.passRisky;
+
+          ctx.strokeStyle = color;
+          ctx.lineWidth = lane.status === 'lineBreaking' ? 2.0 : 1.2;
           ctx.beginPath();
-          ctx.moveTo(conn.x, conn.y);
+          ctx.moveTo(from.x, from.y);
           ctx.lineTo(target.x, target.y);
           ctx.stroke();
 
-          // Action description overlay
-          ctx.fillStyle = C.uiAccent;
-          ctx.font = 'bold 6px Outfit';
+          // Render Tactical Label for Straight Pass
+          ctx.save();
+          ctx.fillStyle = color;
+          ctx.font = 'bold 5.5px "Outfit"';
           ctx.textAlign = 'center';
-          ctx.fillText(isBounce ? 'BOUNCE' : '3RD MAN', (from.x + conn.x)/2, (from.y + conn.y)/2 - 4);
-        }
-      } else if (isSwitch) {
-        // Draw Switch Play curved lob trajectory
-        const isFar = dist(from, target) >= 140;
-        ctx.strokeStyle = isFar ? C.passSafe : C.passBlocked;
-        ctx.lineWidth = 1.5;
-        
-        const midX = (from.x + target.x) / 2;
-        const midY = (from.y + target.y) / 2 - 25; // height offset
-        
-        ctx.beginPath();
-        ctx.moveTo(from.x, from.y);
-        ctx.quadraticCurveTo(midX, midY, target.x, target.y);
-        ctx.stroke();
-      } else {
-        // Normal Straight pass
-        let blocked = false;
-        for (const d of this.defenders) {
-          if (lineCircleIntersect(from, target, d, d.blockRadius) || lineIntersectsCoverShadow(from, target, d, from)) {
-            blocked = true;
-            break;
+          const mx = (from.x + target.x) / 2;
+          const my = (from.y + target.y) / 2 - 3;
+          let labelText = 'SAFE PASS';
+          if (lane.status === 'blocked') {
+            labelText = 'BLOCKED';
+          } else if (lane.status === 'risky') {
+            labelText = 'RISKY';
+          } else if (lane.status === 'baited') {
+            labelText = 'TRAP BAIT';
+          } else if (lane.status === 'lineBreaking') {
+            labelText = 'LINE BREAKING';
+          } else if (target.x < from.x - 10) {
+            labelText = 'RESET';
+          }
+          ctx.fillText(labelText, mx, my);
+          ctx.restore();
+
+          if (lane.status === 'blocked') {
+            drawCutBadge(ctx, from, target, lane.byDefender);
           }
         }
-        const outOfRange = dist(from, target) > (from.passRange || 999);
-        
-        ctx.strokeStyle = (blocked || outOfRange) ? C.passBlocked : C.passSafe;
-        ctx.lineWidth = 1.2;
-        ctx.beginPath();
-        ctx.moveTo(from.x, from.y);
-        ctx.lineTo(target.x, target.y);
-        ctx.stroke();
 
-        if (blocked || outOfRange) {
-          const mx = (from.x + target.x) / 2;
-          const my = (from.y + target.y) / 2;
-          ctx.strokeStyle = C.uiFail;
-          ctx.lineWidth = 1.5;
-          ctx.beginPath();
-          ctx.moveTo(mx - 3, my - 3); ctx.lineTo(mx + 3, my + 3);
-          ctx.moveTo(mx + 3, my - 3); ctx.lineTo(mx - 3, my + 3);
-          ctx.stroke();
-        }
+        ctx.restore();
       }
-
-      ctx.restore();
     }
 
     // Trail
@@ -2736,28 +3222,21 @@ const Game = {
       let py = p.y;
 
       const isHighlighted = (this.state === States.GAME_IDLE && this.hoveredPlayerIdx === i);
-
-      drawPlayer(ctx, px, py, p.hasBall, isHighlighted, p.passRange);
+      const labelText = getPlayerLabel(p, i);
+      drawPlayer(ctx, px, py, p.hasBall, isHighlighted, p.passRange, labelText);
 
       // "free man" hint in tutorial levels (1-3)
       if (this.levelId <= 3 && this.state === States.GAME_IDLE && i !== this.currentPlayerIdx) {
         const from = this.players[this.currentPlayerIdx];
-        const pRange = from.passRange || 150;
-        if (dist(from, p) <= pRange) {
-          let blocked = false;
-          for (const d of this.defenders) {
-            if (lineCircleIntersect(from, p, d, d.blockRadius) || lineIntersectsCoverShadow(from, p, d, from)) {
-              blocked = true;
-              break;
-            }
-          }
-          if (!blocked) {
+        if (from) {
+          const lane = evaluateLane(from, p, this.defenders, { trapZones: this.trapZones });
+          if (lane.status !== 'blocked') {
             ctx.save();
             ctx.fillStyle = C.uiAccent;
             ctx.font = 'bold 7px Outfit';
             ctx.textAlign = 'center';
             ctx.globalAlpha = 0.5 + 0.5 * Math.sin(Date.now() / 150);
-            ctx.fillText('FREE', px, py - PLAYER_RADIUS - 4);
+            ctx.fillText(t('canvas.free'), px, py - PLAYER_RADIUS - 4);
             
             ctx.strokeStyle = C.uiAccent;
             ctx.lineWidth = 1;
@@ -2771,16 +3250,39 @@ const Game = {
       }
     }
 
-    // Ball with Scale Effect (height effect duringSwitch)
+    // Ball
     if (this.ball.state === 'moving') {
-      const r = BALL_RADIUS * (this.ball.scaleEffect || 1.0);
-      drawPixelCircle(ctx, this.ball.x, this.ball.y, r, C.ball, C.ballOutline, 1);
+      if (this.passUsesSwitch) {
+        // Draw flat linear dotted shadow path
+        ctx.save();
+        ctx.setLineDash([2, 3]);
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.4)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(this.ball.startX, this.ball.startY);
+        ctx.lineTo(this.ball.targetX, this.ball.targetY);
+        ctx.stroke();
+        ctx.restore();
+
+        // Draw ball projection shadow on the ground (gets smaller at high altitude)
+        const shadowSize = Math.max(1, BALL_RADIUS * (1.0 - 0.4 * Math.sin(this.ball.progress * Math.PI)));
+        const shadowAlpha = 0.5 - 0.2 * Math.sin(this.ball.progress * Math.PI);
+        drawPixelCircle(ctx, this.ball.x, this.ball.y, shadowSize, `rgba(0, 0, 0, ${shadowAlpha})`, null, 0);
+
+        // Draw elevated y-flight ball
+        const heightOffset = Math.sin(this.ball.progress * Math.PI) * 35;
+        const r = BALL_RADIUS * (this.ball.scaleEffect || 1.0);
+        drawPixelCircle(ctx, this.ball.x, this.ball.y - heightOffset, r, C.ball, C.ballOutline, 1);
+      } else {
+        const r = BALL_RADIUS * (this.ball.scaleEffect || 1.0);
+        drawPixelCircle(ctx, this.ball.x, this.ball.y, r, C.ball, C.ballOutline, 1);
+      }
     } else if (this.ball.state === 'held') {
       const holder = this.players[this.currentPlayerIdx];
       if (holder) drawBall(ctx, holder.x - 5, holder.y + 5);
     }
 
-    // Fail mark
+    // Fail mark X
     if (this.failMark) {
       ctx.save();
       ctx.globalAlpha = Math.min(this.failMark.alpha, 1);
@@ -2795,7 +3297,7 @@ const Game = {
       ctx.restore();
     }
 
-    // Goal clear title
+    // Goal clear text
     if (this.goalAnim) {
       const f = this.goalAnim.frame;
       const alpha = Math.min(f / 10, 1) * (1 - Math.max(0, f - 40) / 20);
@@ -2803,9 +3305,10 @@ const Game = {
       ctx.globalAlpha = alpha;
       ctx.fillStyle = C.uiAccent;
       ctx.textAlign = 'center';
-      ctx.font = 'bold 24px "Outfit"';
-      ctx.fillText('PRESS BEATEN!', INTERNAL_W / 2, INTERNAL_H / 2 - 12 - f * 0.2);
+      ctx.font = 'bold 22px "Outfit"';
+      ctx.fillText(t('canvas.escaped'), INTERNAL_W / 2, INTERNAL_H / 2 - 12 - f * 0.2);
       ctx.restore();
+      this.goalAnim.frame++;
     }
 
     // Particles
@@ -2817,651 +3320,12 @@ const Game = {
     ctx.globalAlpha = 1;
 
     ctx.restore();
-
-    this.renderHUD(ctx);
-
-    if (this.showIntro && this.currentLevel) {
-      this.renderIntro(ctx);
-    }
-
-    if (this.state === States.GAME_LOSE) {
-      this.renderLoseOverlay(ctx);
-    }
-  },
-
-  renderHUD(ctx) {
-    ctx.fillStyle = C.uiBg;
-    ctx.fillRect(0, 0, INTERNAL_W, 18);
-
-    // Lv title
-    ctx.fillStyle = C.uiText;
-    ctx.textAlign = 'left';
-    ctx.font = '600 9px "Outfit"';
-    ctx.fillText(`${getLevelTacticalLabel(this.levelId)}: ${this.currentLevel.name.toUpperCase()}`, 6, 12);
-
-    // Limit count
-    ctx.textAlign = 'center';
-    ctx.fillStyle = this.passCount >= this.passLimit ? C.uiFail : C.uiAccent;
-    ctx.font = 'bold 10px "Outfit"';
-    ctx.fillText(`Action Limit: ${this.passCount}/${this.passLimit}`, INTERNAL_W / 2, 12);
-
-    // Mute
-    ctx.textAlign = 'right';
-    ctx.font = 'bold 8px "Outfit"';
-    ctx.fillStyle = AudioMgr.muted ? '#555' : C.uiAccent;
-    ctx.fillText(AudioMgr.muted ? 'MUTED' : 'AUDIO', INTERNAL_W - 4, 12);
-
-    // Bottom action bar
-    ctx.fillStyle = C.uiBg;
-    ctx.fillRect(0, INTERNAL_H - 32, INTERNAL_W, 32);
-
-    // System commands
-    ctx.textAlign = 'left';
-    ctx.font = '600 7px "Outfit"';
-    ctx.fillStyle = C.uiText;
-    ctx.fillText('[ESC] LAB BOARD', 6, INTERNAL_H - 22);
-    ctx.fillText('[Z] ADJUST PASS', 6, INTERNAL_H - 14);
-    ctx.fillText('[R] RESET SHAPE', 6, INTERNAL_H - 6);
-
-    // ─── Render Tactical Actions Toolbar (5 buttons) ───
-    ctx.save();
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.font = 'bold 7px "Outfit"';
-
-    const actions = ['pass', 'bounce', 'thirdMan', 'switchPlay', 'dropPivot'];
-    const labels = ['1:PASS', '2:BOUNCE', '3:3RD MAN', '4:SWITCH', '5:DROP DM'];
-    const btnW = 55;
-    const spacing = 18;
-    const yStart = 228;
-    const h = 22;
-
-    for (let i = 0; i < actions.length; i++) {
-      const actName = actions[i];
-      const bx = spacing + i * (btnW + spacing);
-      const isSelected = this.activeAction === actName;
-      
-      let countText = '∞';
-      let hasUses = true;
-      if (actName !== 'pass') {
-        const u = this.tacticalActions[actName] || 0;
-        countText = `x${u}`;
-        if (u <= 0) hasUses = false;
-      }
-
-      // Draw button container
-      if (isSelected) {
-        ctx.fillStyle = 'rgba(0, 245, 212, 0.22)';
-        ctx.strokeStyle = C.uiAccent;
-      } else {
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.03)';
-        ctx.strokeStyle = hasUses ? '#1d4e2d' : '#222538';
-      }
-      ctx.fillRect(bx, yStart, btnW, h);
-      ctx.strokeRect(bx, yStart, btnW, h);
-
-      // Label text
-      ctx.fillStyle = hasUses ? (isSelected ? C.uiAccent : '#fff') : '#555';
-      ctx.fillText(`${labels[i]} (${countText})`, bx + btnW / 2, yStart + h / 2 + 0.5);
-    }
-    ctx.restore();
-  },
-
-  renderIntro(ctx) {
-    ctx.save();
-    const alpha = Math.min(this.introTimer, 1);
-    ctx.globalAlpha = alpha;
-    ctx.fillStyle = 'rgba(5,5,15,0.85)';
-    ctx.fillRect(0, 0, INTERNAL_W, INTERNAL_H);
-
-    ctx.fillStyle = C.uiText;
-    ctx.textAlign = 'center';
-    ctx.font = 'bold 14px "Outfit"';
-    ctx.fillText(getLevelTacticalLabel(this.levelId), INTERNAL_W / 2, INTERNAL_H / 2 - 25);
-    ctx.font = 'bold 16px "Outfit"';
-    ctx.fillStyle = C.uiAccent;
-    ctx.fillText(this.currentLevel.name.toUpperCase(), INTERNAL_W / 2, INTERNAL_H / 2 - 8);
-
-    ctx.font = '600 9px "Outfit"';
-    ctx.fillStyle = '#e2e8f0';
-    ctx.fillText(this.currentLevel.intro, INTERNAL_W / 2, INTERNAL_H / 2 + 12);
-
-    ctx.font = '500 8px "Outfit"';
-    ctx.fillStyle = '#666';
-    ctx.fillText('Tap Screen to Begin Scenario', INTERNAL_W / 2, INTERNAL_H / 2 + 30);
-
-    ctx.restore();
-  },
-
-  renderLoseOverlay(ctx) {
-    ctx.save();
-    ctx.fillStyle = 'rgba(5,5,15,0.8)';
-    ctx.fillRect(0, INTERNAL_H / 2 - 38, INTERNAL_W, 76);
-
-    ctx.fillStyle = C.uiFail;
-    ctx.textAlign = 'center';
-    ctx.font = 'bold 14px "Outfit"';
-    ctx.fillText('DRILL INTERRUPTED!', INTERNAL_W / 2, INTERNAL_H / 2 - 12);
-
-    ctx.font = '500 8px "Outfit"';
-    ctx.fillStyle = '#888';
-    const reason = this.passCount >= this.passLimit ? 'Exceeded allowable actions' :
-                   this.checkSoftLockMsg() || 'Pass route intercepted by opponent block';
-    ctx.fillText(reason.toUpperCase(), INTERNAL_W / 2, INTERNAL_H / 2 + 2);
-
-    const btnY = INTERNAL_H / 2 + 18;
-
-    // Undo
-    if (this.passHistory.length > 0) {
-      ctx.fillStyle = C.btnBg;
-      ctx.fillRect(INTERNAL_W/2 - 58, btnY - 7, 46, 14);
-      ctx.strokeStyle = C.uiAccent;
-      ctx.lineWidth = 1;
-      ctx.strokeRect(INTERNAL_W/2 - 58, btnY - 7, 46, 14);
-      ctx.fillStyle = C.btnText;
-      ctx.font = 'bold 8px "Outfit"';
-      ctx.fillText('Adjust', INTERNAL_W/2 - 35, btnY + 2);
-    }
-
-    // Retry
-    ctx.fillStyle = '#7a1f1f';
-    ctx.fillRect(INTERNAL_W/2 + 12, btnY - 7, 46, 14);
-    ctx.strokeStyle = C.uiFail;
-    ctx.lineWidth = 1;
-    ctx.strokeRect(INTERNAL_W/2 + 12, btnY - 7, 46, 14);
-    ctx.fillStyle = C.btnText;
-    ctx.font = 'bold 8px "Outfit"';
-    ctx.fillText('Reset', INTERNAL_W/2 + 35, btnY + 2);
-
-    ctx.restore();
-  },
-
-  checkSoftLockMsg() {
-    if (this.passCount >= this.passLimit) return 'Exceeded allowable passes';
-    const holder = this.players[this.currentPlayerIdx];
-    if (!holder) return null;
-    const pRange = holder.passRange || 150;
-    let allOutOfRange = true;
-    for (let i = 0; i < this.players.length; i++) {
-      if (i === this.currentPlayerIdx) continue;
-      if (dist(holder, this.players[i]) <= pRange) { allOutOfRange = false; break; }
-    }
-    if (allOutOfRange) return 'All support options are out of pass range';
-    return 'Opponent cover shadows block all open lanes';
-  },
-
-  // ─── Result Screen ───
-  renderResult(ctx) {
-    ctx.fillStyle = C.titleBg;
-    ctx.fillRect(0, 0, INTERNAL_W, INTERNAL_H);
-
-    const cy = INTERNAL_H / 2;
-
-    ctx.fillStyle = C.uiAccent;
-    ctx.textAlign = 'center';
-    ctx.font = 'bold 18px "Outfit"';
-    ctx.fillText('PRESS ESCAPED!', INTERNAL_W / 2, cy - 44);
-
-    ctx.fillStyle = C.uiText;
-    ctx.font = '600 10px "Outfit"';
-    ctx.fillText(`${getLevelTacticalLabel(this.levelId)}: ${this.currentLevel.name.toUpperCase()}`, INTERNAL_W / 2, cy - 28);
-
-    // Large rating emblem S/A/B instead of stars
-    const grade = StorageMgr.starsToGrade(this.resultStars);
-    
-    // Bounce scale animation
-    let scale = 1;
-    if (this.starAnim.length > 0) {
-      const anim = this.starAnim[0]; // use first animation clock
-      if (anim && anim.frame >= 0) {
-        const t = anim.frame / anim.maxFrame;
-        scale = 1.0 + Math.sin(t * Math.PI) * 0.4;
-      }
-    }
-
-    ctx.save();
-    ctx.translate(INTERNAL_W / 2, cy + 2);
-    ctx.scale(scale, scale);
-
-    // Emblem background ring
-    ctx.strokeStyle = grade === 'S' ? C.uiAccent : (grade === 'A' ? C.passRisky : C.playerBlue);
-    ctx.lineWidth = 2.5;
-    ctx.beginPath();
-    ctx.arc(0, 0, 18, 0, Math.PI*2);
-    ctx.stroke();
-
-    // Emblem Grade Letter
-    ctx.fillStyle = '#fff';
-    ctx.font = 'bold 20px "Outfit"';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(grade, 0, 1);
-    ctx.restore();
-
-    // Description text below rating
-    ctx.fillStyle = '#aaa';
-    ctx.font = '500 8px "Outfit"';
-    ctx.fillText(`GRADE: ${grade}   |   LINES BROKEN: ${this.resultLinesBroken || 0}`, INTERNAL_W / 2, cy + 26);
-    ctx.fillText(`Actions: ${this.resultPasses}/${this.currentLevel.optimalPasses}   |   INTO ${this.resultTargetChannel || 'ZONE'}`, INTERNAL_W / 2, cy + 36);
-
-    // Buttons
-    // Retry
-    ctx.fillStyle = C.btnBg;
-    ctx.fillRect(INTERNAL_W/2 - 62, cy + 44, 52, 14);
-    ctx.strokeStyle = C.uiAccent;
-    ctx.lineWidth = 1;
-    ctx.strokeRect(INTERNAL_W/2 - 62, cy + 44, 52, 14);
-    ctx.fillStyle = C.btnText;
-    ctx.font = 'bold 8px "Outfit"';
-    ctx.fillText('Reset Shape', INTERNAL_W/2 - 36, cy + 54);
-
-    // Next
-    const hasNext = LEVELS.find(l => l.id === this.levelId + 1);
-    if (hasNext) {
-      ctx.fillStyle = '#1e3d2a';
-      ctx.fillRect(INTERNAL_W/2 + 10, cy + 44, 52, 14);
-      ctx.strokeStyle = C.uiAccent;
-      ctx.lineWidth = 1;
-      ctx.strokeRect(INTERNAL_W/2 + 10, cy + 44, 52, 14);
-      ctx.fillStyle = C.btnText;
-      ctx.font = 'bold 8px "Outfit"';
-      ctx.fillText('Next Setup', INTERNAL_W/2 + 36, cy + 54);
-    }
-
-    // Copy Summary Button
-    ctx.fillStyle = C.btnBg;
-    ctx.fillRect(INTERNAL_W/2 - 40, cy + 62, 80, 12);
-    ctx.strokeStyle = C.uiAccent;
-    ctx.lineWidth = 1;
-    ctx.strokeRect(INTERNAL_W/2 - 40, cy + 62, 80, 12);
-    ctx.fillStyle = C.btnText;
-    ctx.font = 'bold 7px "Outfit"';
-    ctx.fillText('Share Summary', INTERNAL_W/2, cy + 69.5);
-
-    // Feedback message overlay
-    if (this.shareFeedbackMsg) {
-      ctx.fillStyle = C.uiAccent;
-      ctx.font = 'bold 7px "Outfit"';
-      ctx.fillText(this.shareFeedbackMsg, INTERNAL_W / 2, cy + 81);
-    }
-
-    // Map footer
-    ctx.fillStyle = '#666';
-    ctx.font = '500 7px "Outfit"';
-    ctx.fillText('Tap Screen or Back to Map List', INTERNAL_W / 2, cy + 90);
   },
 };
 
 // ─── Start ───────────────────────────────────────
+window.Game = Game;
 window.addEventListener('DOMContentLoaded', () => Game.init());
-
-// ─── Console Test Functions ──────────────────────
-window._test = {
-  dist: (a, b) => dist(a, b),
-  lineCircleIntersect: (p1, p2, c, r) => lineCircleIntersect(p1, p2, c, r),
-  pointInCoverShadow: (p, d, h) => pointInCoverShadow(p, d, h),
-  lineIntersectsCoverShadow: (p1, p2, d, h) => lineIntersectsCoverShadow(p1, p2, d, h),
-  getGrade: (passes, optimal) => {
-    if (passes <= optimal) return 'S';
-    if (passes <= optimal + 1) return 'A';
-    return 'B';
-  },
-  storage: () => StorageMgr.data,
-  solveLevel(id) {
-    const lvl = LEVELS.find(l => l.id === id);
-    if (!lvl) return 'Level not found';
-
-    const initialPlayers = lvl.players.map(p => ({
-      x: p.x, y: p.y,
-      hasBall: !!p.hasBall,
-      passRange: p.passRange || 150
-    }));
-    const initialDefenders = lvl.defenders.map(d => ({
-      x: d.x, y: d.y,
-      type: d.type,
-      blockRadius: d.blockRadius,
-      coverShadowAngle: d.coverShadowAngle || 0,
-      coverShadowLength: d.coverShadowLength || 0,
-      patrolPath: d.patrolPath ? d.patrolPath.map(p => ({...p})) : null,
-      patrolIdx: 0,
-      patrolDir: 1,
-      speed: d.speed || 1,
-      alertRange: d.alertRange || 80
-    }));
-    const tz = lvl.targetZone;
-    if (!tz) return 'No target zone';
-    const tzCenter = { x: tz.x + tz.w / 2, y: tz.y + tz.h / 2 };
-    const startIdx = initialPlayers.findIndex(p => p.hasBall);
-
-    // Mirror of runtime advanceDefenders — uses the same shared stepDefender().
-    function advanceDefs(defs, players, holderIdx, prevHolderX) {
-      const holder = players[holderIdx];
-      return defs.map(d => stepDefender(d, holder, prevHolderX));
-    }
-
-    const queue = [{
-      idx: startIdx,
-      passes: 0,
-      path: ['START'],
-      players: initialPlayers,
-      defenders: initialDefenders,
-      actions: { ...lvl.tacticalActions }
-    }];
-
-    const visited = new Set();
-    const stateKey = (s) => {
-      const playerPos = s.players.map(p => `${Math.round(p.x)},${Math.round(p.y)}`).join('|');
-      const defPos = s.defenders.map(d => `${Math.round(d.x)},${Math.round(d.y)}`).join('|');
-      return `${s.idx}_${s.passes}_${playerPos}_${defPos}_b${s.actions.bounce}_t${s.actions.thirdMan}_s${s.actions.switchPlay}_d${s.actions.dropPivot}`;
-    };
-
-    visited.add(stateKey(queue[0]));
-
-    let iterations = 0;
-    while (queue.length > 0) {
-      iterations++;
-      if (iterations > 12000) break; // safeguard
-      const cur = queue.shift();
-      const from = cur.players[cur.idx];
-      const pRange = from.passRange || 150;
-
-      // 1. Direct Target Zone Check from current player (Normal Pass only)
-      if (dist(from, tzCenter) <= pRange) {
-        let blocked = false;
-        for (const d of cur.defenders) {
-          if (lineCircleIntersect(from, tzCenter, d, d.blockRadius) || lineIntersectsCoverShadow(from, tzCenter, d, from)) {
-            blocked = true; break;
-          }
-        }
-        if (!blocked && cur.passes + 1 <= lvl.passLimit) {
-          return { path: [...cur.path, 'ESCAPE_ZONE'], passes: cur.passes + 1, success: true };
-        }
-      }
-
-      // 2. Try actions & passes to teammates
-      for (let i = 0; i < cur.players.length; i++) {
-        if (i === cur.idx) continue;
-        const target = cur.players[i];
-
-        // 2-a. Normal pass
-        if (dist(from, target) <= pRange) {
-          let blocked = false;
-          for (const d of cur.defenders) {
-            if (lineCircleIntersect(from, target, d, d.blockRadius) || lineIntersectsCoverShadow(from, target, d, from)) {
-              blocked = true; break;
-            }
-          }
-          if (!blocked && cur.passes + 1 <= lvl.passLimit) {
-            // Apply pass: advance defenders
-            const nextDefenders = advanceDefs(cur.defenders, cur.players, i, from.x);
-            // Check if receiver is trapped in the new configuration
-            let trapped = false;
-            for (const d of nextDefenders) {
-              if (dist(target, d) < d.blockRadius || (d.type === 'presser' && pointInCoverShadow(target, d, from))) {
-                trapped = true; break;
-              }
-            }
-            if (!trapped) {
-              const inZone = pointInRect(target.x, target.y, tz.x, tz.y, tz.w, tz.h);
-              if (inZone) {
-                return { path: [...cur.path, `PASS(${i})`], passes: cur.passes + 1, success: true };
-              }
-              const nextState = {
-                idx: i,
-                passes: cur.passes + 1,
-                path: [...cur.path, `PASS(${i})`],
-                players: cur.players.map(p => ({...p})),
-                defenders: nextDefenders,
-                actions: { ...cur.actions }
-              };
-              const key = stateKey(nextState);
-              if (!visited.has(key)) {
-                visited.add(key);
-                queue.push(nextState);
-              }
-            }
-          }
-        }
-
-        // 2-b. Bounce Pass
-        if (cur.actions.bounce > 0) {
-          let connIdx = -1;
-          let minDist = 9999;
-          for (let j = 0; j < cur.players.length; j++) {
-            if (j !== cur.idx && j !== i) {
-              const d = dist(from, cur.players[j]) + dist(cur.players[j], target);
-              if (d < minDist) {
-                minDist = d;
-                connIdx = j;
-              }
-            }
-          }
-          if (connIdx >= 0) {
-            const conn = cur.players[connIdx];
-            let blocked1 = false, blocked2 = false;
-            for (const d of cur.defenders) {
-              if (lineCircleIntersect(from, conn, d, d.blockRadius) || lineIntersectsCoverShadow(from, conn, d, from)) blocked1 = true;
-              if (lineCircleIntersect(conn, target, d, d.blockRadius) || lineIntersectsCoverShadow(conn, target, d, conn)) blocked2 = true;
-            }
-            if (!blocked1 && !blocked2 && cur.passes + 1 <= lvl.passLimit) {
-              const nextDefenders = advanceDefs(cur.defenders, cur.players, i, from.x);
-              let trapped = false;
-              for (const d of nextDefenders) {
-                if (dist(target, d) < d.blockRadius || (d.type === 'presser' && pointInCoverShadow(target, d, conn))) {
-                  trapped = true; break;
-                }
-              }
-              if (!trapped) {
-                const inZone = pointInRect(target.x, target.y, tz.x, tz.y, tz.w, tz.h);
-                if (inZone) {
-                  return { path: [...cur.path, `BOUNCE(${connIdx}->${i})`], passes: cur.passes + 1, success: true };
-                }
-                const nextState = {
-                  idx: i,
-                  passes: cur.passes + 1,
-                  path: [...cur.path, `BOUNCE(${connIdx}->${i})`],
-                  players: cur.players.map(p => ({...p})),
-                  defenders: nextDefenders,
-                  actions: { ...cur.actions, bounce: cur.actions.bounce - 1 }
-                };
-                const key = stateKey(nextState);
-                if (!visited.has(key)) {
-                  visited.add(key);
-                  queue.push(nextState);
-                }
-              }
-            }
-          }
-        }
-
-        // 2-c. Switch Play
-        if (cur.actions.switchPlay > 0 && dist(from, target) >= 140) {
-          if (cur.passes + 1 <= lvl.passLimit) {
-            const nextDefenders = advanceDefs(cur.defenders, cur.players, i, from.x);
-            let trapped = false;
-            for (const d of nextDefenders) {
-              if (dist(target, d) < d.blockRadius) {
-                trapped = true; break;
-              }
-            }
-            if (!trapped) {
-              const inZone = pointInRect(target.x, target.y, tz.x, tz.y, tz.w, tz.h);
-              if (inZone) {
-                return { path: [...cur.path, `SWITCH(${i})`], passes: cur.passes + 1, success: true };
-              }
-              const nextState = {
-                idx: i,
-                passes: cur.passes + 1,
-                path: [...cur.path, `SWITCH(${i})`],
-                players: cur.players.map(p => ({...p})),
-                defenders: nextDefenders,
-                actions: { ...cur.actions, switchPlay: cur.actions.switchPlay - 1 }
-              };
-              const key = stateKey(nextState);
-              if (!visited.has(key)) {
-                visited.add(key);
-                queue.push(nextState);
-              }
-            }
-          }
-        }
-
-        // 2-d. Third-Man Run
-        if (cur.actions.thirdMan > 0) {
-          let runnerIdx = -1;
-          let maxX = -999;
-          for (let j = 0; j < cur.players.length; j++) {
-            if (j !== cur.idx && cur.players[j].x > maxX) {
-              maxX = cur.players[j].x;
-              runnerIdx = j;
-            }
-          }
-          if (runnerIdx === i) {
-            const tempPlayers = cur.players.map(p => ({...p}));
-            const runner = tempPlayers[runnerIdx];
-            const originalPos = { x: runner.x, y: runner.y };
-            
-            // Apply movement
-            runner.x += 40;
-            runner.y = runner.y < 128 ? runner.y + 15 : runner.y - 15;
-
-            let connIdx = -1;
-            let minDist = 9999;
-            for (let j = 0; j < tempPlayers.length; j++) {
-              if (j !== cur.idx && j !== runnerIdx) {
-                const d = dist(from, tempPlayers[j]);
-                if (d < minDist) {
-                  minDist = d;
-                  connIdx = j;
-                }
-              }
-            }
-            if (connIdx >= 0) {
-              const conn = tempPlayers[connIdx];
-              let blocked1 = false, blocked2 = false;
-              for (const d of cur.defenders) {
-                if (lineCircleIntersect(from, conn, d, d.blockRadius) || lineIntersectsCoverShadow(from, conn, d, from)) blocked1 = true;
-                if (lineCircleIntersect(conn, runner, d, d.blockRadius) || lineIntersectsCoverShadow(conn, runner, d, conn)) blocked2 = true;
-              }
-              if (!blocked1 && !blocked2 && cur.passes + 1 <= lvl.passLimit) {
-                const nextDefenders = advanceDefs(cur.defenders, tempPlayers, runnerIdx, from.x);
-                let trapped = false;
-                for (const d of nextDefenders) {
-                  if (dist(runner, d) < d.blockRadius || (d.type === 'presser' && pointInCoverShadow(runner, d, conn))) {
-                    trapped = true; break;
-                  }
-                }
-                if (!trapped) {
-                  const inZone = pointInRect(runner.x, runner.y, tz.x, tz.y, tz.w, tz.h);
-                  if (inZone) {
-                    return { path: [...cur.path, `3RD_MAN(${connIdx}->${runnerIdx})`], passes: cur.passes + 1, success: true };
-                  }
-                  const nextState = {
-                    idx: runnerIdx,
-                    passes: cur.passes + 1,
-                    path: [...cur.path, `3RD_MAN(${connIdx}->${runnerIdx})`],
-                    players: tempPlayers,
-                    defenders: nextDefenders,
-                    actions: { ...cur.actions, thirdMan: cur.actions.thirdMan - 1 }
-                  };
-                  const key = stateKey(nextState);
-                  if (!visited.has(key)) {
-                    visited.add(key);
-                    queue.push(nextState);
-                  }
-                }
-              }
-            }
-          }
-        }
-
-        // 2-e. Drop Pivot
-        if (cur.actions.dropPivot > 0) {
-          let pivotIdx = -1;
-          for (let j = 0; j < cur.players.length; j++) {
-            if (j !== cur.idx && cur.players[j].x >= 120 && cur.players[j].x <= 190) {
-              pivotIdx = j;
-              break;
-            }
-          }
-          if (pivotIdx === i) {
-            const tempPlayers = cur.players.map(p => ({...p}));
-            const pivot = tempPlayers[pivotIdx];
-            pivot.x = 95;
-            pivot.y = 128;
-
-            if (dist(from, pivot) <= pRange) {
-              let blocked = false;
-              for (const d of cur.defenders) {
-                if (lineCircleIntersect(from, pivot, d, d.blockRadius) || lineIntersectsCoverShadow(from, pivot, d, from)) {
-                  blocked = true; break;
-                }
-              }
-              if (!blocked && cur.passes + 1 <= lvl.passLimit) {
-                const nextDefenders = advanceDefs(cur.defenders, tempPlayers, pivotIdx, from.x);
-                let trapped = false;
-                for (const d of nextDefenders) {
-                  if (dist(pivot, d) < d.blockRadius || (d.type === 'presser' && pointInCoverShadow(pivot, d, from))) {
-                    trapped = true; break;
-                  }
-                }
-                if (!trapped) {
-                  const inZone = pointInRect(pivot.x, pivot.y, tz.x, tz.y, tz.w, tz.h);
-                  if (inZone) {
-                    return { path: [...cur.path, `DROP_PIVOT(${pivotIdx})`], passes: cur.passes + 1, success: true };
-                  }
-                  const nextState = {
-                    idx: pivotIdx,
-                    passes: cur.passes + 1,
-                    path: [...cur.path, `DROP_PIVOT(${pivotIdx})`],
-                    players: tempPlayers,
-                    defenders: nextDefenders,
-                    actions: { ...cur.actions, dropPivot: cur.actions.dropPivot - 1 }
-                  };
-                  const key = stateKey(nextState);
-                  if (!visited.has(key)) {
-                    visited.add(key);
-                    queue.push(nextState);
-                  }
-                }
-              }
-            }
-          }
-        }
-
-      }
-    }
-
-    return { success: false, path: null, passes: 0 };
-  },
-
-  solveAllLevels() {
-    console.log('%c--- BUILD-UP LAB BFS SOLVER REPORT ---', 'color:#00f5d4; font-weight:bold;');
-    console.log('%cValidating all 20 tactical scenarios...', 'color:#aaa;');
-    let passCount = 0;
-    const results = [];
-    
-    LEVELS.forEach(lvl => {
-      const res = this.solveLevel(lvl.id);
-      if (res && res.success) {
-        const rating = this.getGrade(res.passes, lvl.optimalPasses);
-        const limitOk = res.passes <= lvl.passLimit;
-        const ratingOk = res.passes <= lvl.optimalPasses;
-        const logColor = rating === 'S' ? 'color:#00f5d4;' : (rating === 'A' ? 'color:#f2a019;' : 'color:#3a86ff;');
-        console.log(`%c[Scenario ${lvl.id}] ${lvl.name} -> Solved in ${res.passes} passes (Opt: ${lvl.optimalPasses}, Limit: ${lvl.passLimit}) | Rating: ${rating} | Path: ${res.path.join(' -> ')}`, logColor);
-        results.push({ id: lvl.id, name: lvl.name, solved: true, passes: res.passes, optimal: lvl.optimalPasses, limit: lvl.passLimit, rating, path: res.path });
-        passCount++;
-      } else {
-        console.error(`[Scenario ${lvl.id}] ${lvl.name} -> %cNO SOLUTION FOUND within limit!`, 'font-weight:bold;');
-        results.push({ id: lvl.id, name: lvl.name, solved: false });
-      }
-    });
-
-    console.log('%c---------------------------------------', 'color:#aaa;');
-    console.log(`Result: ${passCount} / ${LEVELS.length} levels solved successfully.`);
-    return results;
-  }
-};
 
 })();
 </script>

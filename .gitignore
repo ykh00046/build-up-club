@@ -1,6 +1,7 @@
 .antigravitycli/
 .bkit/
 .playwright-mcp/
+.codegraph/
 
 verify-*.png
 

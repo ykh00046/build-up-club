@@ -145,6 +145,53 @@ Done when:
 - The game is playable on a phone without zooming.
 - A cleared level can be shared as a short challenge.
 
+## Phase 6: Positional Play Depth
+
+Goal: move from a tactics-themed puzzle into a credible build-up/pressing model.
+
+Already started in `index.html`:
+
+- Five vertical channels: left wing, left half-space, centre, right half-space, right wing.
+- Subtle half-space overlays and channel labels.
+- Result screen showing target channel and lines broken.
+- Tactical training board categories.
+
+Next data model additions:
+
+```js
+{
+  ourShape: "2-3",
+  opponentShape: "4-4-2 high press",
+  pressingIdea: "lock pivot and force wide",
+  buildUpAnswer: "drop pivot then bounce through weak side",
+  intendedConcept: "dropPivotBounce",
+  targetZone: { x, y, w, h, label, channel: "rightHalfSpace", routeType: "through" },
+  trapZones: [
+    { x, y, w, h, label: "Wide Trap", trigger: "receiverInside", defenderBoost: 1.5 }
+  ],
+  pressTriggers: [
+    { event: "wideReceive", response: "trapWide" },
+    { event: "backPass", response: "frontLineJump" }
+  ]
+}
+```
+
+Implementation tasks:
+
+- Add `trapZones` rendering and detection.
+- Add `pressTriggers` to defender movement.
+- Add defender roles: `firstPresser`, `screenPivot`, `trapWide`, `farSideLock`.
+- Add lane quality evaluation: `safe`, `risky`, `baited`, `blocked`, `lineBreaking`.
+- Add scenario briefing panel using `ourShape`, `opponentShape`, `pressingIdea`, and `buildUpAnswer`.
+- Upgrade S/A/B scoring to include concept bonus, line break value, and trap-risk penalty.
+
+Done when:
+
+- A wide trap can invite a pass, then collapse after the receiver enters it.
+- A 4-4-2 press, 4-3-3 press, and man-oriented press behave differently.
+- The result screen rewards more than action count.
+- Each advanced level has a documented tactical idea and intended answer.
+
 ## Verification Plan
 
 Manual checks:
@@ -160,4 +207,5 @@ Automated checks:
 - Solver optimal action count matches expected rating.
 - No level can be completed with fewer actions than intended unless allowed.
 - Level data schema validates.
-
+- Trap-zone levels have at least one baited but non-optimal route.
+- S rating requires either the intended concept or an equivalent line-breaking route.

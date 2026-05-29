@@ -12,10 +12,14 @@ Each level contains:
 
 - Our shape: the build-up structure.
 - Opponent shape: the press structure.
+- Pressing idea: what the opponent is trying to deny.
+- Build-up answer: the tactical concept the player should discover.
 - Ball holder.
 - Available teammates.
 - Pressing lanes and cover shadows.
+- Positional-play channel: wing, half-space, or centre.
 - Target zone.
+- Optional trap zones.
 - Action limit.
 - Optional tactical actions.
 
@@ -60,12 +64,34 @@ Initial pressing types:
 - Cover Shadow: defender blocks a passing lane behind them.
 - Trap Side: opponent wants to force play toward one side.
 - Man-Oriented Press: defenders follow assigned players after actions.
+- Wide Trap: the opponent invites a pass to the sideline, then collapses.
+- Pivot Lock: a forward presses while blocking the defensive midfielder.
 
 MVP opponent logic:
 
 - Each defender has a zone, pressure radius, and cover-shadow cone.
 - After each action, defenders shift one step according to the pressing rule.
 - Interception happens when the ball path crosses a pressure radius or cover shadow.
+- Trap zones trigger extra pressure after the receiver enters them.
+
+## Positional Play Model
+
+The pitch is divided into five vertical channels:
+
+- Left wing.
+- Left half-space.
+- Centre.
+- Right half-space.
+- Right wing.
+
+The half-spaces should matter because many build-up escapes aim to find a player between the opponent's wide and central defenders. Target zones should therefore communicate not only a rectangle, but the channel being attacked.
+
+Game use:
+
+- Show subtle half-space shading.
+- Label target zones with their channel.
+- Score "lines broken" when the ball moves behind pressing defenders.
+- Prefer advanced scenarios that ask the player to enter a specific channel, not just any open square.
 
 ## Win Conditions
 
@@ -106,6 +132,14 @@ Simple MVP rating:
 - B: escaped but inefficient.
 - Failed: intercepted, trapped, or out of actions.
 
+Next scoring model:
+
+- Action efficiency: fewer actions are better, but not sufficient.
+- Line break value: reward bypassing first and second pressing lines.
+- Concept bonus: reward the intended tactical answer, such as Drop Pivot into Bounce.
+- Trap risk penalty: reduce rating if the route enters a baited wide trap unnecessarily.
+- Reset penalty: reduce rating for backward resets unless the scenario is teaching reset play.
+
 ## Level Progression
 
 Phase 1: Learn the language
@@ -144,4 +178,3 @@ Phase 4: Recognizable opponent shapes
 - Highlight the target zone before the first action.
 - When failing, show exactly why: intercepted lane, cover shadow, trapped receiver.
 - Keep each level solvable in 2-5 actions.
-
