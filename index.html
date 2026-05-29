@@ -1332,6 +1332,7 @@ const receiverState = window.receiverState;
 const t = window.t;
 const tLevel = window.tLevel;
 const tChannel = window.tChannel;
+const tFlavor = window.tFlavor;
 const getLang = window.getLang;
 const setLang = window.setLang;
 const I18N_LANGS = window.I18N_LANGS;
@@ -1903,7 +1904,7 @@ const Game = {
 
   matchContextText(lvl = this.currentLevel) {
     if (!lvl) return t('card.subtitle');
-    const stage = lvl.stageLabel || getLevelTacticalLabel(lvl.id);
+    const stage = tFlavor(lvl.id, 'stage') || getLevelTacticalLabel(lvl.id);
     const minute = typeof lvl.minute === 'number' ? `${lvl.minute}'` : 'MATCH CLOCK';
     const score = lvl.scoreState || '0-0';
     return `${stage} | ${minute} | ${score}`;
@@ -1917,7 +1918,7 @@ const Game = {
   },
 
   momentRecapText(lvl = this.currentLevel) {
-    const concept = lvl?.intendedConcept || t('val.concept');
+    const concept = (lvl ? tFlavor(lvl.id, 'concept') : '') || t('val.concept');
     const outlet = this.resultTargetChannelShort ? tChannel(this.resultTargetChannelShort) : t('val.freeSpace');
     return `${concept}. Outlet found through ${outlet}.`;
   },
@@ -1930,10 +1931,10 @@ const Game = {
     const meta = document.getElementById('featured-meta');
     const panel = document.getElementById('featured-moment');
 
-    if (title) title.textContent = `${lvl.stageLabel || getLevelTacticalLabel(lvl.id)}: ${tLevel(lvl.id, 'name')}`;
+    if (title) title.textContent = `${tFlavor(lvl.id, 'stage') || getLevelTacticalLabel(lvl.id)}: ${tLevel(lvl.id, 'name')}`;
     if (meta) {
       const minute = typeof lvl.minute === 'number' ? `${lvl.minute}'` : 'MATCH CLOCK';
-      meta.textContent = `${minute} | ${lvl.scoreState || '0-0'} | ${lvl.intendedConcept || t('val.concept')}`;
+      meta.textContent = `${minute} | ${lvl.scoreState || '0-0'} | ${tFlavor(lvl.id, 'concept') || t('val.concept')}`;
     }
     if (panel) {
       panel.style.borderColor = lvl.teamPalette?.home ? `${lvl.teamPalette.home}66` : 'rgba(245, 166, 35, 0.22)';
@@ -2036,8 +2037,8 @@ const Game = {
   updateLiveFeed() {
     // Header & Info
     const lvl = this.currentLevel || {};
-    document.getElementById('stat-our-shape').textContent = lvl.ourShape || t('val.ourShape');
-    document.getElementById('stat-opp-shape').textContent = lvl.opponentShape || t('val.pressShape');
+    document.getElementById('stat-our-shape').textContent = tFlavor(lvl.id, 'our') || t('val.ourShape');
+    document.getElementById('stat-opp-shape').textContent = tFlavor(lvl.id, 'opp') || t('val.pressShape');
 
     // Action Limit checkmarks
     let indicatorText = '';
@@ -2110,12 +2111,12 @@ const Game = {
     
     if (id === 'intro-modal') {
       const lvl = this.currentLevel;
-      document.getElementById('intro-drill-label').textContent = lvl.stageLabel || getLevelTacticalLabel(lvl.id);
+      document.getElementById('intro-drill-label').textContent = tFlavor(lvl.id, 'stage') || getLevelTacticalLabel(lvl.id);
       document.getElementById('intro-drill-name').textContent = tLevel(lvl.id, 'name').toUpperCase();
       document.getElementById('intro-match-context').textContent = this.matchContextShort(lvl);
-      document.getElementById('intro-our-shape').textContent = lvl.ourShape || t('val.ourShape');
-      document.getElementById('intro-opp-shape').textContent = lvl.opponentShape || t('val.pressShape');
-      document.getElementById('intro-concept').textContent = lvl.intendedConcept || t('val.concept');
+      document.getElementById('intro-our-shape').textContent = tFlavor(lvl.id, 'our') || t('val.ourShape');
+      document.getElementById('intro-opp-shape').textContent = tFlavor(lvl.id, 'opp') || t('val.pressShape');
+      document.getElementById('intro-concept').textContent = tFlavor(lvl.id, 'concept') || t('val.concept');
       document.getElementById('intro-briefing').textContent = tLevel(lvl.id, 'intro');
     } else if (id === 'lose-modal') {
       document.getElementById('lose-reason').textContent = this.failReasonText().toUpperCase();
@@ -2141,8 +2142,8 @@ const Game = {
       document.getElementById('result-actions').textContent = `${this.resultPasses} / ${lvl.optimalPasses}`;
       document.getElementById('result-lines').textContent = this.resultLinesBroken;
       document.getElementById('result-outlet').textContent = this.resultTargetChannelShort ? tChannel(this.resultTargetChannelShort) : '-';
-      document.getElementById('result-concept').textContent = lvl.intendedConcept || t('val.concept');
-      document.getElementById('share-card-stage').textContent = lvl.stageLabel || 'WORLD STAGE';
+      document.getElementById('result-concept').textContent = tFlavor(lvl.id, 'concept') || t('val.concept');
+      document.getElementById('share-card-stage').textContent = tFlavor(lvl.id, 'stage') || 'WORLD STAGE';
       document.getElementById('share-card-score').textContent = this.matchContextShort(lvl);
       document.getElementById('share-card-title').textContent = `${tLevel(lvl.id, 'name')} solved`;
       document.getElementById('share-card-meta').textContent = this.momentRecapText(lvl);

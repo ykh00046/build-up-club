@@ -353,6 +353,65 @@ const LEVEL_TR = {
   },
 };
 
+// World-stage match flavor per level: stage / our shape / opp shape / concept.
+// English source lives on the level objects (WORLD_STAGE_CONTEXTS in levels.js).
+const FLAVOR_TR = {
+  ko: {
+    1:  { stage: '조별리그 - 초반 압박', our: '3-2 빌드업', opp: '4-4-2 중간 압박', concept: '프리 피벗 찾기' },
+    2:  { stage: '조별리그 - 측면 트랩', our: '2-3 빌드업', opp: '볼사이드 압박', concept: '압박자 우회' },
+    3:  { stage: '조별리그 - 섀도 라인', our: '3-1-1 탈출', opp: '커버 섀도 압박', concept: '섀도 레인 돌파' },
+    4:  { stage: '조별리그 - 움직이는 블록', our: '3-2 로테이션', opp: '이동 미드블록', concept: '순찰 간격 노리기' },
+    5:  { stage: '조별리그 - 전진 필수', our: '2-3-1 빌드업', opp: '2선 블록', concept: '미드블록 가르기' },
+    6:  { stage: '조별리그 - 흐름 전환', our: '2-2 박스', opp: '1선 압박', concept: '압박 주변 바운스' },
+    7:  { stage: '조별리그 - 블라인드 사이드', our: '3-2 지원', opp: '컴팩트 압박', concept: '서드맨 침투' },
+    8:  { stage: '조별리그 - 약측', our: '3-1-2 빌드업', opp: '볼사이드 압축', concept: '고립 측면 전환' },
+    9:  { stage: '조별리그 - 피벗 하강', our: '2-1 레스트 셰이프', opp: '중앙 봉쇄', concept: '피벗 각 만들기' },
+    10: { stage: '조별리그 - 마지막 기회', our: '3-2 빌드업', opp: '하이브리드 압박', concept: '올바른 액션 선택' },
+    11: { stage: '16강 - 과부하', our: '3-2 와이드 베이스', opp: '측면 과부하', concept: '약측 탈출' },
+    12: { stage: '16강 - 회복 압박', our: '2-3 빌드업', opp: '추격 압박', concept: '전술 움직임 활용' },
+    13: { stage: '16강 - 터치라인 트랩', our: '3-1 와이드 출구', opp: '측면 트랩', concept: '측면 트랩 돌파' },
+    14: { stage: '16강 - 중앙 봉쇄', our: '2-3 내로우', opp: '중앙 컴팩트 블록', concept: '밀집 우회' },
+    15: { stage: '16강 - 하프스페이스 침투', our: '3-2-1', opp: '미드블록 스크린', concept: '하프스페이스 진입' },
+    16: { stage: '8강 - 하이프레스', our: '3-2 빌드업', opp: '4-4-2 하이프레스', concept: '1선 돌파' },
+    17: { stage: '8강 - 프런트 스리', our: '2-3 빌드업', opp: '4-3-3 중간 압박', concept: '딥 피벗 찾기' },
+    18: { stage: '8강 - 맨마킹', our: '3-1 지원', opp: '맨마킹 블록', concept: '마커 흔들기' },
+    19: { stage: '8강 - 측면 압축', our: '2-3 와이드 베이스', opp: '측면 봉쇄 압박', concept: '측면 봉쇄 탈출' },
+    20: { stage: '8강 - 마스터 프레스', our: '3-2-2 빌드업', opp: '공격적 하이프레스', concept: '모든 도구 조합' },
+    21: { stage: '4강 - 압박 유인', our: '3-2 인내 베이스', opp: '컴팩트 압박', concept: '캐리로 유인' },
+    22: { stage: '4강 - 서드맨', our: '3-1-2', opp: '레인 스크린', concept: '세 번째 선수 활용' },
+    23: { stage: '4강 - 전환 순간', our: '2-3-1', opp: '안쪽 붕괴', concept: '유인 후 전환' },
+    24: { stage: '결승 - 투톱 압박', our: '라볼피아나 3', opp: '2톱 하이프레스', concept: '센터백 사이 피벗 하강' },
+    25: { stage: '결승 - 우승의 순간', our: '3-2-2 마스터클래스', opp: '풀 미드블록', concept: '블록 완전 해체' },
+  },
+  ja: {
+    1:  { stage: 'グループステージ - 序盤プレス', our: '3-2 ビルドアップ', opp: '4-4-2 ミドルプレス', concept: 'フリーのピボットを探す' },
+    2:  { stage: 'グループステージ - サイドの罠', our: '2-3 ビルドアップ', opp: 'ボールサイドプレス', concept: 'プレス回避' },
+    3:  { stage: 'グループステージ - シャドウライン', our: '3-1-1 脱出', opp: 'カバーシャドウプレス', concept: 'シャドウレーン突破' },
+    4:  { stage: 'グループステージ - 動くブロック', our: '3-2 ローテーション', opp: '可変ミドルブロック', concept: '巡回の隙を待つ' },
+    5:  { stage: 'グループステージ - 前進必須', our: '2-3-1 ビルドアップ', opp: '2ラインブロック', concept: 'ミドルブロックを割る' },
+    6:  { stage: 'グループステージ - 流れの転換', our: '2-2 ボックス', opp: '第1ラインプレス', concept: 'プレス周りでワンツー' },
+    7:  { stage: 'グループステージ - ブラインドサイド', our: '3-2 サポート', opp: 'コンパクトプレス', concept: '3人目の侵入' },
+    8:  { stage: 'グループステージ - 逆サイド', our: '3-1-2 ビルドアップ', opp: 'ボールサイド圧縮', concept: '孤立へサイドチェンジ' },
+    9:  { stage: 'グループステージ - ピボット落とし', our: '2-1 レストシェイプ', opp: '中央ロック', concept: 'ピボットの角度作り' },
+    10: { stage: 'グループステージ - ラストチャンス', our: '3-2 ビルドアップ', opp: 'ハイブリッドプレス', concept: '正しいアクション選択' },
+    11: { stage: 'ベスト16 - オーバーロード', our: '3-2 ワイドベース', opp: 'サイド過密', concept: '逆サイドへ脱出' },
+    12: { stage: 'ベスト16 - 回収プレス', our: '2-3 ビルドアップ', opp: '追走プレス', concept: '戦術的な動き' },
+    13: { stage: 'ベスト16 - タッチライン罠', our: '3-1 ワイド出口', opp: 'サイドの罠', concept: 'サイドの罠を破る' },
+    14: { stage: 'ベスト16 - 中央ロック', our: '2-3 ナロー', opp: '中央コンパクトブロック', concept: '密集を迂回' },
+    15: { stage: 'ベスト16 - ハーフスペース侵入', our: '3-2-1', opp: 'ミドルブロックスクリーン', concept: 'ハーフスペースへ侵入' },
+    16: { stage: '準々決勝 - ハイプレス', our: '3-2 ビルドアップ', opp: '4-4-2 ハイプレス', concept: '第一ライン突破' },
+    17: { stage: '準々決勝 - フロントスリー', our: '2-3 ビルドアップ', opp: '4-3-3 ミドルプレス', concept: 'ディープピボットを探す' },
+    18: { stage: '準々決勝 - マンマーク', our: '3-1 サポート', opp: 'マンマークブロック', concept: 'マーカーを剥がす' },
+    19: { stage: '準々決勝 - サイド圧縮', our: '2-3 ワイドベース', opp: 'サイド封鎖プレス', concept: 'サイド封鎖を脱出' },
+    20: { stage: '準々決勝 - マスタープレス', our: '3-2-2 ビルドアップ', opp: '積極的ハイプレス', concept: '全ツールを組み合わせ' },
+    21: { stage: '準決勝 - プレス誘引', our: '3-2 我慢のベース', opp: 'コンパクトプレス', concept: 'キャリーで誘引' },
+    22: { stage: '準決勝 - 3人目', our: '3-1-2', opp: 'レーンスクリーン', concept: '3人目を使う' },
+    23: { stage: '準決勝 - 切替の瞬間', our: '2-3-1', opp: '内側の収縮', concept: '誘引してサイドチェンジ' },
+    24: { stage: '決勝 - 2トッププレス', our: 'ラボルピアーナ3', opp: '2トップハイプレス', concept: 'CB間にピボットを落とす' },
+    25: { stage: '決勝 - タイトルの瞬間', our: '3-2-2 マスタークラス', opp: 'フルミドルブロック', concept: 'ブロックを完全解体' },
+  },
+};
+
 let __lang = I18N_DEFAULT;
 try {
   const saved = (typeof localStorage !== 'undefined') && localStorage.getItem(I18N_STORAGE_KEY);
@@ -388,6 +447,17 @@ function tLevel(id, field) {
   return lvl[field] || '';
 }
 
+// Translated world-stage flavor field ('stage'|'our'|'opp'|'concept'); EN from level objects.
+function tFlavor(id, field) {
+  if (__lang !== 'en' && FLAVOR_TR[__lang] && FLAVOR_TR[__lang][id] && FLAVOR_TR[__lang][id][field]) {
+    return FLAVOR_TR[__lang][id][field];
+  }
+  const levels = (typeof window !== 'undefined' && window.LEVELS) ? window.LEVELS : [];
+  const lvl = levels.find(l => l.id === id) || {};
+  const en = { stage: lvl.stageLabel, our: lvl.ourShape, opp: lvl.opponentShape, concept: lvl.intendedConcept };
+  return en[field] || '';
+}
+
 // Translated full channel name from a short code (LW/LHS/C/RHS/RW).
 function tChannel(shortCode) { return t('channel.' + shortCode); }
 
@@ -399,4 +469,5 @@ if (typeof window !== 'undefined') {
   window.t = t;
   window.tLevel = tLevel;
   window.tChannel = tChannel;
+  window.tFlavor = tFlavor;
 }
