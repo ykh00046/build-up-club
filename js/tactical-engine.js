@@ -29,6 +29,10 @@ const TACTICAL_ACTIONS = {
 const COHESION_Y = 4;
 const PRESS_BACKPASS_BONUS = 4;
 const PRESS_TRAP_BONUS = 4;
+// A switch (lofted ball) only reaches a teammate in space — if any defender is
+// within this radius of the receiver, the weak side isn't isolated and the
+// switch is not on. Keeps the long ball from being a free escape to any far man.
+const SWITCH_ISOLATION_RADIUS = 46;
 
 const LANE_STATUS_RANK = {
   safe: 0,
@@ -259,14 +263,18 @@ function evaluateLane(from, to, defenders, opts = {}) {
     if (dist(from, to) < 140) {
       return makeLaneResult('blocked', 'switchRange');
     }
+    // Weak-side isolation: a lofted switch only reaches a teammate in space.
+    // If a defender is hugging the receiver, the far man isn't isolated.
+    for (const d of defenders) {
+      if (dist(d, to) < SWITCH_ISOLATION_RADIUS) {
+        return makeLaneResult('blocked', 'notIsolated', { byDefender: d });
+      }
+    }
+    return makeLaneResult();
   } else if (!ignoreRange) {
     if (dist(from, to) > pRange) {
       return makeLaneResult('blocked', 'outOfRange');
     }
-  }
-
-  if (isSwitch) {
-    return makeLaneResult();
   }
 
   let worst = 'safe';

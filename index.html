@@ -2705,7 +2705,7 @@ const Game = {
         AudioMgr.play('fail'); this.shake.amount = 2; return;
       }
     } else {
-      if (mainLane.status === 'blocked' && (mainLane.reason === 'outOfRange' || mainLane.reason === 'switchRange')) {
+      if (mainLane.status === 'blocked' && (mainLane.reason === 'outOfRange' || mainLane.reason === 'switchRange' || mainLane.reason === 'notIsolated')) {
         AudioMgr.play('fail'); this.shake.amount = 2; return;
       }
     }
