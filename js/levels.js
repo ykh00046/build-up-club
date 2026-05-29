@@ -483,8 +483,8 @@ const LEVELS = [
     id: 25,
     name: 'GED FUTBOL Masterclass',
     intro: 'Bypass the entire mid-block using a combination of all tactical tools!',
-    passLimit: 3,
-    optimalPasses: 2,
+    passLimit: 4,
+    optimalPasses: 3,
     players: [
       { x: 35, y: 128, hasBall: true }, // GK/DM
       { x: 95, y: 180 }, // LCB
@@ -494,10 +494,10 @@ const LEVELS = [
       { x: 310, y: 38 }   // AM (Target — wide & high, just outside the zone)
     ],
     defenders: [
-      { x: 140, y: 128, type: 'presser', blockRadius: 22, coverShadowAngle: 35, coverShadowLength: 85 },
+      { x: 165, y: 118, type: 'presser', blockRadius: 22, coverShadowAngle: 35, coverShadowLength: 85 }, // marks CM + screens the quick relay
       { x: 160, y: 175, type: 'static', blockRadius: 22 },
       { x: 170, y: 85, type: 'static', blockRadius: 22 },
-      { x: 250, y: 100, type: 'chase', blockRadius: 22, alertRange: 80, speed: 1.2 }
+      { x: 320, y: 70, type: 'chase', blockRadius: 22, alertRange: 80, speed: 1.0 } // marks the wide AM so a lone switch is off
     ],
     targetZone: { x: 250, y: 55, w: 90, h: 65, label: 'LHS Pocket' },
     tacticalActions: { bounce: 1, thirdMan: 1, switchPlay: 1, dropPivot: 1 },
