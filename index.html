@@ -1,11 +1,18 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<meta name="description" content="Build-Up Lab — A tactical football puzzle game. Escape the high press and find the free man using bounce passes, third-man runs, and tactical switches.">
-<title>📋 Build-Up Lab — Beat the Press</title>
+<meta name="description" content="Build-Up Lab ??A tactical football puzzle game. Escape the high press and find the free man using bounce passes, third-man runs, and tactical switches.">
+<title>Build-Up Lab - World Stage Challenge</title>
 <script src="https://game-cdn.poki.com/scripts/v2/poki-sdk.js"></script>
+<script>
+  document.title = 'Build-Up Lab - World Stage Challenge';
+  document.querySelector('meta[name="description"]')?.setAttribute(
+    'content',
+    'Build-Up Lab is an interactive world-stage football tactics challenge. Solve match-defining build-up moments, beat the press, and find the free man.'
+  );
+</script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Outfit:wght@400;600;800&display=swap');
 
@@ -34,7 +41,7 @@
     align-items: center;
   }
 
-  /* 🎥 Studio Layout Container */
+  /* ?렏 Studio Layout Container */
   #studio-container {
     display: flex;
     flex-direction: column;
@@ -45,7 +52,7 @@
     background: radial-gradient(circle at center, #0a110f 0%, #030408 100%);
   }
 
-  /* 📺 Top Scoreboard Header */
+  /* ?벟 Top Scoreboard Header */
   #studio-header {
     display: flex;
     justify-content: space-between;
@@ -97,7 +104,7 @@
     border-color: var(--accent-amber);
   }
 
-  /* 🌐 Language toggle */
+  /* ?뙋 Language toggle */
   .lang-toggle {
     display: inline-flex;
     border: 1px solid var(--border-teal);
@@ -119,7 +126,7 @@
   .lang-btn:hover { background: rgba(27, 50, 39, 0.9); color: #fff; }
   .lang-btn.active { background: var(--accent-amber); color: #08100d; }
 
-  /* 🎛️ Three-Column Workspace */
+  /* Three-Column Workspace */
   #studio-body {
     display: flex;
     flex: 1;
@@ -152,7 +159,7 @@
     text-transform: uppercase;
   }
 
-  /* 📁 Left Sidebar: Scenarios */
+  /* ?뱚 Left Sidebar: Scenarios */
   #left-sidebar {
     width: 250px;
     flex-shrink: 0;
@@ -186,6 +193,61 @@
   .tab-btn:hover:not(.active) {
     background: rgba(255,255,255,0.05);
     color: var(--text-main);
+  }
+
+  .featured-moment {
+    margin: 8px 10px 6px;
+    padding: 10px;
+    border-radius: 4px;
+    border: 1px solid rgba(245, 166, 35, 0.22);
+    background:
+      linear-gradient(135deg, rgba(245,166,35,0.10), rgba(16,185,129,0.035)),
+      rgba(255,255,255,0.018);
+    box-shadow: inset 0 0 18px rgba(245, 166, 35, 0.04);
+  }
+
+  .featured-kicker {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 7px;
+    font-weight: 800;
+    color: var(--accent-amber);
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    margin-bottom: 5px;
+  }
+
+  .featured-title {
+    color: var(--text-main);
+    font-size: 11px;
+    font-weight: 800;
+    line-height: 1.15;
+    text-transform: uppercase;
+    margin-bottom: 5px;
+  }
+
+  .featured-meta {
+    color: var(--text-muted);
+    font-size: 7.5px;
+    line-height: 1.35;
+    margin-bottom: 8px;
+  }
+
+  .featured-button {
+    width: 100%;
+    border: 1px solid rgba(245, 166, 35, 0.45);
+    background: rgba(245, 166, 35, 0.10);
+    color: var(--accent-amber);
+    border-radius: 3px;
+    padding: 6px 8px;
+    font-size: 8px;
+    font-weight: 900;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .featured-button:hover {
+    background: rgba(245, 166, 35, 0.18);
+    color: #fff;
   }
 
   .scrollable-list {
@@ -288,7 +350,7 @@
   .scenario-card .card-grade.grade-a { background: rgba(16,185,129,0.15); border: 1px solid var(--accent-mint); color: var(--accent-mint); }
   .scenario-card .card-grade.grade-b { background: rgba(248,249,250,0.15); border: 1px solid var(--text-main); color: var(--text-main); }
 
-  /* ⚽ Center Column: Pitch + Actions */
+  /* ??Center Column: Pitch + Actions */
   #center-column {
     flex: 1;
     display: flex;
@@ -315,7 +377,7 @@
     box-shadow: 0 0 30px rgba(0,0,0,0.7);
   }
 
-  /* ⚙️ Tactical Actions Toolbar */
+  /* ?숋툘 Tactical Actions Toolbar */
   #action-toolbar {
     height: 48px;
     flex-shrink: 0;
@@ -414,7 +476,7 @@
     font-family: 'JetBrains Mono', monospace;
   }
 
-  /* 📊 Right Sidebar: Feed & Analytics */
+  /* ?뱤 Right Sidebar: Feed & Analytics */
   #right-sidebar {
     width: 260px;
     flex-shrink: 0;
@@ -456,7 +518,7 @@
     color: var(--accent-amber);
   }
 
-  /* 📋 Ticker Box */
+  /* Ticker Box */
   .ticker-box {
     font-family: 'JetBrains Mono', monospace;
     font-size: 8px;
@@ -505,7 +567,7 @@
   }
   .ticker-line.trap .text { color: var(--accent-crimson); }
 
-  /* 🎬 Interactive HUD Modals & Overlays */
+  /* ?렗 Interactive HUD Modals & Overlays */
   .modal-overlay {
     position: fixed;
     top: 0; left: 0;
@@ -558,6 +620,15 @@
     font-weight: 800;
     letter-spacing: 0.5px;
     margin-bottom: 12px;
+  }
+
+  .match-context-line {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 8px;
+    font-weight: 700;
+    color: var(--accent-amber);
+    margin: -5px 0 12px;
+    text-transform: uppercase;
   }
 
   .divider {
@@ -684,8 +755,28 @@
   .modal-content #result-drill-name {
     font-size: 10px;
     color: var(--text-muted);
-    margin-bottom: 16px;
+    margin-bottom: 6px;
     text-transform: uppercase;
+  }
+
+  .result-match-context {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 8px;
+    font-weight: 800;
+    color: var(--accent-amber);
+    margin-bottom: 8px;
+    text-transform: uppercase;
+  }
+
+  .result-moment-line {
+    background: rgba(245, 166, 35, 0.06);
+    border: 1px solid rgba(245, 166, 35, 0.16);
+    border-radius: 4px;
+    color: #d8e3dc;
+    font-size: 9.5px;
+    line-height: 1.35;
+    padding: 8px 10px;
+    margin-bottom: 12px;
   }
 
   .result-stats {
@@ -747,6 +838,82 @@
     font-family: 'JetBrains Mono', monospace;
   }
 
+  .share-card-preview {
+    position: relative;
+    overflow: hidden;
+    border-radius: 4px;
+    border: 1px solid rgba(245, 166, 35, 0.24);
+    background:
+      linear-gradient(135deg, rgba(245,166,35,0.12), rgba(16,185,129,0.05)),
+      rgba(0,0,0,0.28);
+    padding: 10px;
+    margin: -8px 0 14px;
+    text-align: left;
+  }
+
+  .share-card-preview::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+      linear-gradient(90deg, transparent 0 48%, rgba(255,255,255,0.035) 49% 51%, transparent 52%),
+      repeating-linear-gradient(0deg, transparent 0 13px, rgba(255,255,255,0.025) 14px);
+    pointer-events: none;
+  }
+
+  .share-card-topline {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    color: var(--accent-amber);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 6.5px;
+    font-weight: 900;
+    text-transform: uppercase;
+    margin-bottom: 7px;
+  }
+
+  .share-card-main {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    grid-template-columns: 1fr 44px;
+    gap: 10px;
+    align-items: center;
+  }
+
+  .share-card-title {
+    color: var(--text-main);
+    font-size: 12px;
+    line-height: 1.1;
+    font-weight: 900;
+    text-transform: uppercase;
+    margin-bottom: 5px;
+  }
+
+  .share-card-meta {
+    color: var(--text-muted);
+    font-size: 7.5px;
+    line-height: 1.35;
+  }
+
+  .share-card-grade {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    border: 2px solid var(--accent-amber);
+    color: #fff;
+    background: rgba(245,166,35,0.12);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    font-weight: 900;
+    box-shadow: 0 0 16px rgba(245,166,35,0.18);
+  }
+
   .action-btn.success-bg {
     background: rgba(16, 185, 129, 0.12);
     border-color: var(--accent-mint);
@@ -782,7 +949,7 @@
     height: 10px;
   }
 
-  /* 📱 Landscape Device Warning */
+  /* ?벑 Landscape Device Warning */
   #portrait-warning {
     display: none;
     position: fixed;
@@ -837,35 +1004,41 @@
 <body>
 
 <div id="portrait-warning">
-  <div class="icon">📱</div>
+  <div class="icon">?벑</div>
   <h2>Rotate Your Device</h2>
   <p style="color: var(--accent-amber); font-size: 11px; margin-top: 8px; font-weight: 600;">BUILD-UP LAB IS BEST PLAYED IN LANDSCAPE MODE.</p>
 </div>
 
-<!-- 📺 Studio UI container -->
+<!-- ?벟 Studio UI container -->
 <div id="studio-container">
   
   <!-- Top Scoreboard Header -->
   <header id="studio-header">
-    <div class="logo">📋 BUILD-UP LAB — <span data-i18n="header.subtitle">MATCHDAY ANALYTICS</span></div>
+    <div class="logo">BUILD-UP LAB | <span data-i18n="header.subtitle">MATCHDAY ANALYTICS</span></div>
     <div class="subtitle" data-i18n="header.board">TACTICAL BOARD V2.0</div>
     <div style="display: flex; gap: 8px; align-items: center;">
       <div id="lang-toggle" class="lang-toggle">
         <button class="lang-btn" data-lang="en">EN</button>
-        <button class="lang-btn" data-lang="ko">한</button>
-        <button class="lang-btn" data-lang="ja">日</button>
+        <button class="lang-btn" data-lang="ko">KO</button>
+        <button class="lang-btn" data-lang="ja">JA</button>
       </div>
-      <button id="hint-btn" class="technical-btn" style="color: var(--accent-amber); border-color: var(--accent-amber); font-weight: bold; background: rgba(245, 166, 35, 0.08); box-shadow: 0 0 8px rgba(245, 166, 35, 0.15); display: flex; align-items: center; gap: 4px;" data-i18n="btn.hint">HINT 💡</button>
+      <button id="hint-btn" class="technical-btn" style="color: var(--accent-amber); border-color: var(--accent-amber); font-weight: bold; background: rgba(245, 166, 35, 0.08); box-shadow: 0 0 8px rgba(245, 166, 35, 0.15); display: flex; align-items: center; gap: 4px;" data-i18n="btn.hint">HINT</button>
       <button id="audio-toggle-btn" class="technical-btn">AUDIO: ON</button>
     </div>
   </header>
 
-  <!-- 🎛️ Three-Column Workspace -->
+  <!-- Three-Column Workspace -->
   <div id="studio-body">
     
-    <!-- 📁 Left Sidebar: Scenarios -->
+    <!-- ?뱚 Left Sidebar: Scenarios -->
     <aside id="left-sidebar" class="glass-panel">
       <div class="panel-header" data-i18n="panel.scenarios">SCENARIOS DIRECTORY</div>
+      <div id="featured-moment" class="featured-moment">
+        <div class="featured-kicker" data-i18n="featured.kicker">FEATURED MATCH MOMENT</div>
+        <div id="featured-title" class="featured-title">QUARTER-FINAL HIGH PRESS</div>
+        <div id="featured-meta" class="featured-meta">22' | 0-0 | Beat the first line before the press closes.</div>
+        <button id="featured-play-btn" class="featured-button" data-i18n="featured.play">PLAY FEATURED MOMENT</button>
+      </div>
       <div class="tab-selectors">
         <button class="tab-btn active" data-tab="0" data-i18n="tab.0">TUTS</button>
         <button class="tab-btn" data-tab="1" data-i18n="tab.1">PATS</button>
@@ -877,17 +1050,17 @@
         <!-- populated dynamically -->
       </div>
       <div style="padding: 10px; border-top: 1px solid rgba(255,255,255,0.03); display: flex; flex-direction: column; gap: 6px;">
-        <button id="editor-mode-btn" class="technical-btn" style="width: 100%; text-align: center; color: var(--accent-amber); border-color: var(--accent-amber); font-weight: bold;">DRILL EDITOR 🛠️</button>
+        <button id="editor-mode-btn" class="technical-btn" style="width: 100%; text-align: center; color: var(--accent-amber); border-color: var(--accent-amber); font-weight: bold;">DRILL EDITOR</button>
       </div>
     </aside>
 
-    <!-- ⚽ Center Column: Pitch -->
+    <!-- Center Column: Pitch -->
     <main id="center-column">
       <div id="pitch-container" class="glass-panel">
         <canvas id="game-canvas"></canvas>
       </div>
 
-      <!-- ⚙️ Tactical Actions Toolbar -->
+      <!-- Tactical Actions Toolbar -->
       <div id="action-toolbar" class="glass-panel">
         <button class="action-card" data-action="pass">
           <div class="key">1</div>
@@ -895,7 +1068,7 @@
             <div class="title" data-i18n="action.pass.title">PASS</div>
             <div class="subtitle" data-i18n="action.pass.sub">direct lane</div>
           </div>
-          <div class="count">∞</div>
+          <div class="count">-</div>
         </button>
         <button class="action-card" data-action="bounce">
           <div class="key">2</div>
@@ -931,34 +1104,34 @@
         </button>
       </div>
 
-      <!-- 🛠️ Tactical Editor Toolbar -->
+      <!-- Tactical Editor Toolbar -->
       <div id="editor-toolbar" class="glass-panel" style="display: none; height: 48px; flex-shrink: 0; grid-template-columns: repeat(7, 1fr); gap: 6px; padding: 6px 12px;">
         <button class="editor-tool-card active" data-tool="attacker" style="background: rgba(255, 255, 255, 0.015); border: 1px solid rgba(255, 255, 255, 0.04); border-radius: 4px; color: var(--text-main); font-size: 8px; font-weight: 800; cursor: pointer; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 2px;">
-          <span>👤 ATTACKER</span>
+          <span>ATTACKER</span>
           <span style="font-size: 6px; color: var(--text-muted);">Place player</span>
         </button>
         <button class="editor-tool-card" data-tool="defender" style="background: rgba(255, 255, 255, 0.015); border: 1px solid rgba(255, 255, 255, 0.04); border-radius: 4px; color: var(--text-main); font-size: 8px; font-weight: 800; cursor: pointer; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 2px;">
-          <span>🔴 DEFENDER</span>
+          <span>DEFENDER</span>
           <span style="font-size: 6px; color: var(--text-muted);">Place presser</span>
         </button>
         <button class="editor-tool-card" data-tool="target" style="background: rgba(255, 255, 255, 0.015); border: 1px solid rgba(255, 255, 255, 0.04); border-radius: 4px; color: var(--text-main); font-size: 8px; font-weight: 800; cursor: pointer; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 2px;">
-          <span>🎯 TARGET ZONE</span>
+          <span>TARGET ZONE</span>
           <span style="font-size: 6px; color: var(--text-muted);">Set escape</span>
         </button>
         <button class="editor-tool-card" data-tool="trap" style="background: rgba(255, 255, 255, 0.015); border: 1px solid rgba(255, 255, 255, 0.04); border-radius: 4px; color: var(--text-main); font-size: 8px; font-weight: 800; cursor: pointer; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 2px;">
-          <span>⚠️ TRAP ZONE</span>
+          <span>TRAP ZONE</span>
           <span style="font-size: 6px; color: var(--text-muted);">Place trap</span>
         </button>
         <button class="editor-tool-card" data-tool="eraser" style="background: rgba(255, 255, 255, 0.015); border: 1px solid rgba(255, 255, 255, 0.04); border-radius: 4px; color: var(--accent-crimson); font-size: 8px; font-weight: 800; cursor: pointer; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 2px;">
-          <span>❌ ERASE</span>
+          <span>ERASE</span>
           <span style="font-size: 6px; color: var(--text-muted);">Remove item</span>
         </button>
         <button id="editor-share-btn" class="editor-tool-card" style="background: rgba(245, 166, 35, 0.08); border: 1px solid var(--accent-amber); border-radius: 4px; color: var(--accent-amber); font-size: 8px; font-weight: 800; cursor: pointer; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 2px;">
-          <span>🔗 SHARE</span>
+          <span>SHARE</span>
           <span style="font-size: 6px; color: var(--accent-amber);">Get URL Link</span>
         </button>
         <button id="editor-play-btn" class="editor-tool-card" style="background: rgba(16, 185, 129, 0.08); border: 1px solid var(--accent-mint); border-radius: 4px; color: var(--accent-mint); font-size: 8px; font-weight: 800; cursor: pointer; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 2px;">
-          <span>▶️ TEST</span>
+          <span>TEST</span>
           <span style="font-size: 6px; color: var(--accent-mint);">Play level</span>
         </button>
       </div>
@@ -969,7 +1142,7 @@
       </div>
     </main>
 
-    <!-- 📊 Right Sidebar: Feed & Stats -->
+    <!-- ?뱤 Right Sidebar: Feed & Stats -->
     <aside id="right-sidebar" class="glass-panel">
       <div class="panel-header" data-i18n="panel.feed">LIVE ANALYTICAL FEED</div>
 
@@ -1021,12 +1194,13 @@
   </div>
 </div>
 
-<!-- 🎬 Modals & Overlays -->
+<!-- ?렗 Modals & Overlays -->
 <!-- Intro briefing modal -->
 <div id="intro-modal" class="modal-overlay hidden">
   <div class="modal-content glass-panel">
     <div id="intro-drill-label" class="badge">DRILL 01</div>
     <h2 id="intro-drill-name">FIND THE FREE MAN</h2>
+    <div id="intro-match-context" class="match-context-line">GROUP STAGE | 12' | 0-0</div>
     <hr class="divider">
     <div class="meta-info">
       <div><span data-i18n="intro.formation">OUR FORMATION</span><span id="intro-our-shape">-</span></div>
@@ -1061,6 +1235,8 @@
     <div class="badge" style="background: rgba(16, 185, 129, 0.1); border-color: rgba(16, 185, 129, 0.2); color: var(--accent-mint);" data-i18n="result.badge">DRILL ACCOMPLISHED</div>
     <h2 class="success-text" data-i18n="result.title">PRESS BEATEN!</h2>
     <h3 id="result-drill-name">DRILL 01: FIND THE FREE MAN</h3>
+    <div id="result-match-context" class="result-match-context">GROUP STAGE | 12' | 0-0</div>
+    <div id="result-moment-line" class="result-moment-line">You solved the decisive build-up moment before the press closed.</div>
     <hr class="divider">
 
     <div class="result-stats">
@@ -1072,6 +1248,21 @@
         <p><span data-i18n="result.actions">ACTIONS USED:</span> <span id="result-actions">-</span></p>
         <p><span data-i18n="result.lines">LINES BROKEN:</span> <span id="result-lines">-</span></p>
         <p><span data-i18n="result.outlet">ESCAPE CHANNEL:</span> <span id="result-outlet">-</span></p>
+        <p><span data-i18n="result.concept">CONCEPT:</span> <span id="result-concept">-</span></p>
+      </div>
+    </div>
+
+    <div id="share-card-preview" class="share-card-preview">
+      <div class="share-card-topline">
+        <span id="share-card-stage">WORLD STAGE</span>
+        <span id="share-card-score">12' | 0-0</span>
+      </div>
+      <div class="share-card-main">
+        <div>
+          <div id="share-card-title" class="share-card-title">MATCH MOMENT SOLVED</div>
+          <div id="share-card-meta" class="share-card-meta">Find the free pivot. Outlet found through centre.</div>
+        </div>
+        <div id="share-card-grade" class="share-card-grade">S</div>
       </div>
     </div>
 
@@ -1092,10 +1283,10 @@
 <script src="js/audio.js"></script>
 <script src="js/renderer.js"></script>
 <script>
-// ═══════════════════════════════════════════════════
-// 빌드업 랩 — 압박 탈출 전술 퍼즐
-// Build-Up Lab — Beat the Press Tactical Puzzle
-// ═══════════════════════════════════════════════════
+// ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??
+// 鍮뚮뱶???????뺣컯 ?덉텧 ?꾩닠 ?쇱쫹
+// Build-Up Lab ??Beat the Press Tactical Puzzle
+// ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??
 
 (() => {
 'use strict';
@@ -1145,7 +1336,7 @@ const getLang = window.getLang;
 const setLang = window.setLang;
 const I18N_LANGS = window.I18N_LANGS;
 
-// ─── Colors (Tactical Dark Board Palette) ────────
+// ??? Colors (Tactical Dark Board Palette) ????????
 // Imported managers and drawing helpers
 const StorageMgr = window.StorageMgr;
 const AudioMgr = window.AudioMgr;
@@ -1167,8 +1358,9 @@ const drawTrapZone = window.drawTrapZone;
 const drawField = window.drawField;
 const drawChannels = window.drawChannels;
 const drawLinesOfEngagement = window.drawLinesOfEngagement;
+const drawOffBallContext = window.drawOffBallContext;
 
-// ─── Game States ─────────────────────────────────
+// ??? Game States ?????????????????????????????????
 const States = {
   GAME_IDLE: 'idle',
   GAME_PASSING: 'passing',
@@ -1176,7 +1368,7 @@ const States = {
   GAME_LOSE: 'lose',
 };
 
-// ─── Main Game Object ────────────────────────────
+// ??? Main Game Object ????????????????????????????
 const Game = {
   canvas: null,
   ctx: null,
@@ -1217,6 +1409,7 @@ const Game = {
   resultPasses: 0,
 
   activeTab: 0, // Left Sidebar category (0: Tuts, 1: Pats, 2: Shapes, 3: Adv)
+  featuredLevelId: 16,
 
   tacticalActions: {},
   activeAction: 'pass',
@@ -1233,7 +1426,7 @@ const Game = {
   passTargetIsTargetZone: false,
   passTargetIdx: -1,
 
-  // ─── Init ───
+  // ??? Init ???
   init() {
     AdMgr.init();
     this.canvas = document.getElementById('game-canvas');
@@ -1349,7 +1542,7 @@ const Game = {
     };
   },
 
-  // ─── Modern HTML/CSS UI Event Bindings ───
+  // ??? Modern HTML/CSS UI Event Bindings ???
   bindHTMLUI() {
     // Tabs in Scenarios panel
     const tabs = document.querySelectorAll('.tab-btn');
@@ -1362,6 +1555,14 @@ const Game = {
         this.renderScenarioList();
       });
     });
+
+    const featuredBtn = document.getElementById('featured-play-btn');
+    if (featuredBtn) {
+      featuredBtn.addEventListener('click', () => {
+        this.loadLevel(this.featuredLevelId);
+        AudioMgr.play('click');
+      });
+    }
 
     // Toolbar Action buttons
     const actionCards = document.querySelectorAll('.action-card');
@@ -1395,7 +1596,7 @@ const Game = {
       AudioMgr.play('click');
     });
 
-    // Language toggle (EN / 한 / 日)
+    // Language toggle (EN / KO / JA)
     document.querySelectorAll('.lang-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         setLang(btn.getAttribute('data-lang'));
@@ -1468,7 +1669,7 @@ const Game = {
                 const tIdx = parseInt(matches[1], 10);
                 const cLabel = getPlayerLabel(this.players[cIdx] || {}, cIdx);
                 const tLabel = getPlayerLabel(this.players[tIdx] || {}, tIdx);
-                return `Bounce ${cLabel}➔${tLabel}`;
+                return `Bounce ${cLabel}->${tLabel}`;
               } else if (step.startsWith('SWITCH(')) {
                 const idx = parseInt(step.match(/\d+/)[0], 10);
                 const label = getPlayerLabel(this.players[idx] || {}, idx);
@@ -1479,7 +1680,7 @@ const Game = {
                 const tIdx = parseInt(matches[1], 10);
                 const cLabel = getPlayerLabel(this.players[cIdx] || {}, cIdx);
                 const tLabel = getPlayerLabel(this.players[tIdx] || {}, tIdx);
-                return `3rd Man ${cLabel}➔${tLabel}`;
+                return `3rd Man ${cLabel}->${tLabel}`;
               } else if (step.startsWith('DROP_PIVOT(')) {
                 const idx = parseInt(step.match(/\d+/)[0], 10);
                 const label = getPlayerLabel(this.players[idx] || {}, idx);
@@ -1488,7 +1689,7 @@ const Game = {
                 return 'Target Zone';
               }
               return step;
-            }).join(' ➔ ');
+            }).join(' -> ');
 
             const footer = document.getElementById('coaching-feed-footer');
             footer.innerHTML = `HINT: <span style="color: var(--accent-amber); font-weight: bold;">${cleanPath.toUpperCase()}</span> (Reset [R] to follow)`;
@@ -1533,7 +1734,7 @@ const Game = {
       const editorToolbar = document.getElementById('editor-toolbar');
       
       if (this.editorMode) {
-        editorModeBtn.textContent = "PLAY MODE ⚽";
+        editorModeBtn.textContent = "PLAY MODE";
         editorModeBtn.style.color = "var(--accent-mint)";
         editorModeBtn.style.borderColor = "var(--accent-mint)";
         
@@ -1563,7 +1764,7 @@ const Game = {
         
         this.loadLevel(99);
       } else {
-        editorModeBtn.textContent = "DRILL EDITOR 🛠️";
+        editorModeBtn.textContent = "DRILL EDITOR";
         editorModeBtn.style.color = "var(--accent-amber)";
         editorModeBtn.style.borderColor = "var(--accent-amber)";
         
@@ -1655,7 +1856,7 @@ const Game = {
       this.editorMode = false;
       AudioMgr.play('goal');
       
-      editorModeBtn.textContent = "DRILL EDITOR 🛠️";
+        editorModeBtn.textContent = "DRILL EDITOR";
       editorModeBtn.style.color = "var(--accent-amber)";
       editorModeBtn.style.borderColor = "var(--accent-amber)";
       
@@ -1700,7 +1901,48 @@ const Game = {
     }
   },
 
+  matchContextText(lvl = this.currentLevel) {
+    if (!lvl) return t('card.subtitle');
+    const stage = lvl.stageLabel || getLevelTacticalLabel(lvl.id);
+    const minute = typeof lvl.minute === 'number' ? `${lvl.minute}'` : 'MATCH CLOCK';
+    const score = lvl.scoreState || '0-0';
+    return `${stage} | ${minute} | ${score}`;
+  },
+
+  matchContextShort(lvl = this.currentLevel) {
+    if (!lvl) return 'International Matchday';
+    const minute = typeof lvl.minute === 'number' ? `${lvl.minute}'` : 'MATCH CLOCK';
+    const score = lvl.scoreState || '0-0';
+    return `${minute} | ${score} | ${lvl.teamPalette?.label || 'International Matchday'}`;
+  },
+
+  momentRecapText(lvl = this.currentLevel) {
+    const concept = lvl?.intendedConcept || t('val.concept');
+    const outlet = this.resultTargetChannelShort ? tChannel(this.resultTargetChannelShort) : t('val.freeSpace');
+    return `${concept}. Outlet found through ${outlet}.`;
+  },
+
+  renderFeaturedMoment() {
+    const lvl = LEVELS.find(level => level.id === this.featuredLevelId) || LEVELS[0];
+    if (!lvl) return;
+
+    const title = document.getElementById('featured-title');
+    const meta = document.getElementById('featured-meta');
+    const panel = document.getElementById('featured-moment');
+
+    if (title) title.textContent = `${lvl.stageLabel || getLevelTacticalLabel(lvl.id)}: ${tLevel(lvl.id, 'name')}`;
+    if (meta) {
+      const minute = typeof lvl.minute === 'number' ? `${lvl.minute}'` : 'MATCH CLOCK';
+      meta.textContent = `${minute} | ${lvl.scoreState || '0-0'} | ${lvl.intendedConcept || t('val.concept')}`;
+    }
+    if (panel) {
+      panel.style.borderColor = lvl.teamPalette?.home ? `${lvl.teamPalette.home}66` : 'rgba(245, 166, 35, 0.22)';
+    }
+  },
+
   renderScenarioList() {
+    this.renderFeaturedMoment();
+
     const listContainer = document.getElementById('scenario-list');
     listContainer.innerHTML = "";
 
@@ -1712,26 +1954,29 @@ const Game = {
       const lvl = LEVELS[idx];
       if (!lvl) continue;
 
-      const isUnlocked = lvl.id <= unlocked;
+      const isUnlocked = lvl.id <= unlocked || lvl.id === this.featuredLevelId;
       const isActive = lvl.id === this.levelId;
       const data = StorageMgr.getLevelData(lvl.id);
       
       const card = document.createElement('div');
       card.className = `scenario-card ${isActive ? 'active' : ''} ${!isUnlocked ? 'locked' : ''}`;
+      if (lvl.teamPalette?.home) {
+        card.style.borderLeft = `3px solid ${lvl.teamPalette.home}`;
+      }
       
       let gradeEl = '<div class="card-grade">-</div>';
       if (isUnlocked && data.stars > 0) {
         const grade = StorageMgr.starsToGrade(data.stars);
         gradeEl = `<div class="card-grade grade-${grade.toLowerCase()}">${grade}</div>`;
       } else if (!isUnlocked) {
-        gradeEl = `<div class="card-grade">🔒</div>`;
+        gradeEl = `<div class="card-grade">LOCK</div>`;
       }
 
       card.innerHTML = `
         <div class="card-info">
           <span class="card-label">${getLevelTacticalLabel(lvl.id)}</span>
           <span class="card-name">${tLevel(lvl.id, 'name')}</span>
-          <span class="card-meta">${t('card.subtitle')}</span>
+          <span class="card-meta">${this.matchContextText(lvl)}</span>
         </div>
         ${gradeEl}
       `;
@@ -1754,11 +1999,11 @@ const Game = {
       card.className = `scenario-card ${isActive ? 'active' : ''}`;
       card.innerHTML = `
         <div class="card-info">
-          <span class="card-label">CUSTOM DRILL 🛠️</span>
+          <span class="card-label">CUSTOM DRILL</span>
           <span class="card-name">${customLvl.name}</span>
           <span class="card-meta">USER CREATED LEVEL</span>
         </div>
-        <div class="card-grade">★</div>
+        <div class="card-grade">-</div>
       `;
       card.addEventListener('click', () => {
         this.loadLevel(99);
@@ -1789,14 +2034,15 @@ const Game = {
   },
 
   updateLiveFeed() {
-    // Header & Info (defaults are localized; levels carry no shape fields)
-    document.getElementById('stat-our-shape').textContent = t('val.ourShape');
-    document.getElementById('stat-opp-shape').textContent = t('val.pressShape');
+    // Header & Info
+    const lvl = this.currentLevel || {};
+    document.getElementById('stat-our-shape').textContent = lvl.ourShape || t('val.ourShape');
+    document.getElementById('stat-opp-shape').textContent = lvl.opponentShape || t('val.pressShape');
 
     // Action Limit checkmarks
     let indicatorText = '';
     for (let i = 0; i < this.passLimit; i++) {
-      indicatorText += (i < this.passCount) ? '■ ' : '□ ';
+      indicatorText += (i < this.passCount) ? '??' : '??';
     }
     const limitEl = document.getElementById('stat-action-limit');
     limitEl.textContent = indicatorText;
@@ -1854,7 +2100,7 @@ const Game = {
       case 'blocked':      lane = t('lane.blocked', { reason: t('reason.' + (entry.reason || 'pressureRadius')) }); break;
       default:             lane = t('lane.safe');
     }
-    return `${action} ${entry.from}→${entry.to} · ${lane}`;
+    return `${action} ${entry.from}->${entry.to} - ${lane}`;
   },
 
   showModal(id, options = {}) {
@@ -1864,11 +2110,12 @@ const Game = {
     
     if (id === 'intro-modal') {
       const lvl = this.currentLevel;
-      document.getElementById('intro-drill-label').textContent = getLevelTacticalLabel(lvl.id);
+      document.getElementById('intro-drill-label').textContent = lvl.stageLabel || getLevelTacticalLabel(lvl.id);
       document.getElementById('intro-drill-name').textContent = tLevel(lvl.id, 'name').toUpperCase();
-      document.getElementById('intro-our-shape').textContent = t('val.ourShape');
-      document.getElementById('intro-opp-shape').textContent = t('val.pressShape');
-      document.getElementById('intro-concept').textContent = t('val.concept');
+      document.getElementById('intro-match-context').textContent = this.matchContextShort(lvl);
+      document.getElementById('intro-our-shape').textContent = lvl.ourShape || t('val.ourShape');
+      document.getElementById('intro-opp-shape').textContent = lvl.opponentShape || t('val.pressShape');
+      document.getElementById('intro-concept').textContent = lvl.intendedConcept || t('val.concept');
       document.getElementById('intro-briefing').textContent = tLevel(lvl.id, 'intro');
     } else if (id === 'lose-modal') {
       document.getElementById('lose-reason').textContent = this.failReasonText().toUpperCase();
@@ -1880,6 +2127,8 @@ const Game = {
     } else if (id === 'result-modal') {
       const lvl = this.currentLevel;
       document.getElementById('result-drill-name').textContent = `${getLevelTacticalLabel(lvl.id)}: ${tLevel(lvl.id, 'name').toUpperCase()}`;
+      document.getElementById('result-match-context').textContent = this.matchContextText(lvl);
+      document.getElementById('result-moment-line').textContent = this.momentRecapText(lvl);
 
       const grade = StorageMgr.starsToGrade(this.resultStars);
       const gradeEl = document.getElementById('result-grade');
@@ -1892,6 +2141,13 @@ const Game = {
       document.getElementById('result-actions').textContent = `${this.resultPasses} / ${lvl.optimalPasses}`;
       document.getElementById('result-lines').textContent = this.resultLinesBroken;
       document.getElementById('result-outlet').textContent = this.resultTargetChannelShort ? tChannel(this.resultTargetChannelShort) : '-';
+      document.getElementById('result-concept').textContent = lvl.intendedConcept || t('val.concept');
+      document.getElementById('share-card-stage').textContent = lvl.stageLabel || 'WORLD STAGE';
+      document.getElementById('share-card-score').textContent = this.matchContextShort(lvl);
+      document.getElementById('share-card-title').textContent = `${tLevel(lvl.id, 'name')} solved`;
+      document.getElementById('share-card-meta').textContent = this.momentRecapText(lvl);
+      document.getElementById('share-card-grade').textContent = grade;
+      document.getElementById('share-card-grade').style.borderColor = gradeEl.style.borderColor;
       document.getElementById('result-share-feedback').textContent = "";
     }
 
@@ -1943,7 +2199,7 @@ const Game = {
     }
   },
 
-  // ─── Game Loop ───
+  // ??? Game Loop ???
   loop(now) {
     this.dt = Math.min((now - this.lastTime) / 1000, 0.05);
     this.lastTime = now;
@@ -1955,7 +2211,7 @@ const Game = {
     requestAnimationFrame((t) => this.loop(t));
   },
 
-  // ─── Update ───
+  // ??? Update ???
   update() {
     if (this.shake.amount > 0.1) {
       this.shake.amount *= this.shake.decay;
@@ -2172,7 +2428,7 @@ const Game = {
     const snap = this.passHistory[this.passHistory.length - 1];
     const prevHolderX = snap ? snap.players[snap.playerIdx].x : null;
 
-    // Advance the block once, folding the trap collapse into the same call — mirrors the
+    // Advance the block once, folding the trap collapse into the same call ??mirrors the
     // solver's advanceDefs (single step; trap-side defenders step twice) so runtime and
     // the BFS oracle stay identical instead of the block double-moving on a trap.
     const triggeredTrap = pointInTrapZone(this.players[this.currentPlayerIdx], this.trapZones);
@@ -2997,7 +3253,7 @@ const Game = {
     steps.push(t('log.win', { zone }));
     const route = steps.join('\n');
 
-    const summary = `[BUILD-UP LAB] ${t('canvas.escaped')}\n${getLevelTacticalLabel(this.levelId)}: ${tLevel(this.levelId, 'name')}\n${t('intro.situation')}: ${tLevel(this.levelId, 'intro')}\n${t('result.grade')}: [${grade}] (${this.resultPasses}/${this.currentLevel.optimalPasses})\n${t('result.outlet')} ${zone}\n${route}`;
+    const summary = `[BUILD-UP LAB - WORLD STAGE] ${t('canvas.escaped')}\n${this.matchContextText(this.currentLevel)}\n${getLevelTacticalLabel(this.levelId)}: ${tLevel(this.levelId, 'name')}\n${this.momentRecapText(this.currentLevel)}\n${t('intro.situation')}: ${tLevel(this.levelId, 'intro')}\n${t('result.grade')}: [${grade}] (${this.resultPasses}/${this.currentLevel.optimalPasses})\n${t('result.outlet')} ${zone}\n${route}`;
 
     const handleFeedback = () => {
       this.spawnParticles(INTERNAL_W / 2, INTERNAL_H / 2, C.uiAccent, 8);
@@ -3040,7 +3296,7 @@ const Game = {
     return 'Opponent cover shadows block all open lanes';
   },
 
-  // ─── Render Game Field on Canvas ───
+  // ??? Render Game Field on Canvas ???
   render() {
     const ctx = this.ctx;
     ctx.save();
@@ -3055,6 +3311,10 @@ const Game = {
 
     // Prerendered Pitch background
     ctx.drawImage(this.fieldCanvas, 0, 0);
+
+    // Non-interactive 11v11 match context. This is a visual layer only; it is
+    // intentionally not part of pass, pressure, or click calculations.
+    drawOffBallContext(ctx, this.currentLevel, this.players, this.defenders, this.time);
     
     // Channels
     if (Game.guides.channels) {
@@ -3323,7 +3583,7 @@ const Game = {
   },
 };
 
-// ─── Start ───────────────────────────────────────
+// ??? Start ???????????????????????????????????????
 window.Game = Game;
 window.addEventListener('DOMContentLoaded', () => Game.init());
 

@@ -2,7 +2,7 @@
 
 ## One-Line Concept
 
-Build-Up Lab is a football tactics puzzle where the player reads the opponent's pressing shape and escapes pressure through limited passes, rotations, and third-man patterns.
+Build-Up Lab is an interactive world-stage football tactics challenge where the player solves match-defining build-up moments: read the press, find the free man, and escape pressure in limited actions.
 
 ## Why Pivot
 
@@ -17,7 +17,7 @@ The weak point was market positioning. A generic soccer passing puzzle is easy t
 - Amateur coaches or players who want quick tactical scenarios.
 - Casual football fans if the first levels are visual and simple enough.
 
-This is not a mass-market arcade game first. It should start as a sharp niche product with a clear hook.
+This is not a mass-market arcade game first. It should start as a sharp niche product with a clear hook, then package that hook with a tournament-style presentation broad enough for casual football fans.
 
 ## Product Promise
 
@@ -27,6 +27,7 @@ The player should feel:
 - "I found the free man."
 - "That third-man route was satisfying."
 - "I want to try one more shape."
+- "This feels like a decisive match moment."
 
 ## Core Loop
 
@@ -38,7 +39,7 @@ The player should feel:
 
 ## MVP Scope
 
-The first version should be a build-up puzzle, not a full football simulator.
+The first version should be a build-up puzzle framed as a world-stage match moment, not a full football simulator.
 
 Include:
 
@@ -49,6 +50,7 @@ Include:
 - Limited actions per level.
 - Pressing lanes, cover shadows, and target escape zones.
 - Tactical actions such as bounce pass, third-man run, switch play, and drop pivot.
+- Match-moment framing: minute, score state, formation vs formation, and shareable route summary.
 
 Exclude for now:
 
@@ -58,6 +60,7 @@ Exclude for now:
 - Online multiplayer.
 - Licensed teams or player names.
 - Complex stamina, morale, or player attributes.
+- Official tournament, team, or player branding unless licensed.
 
 ## Differentiation
 
@@ -80,6 +83,7 @@ Within the next prototype, the game should prove:
 - At least 20 test players can complete the first 5 levels without explanation.
 - At least 30% of testers voluntarily play 5 or more levels.
 - The game produces shareable puzzle moments: "try solving this press."
+- A casual football fan understands that each scenario is a high-stakes match moment, not a generic drill.
 
 ## Monetization Direction
 
@@ -89,6 +93,6 @@ Potential later paths:
 
 - Free daily challenge with ads.
 - Paid level packs: Build-Up vs 4-4-2, vs 4-3-3, vs man-to-man press.
+- Tournament-style challenge packs: Group Stage Patterns, Knockout Press Traps, Final Minutes.
 - Coach/education mode with editable scenarios.
 - Mobile web release first, then app store wrapper if retention is real.
-

@@ -47,6 +47,9 @@ const C = {
   btnHover:      '#1b3227',
   btnText:       '#f5a623',
   btnActive:     '#ffffff',
+  offBallHome:   'rgba(248,249,250,0.20)',
+  offBallAway:   'rgba(235,87,87,0.18)',
+  offBallLine:   'rgba(255,255,255,0.055)',
 };
 
 // ─── Drawing and Helper Functions ────────────────
@@ -471,6 +474,96 @@ function drawLinesOfEngagement(ctx, defenders) {
   ctx.restore();
 }
 
+const OFF_BALL_ATTACK_CONTEXT = [
+  { x: 28,  y: 128, role: 'GK' },
+  { x: 72,  y: 42,  role: 'LB' },
+  { x: 74,  y: 98,  role: 'CB' },
+  { x: 74,  y: 158, role: 'CB' },
+  { x: 72,  y: 214, role: 'RB' },
+  { x: 136, y: 78,  role: '6' },
+  { x: 144, y: 178, role: '8' },
+  { x: 210, y: 54,  role: 'LW' },
+  { x: 224, y: 128, role: '10' },
+  { x: 210, y: 202, role: 'RW' },
+  { x: 304, y: 128, role: '9' },
+];
+
+const OFF_BALL_DEFENSE_CONTEXT = [
+  { x: 344, y: 128, role: 'GK' },
+  { x: 292, y: 44,  role: 'RB' },
+  { x: 286, y: 96,  role: 'CB' },
+  { x: 286, y: 160, role: 'CB' },
+  { x: 292, y: 212, role: 'LB' },
+  { x: 228, y: 72,  role: '6' },
+  { x: 218, y: 180, role: '8' },
+  { x: 160, y: 50,  role: 'RW' },
+  { x: 146, y: 128, role: '10' },
+  { x: 160, y: 206, role: 'LW' },
+  { x: 88,  y: 128, role: '9' },
+];
+
+const OFF_BALL_LINES = [
+  [1, 2, 3, 4],
+  [5, 6],
+  [7, 8, 9],
+  [10],
+];
+
+function drawOffBallTeam(ctx, points, color, strokeColor, activePoints, offsetX) {
+  ctx.save();
+  ctx.lineWidth = 0.6;
+  ctx.strokeStyle = strokeColor;
+  ctx.setLineDash([1, 4]);
+
+  for (const line of OFF_BALL_LINES) {
+    ctx.beginPath();
+    let started = false;
+    for (const idx of line) {
+      const p = points[idx];
+      if (!p) continue;
+      const x = p.x + offsetX;
+      if (!started) {
+        ctx.moveTo(x, p.y);
+        started = true;
+      } else {
+        ctx.lineTo(x, p.y);
+      }
+    }
+    ctx.stroke();
+  }
+
+  ctx.setLineDash([]);
+  for (const p of points) {
+    const x = p.x + offsetX;
+    const tooClose = activePoints.some(a => dist(a, { x, y: p.y }) < 19);
+    if (tooClose) continue;
+
+    drawPixelCircle(ctx, x, p.y, 3.2, color, strokeColor, 0.7);
+    ctx.fillStyle = 'rgba(255,255,255,0.22)';
+    ctx.font = '600 4.5px "JetBrains Mono"';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(p.role, x, p.y + 0.4);
+  }
+
+  ctx.restore();
+}
+
+function drawOffBallContext(ctx, lvl, activePlayers = [], activeDefenders = [], time = 0) {
+  if (!lvl) return;
+  const palette = lvl.teamPalette || {};
+  const homeColor = palette.home ? `${palette.home}33` : C.offBallHome;
+  const awayColor = palette.away ? `${palette.away}2e` : C.offBallAway;
+  const activePoints = [...activePlayers, ...activeDefenders];
+  const drift = Math.sin(time * 0.001) * 1.2;
+
+  ctx.save();
+  ctx.globalAlpha = 0.9;
+  drawOffBallTeam(ctx, OFF_BALL_ATTACK_CONTEXT, homeColor, C.offBallLine, activePoints, drift);
+  drawOffBallTeam(ctx, OFF_BALL_DEFENSE_CONTEXT, awayColor, C.offBallLine, activePoints, -drift);
+  ctx.restore();
+}
+
 // Global exports
 if (typeof window !== 'undefined') {
   window.C = C;
@@ -490,4 +583,5 @@ if (typeof window !== 'undefined') {
   window.drawField = drawField;
   window.drawChannels = drawChannels;
   window.drawLinesOfEngagement = drawLinesOfEngagement;
+  window.drawOffBallContext = drawOffBallContext;
 }

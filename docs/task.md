@@ -118,3 +118,20 @@ Archive path:
 - [x] Render Switch play lob pass 3D trajectory (flight y-offset & linear dotted shadow ground path).
 - [x] Replace blocked X markers on pass lanes with rectangular CUT badges.
 - [ ] Consider Direct Drag as a later alternate input mode.
+
+## Milestone 12: World Stage Reframe
+
+- [x] Define world-stage positioning without committing to full 11v11 simulation.
+- [x] Document licensing-safe language: World Stage, International Matchday, Knockout Drill.
+- [x] Add match context metadata: minute, scoreState, stageLabel, teamPalette.
+- [x] Render match context in scenario cards and briefing modal.
+- [x] Update share summary into a world-stage challenge result.
+- [x] Add faded 11v11 off-ball context as non-interactive visual framing.
+
+## Milestone 13: Match Moment Packaging
+
+- [x] Add match context to the result modal.
+- [x] Add one-line solved moment recap to the result modal.
+- [x] Include solved moment recap in the share summary.
+- [x] Add a compact visual share card layout.
+- [x] Add a daily/featured match moment entry point.

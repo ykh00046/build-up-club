@@ -504,6 +504,40 @@ const LEVELS = [
   }
 ];
 
+const WORLD_STAGE_CONTEXTS = [
+  { stageLabel: 'GROUP STAGE - OPENING PRESS', minute: 12, scoreState: '0-0', teamPalette: { home: '#f5a623', away: '#10b981', label: 'Amber vs Emerald' }, ourShape: '3-2 BUILD-UP', opponentShape: '4-4-2 MID PRESS', intendedConcept: 'Find the free pivot' },
+  { stageLabel: 'GROUP STAGE - WIDE TRAP', minute: 18, scoreState: '0-0', teamPalette: { home: '#38bdf8', away: '#f97316', label: 'Sky vs Flame' }, ourShape: '2-3 BUILD-UP', opponentShape: 'BALL-SIDE PRESS', intendedConcept: 'Play around the presser' },
+  { stageLabel: 'GROUP STAGE - SHADOW LINE', minute: 27, scoreState: '1-0', teamPalette: { home: '#10b981', away: '#ef4444', label: 'Emerald vs Crimson' }, ourShape: '3-1-1 ESCAPE', opponentShape: 'COVER SHADOW PRESS', intendedConcept: 'Break the shadow lane' },
+  { stageLabel: 'GROUP STAGE - MOVING BLOCK', minute: 34, scoreState: '1-1', teamPalette: { home: '#eab308', away: '#2563eb', label: 'Gold vs Royal' }, ourShape: '3-2 ROTATION', opponentShape: 'SHIFTING MID BLOCK', intendedConcept: 'Wait for the patrol gap' },
+  { stageLabel: 'GROUP STAGE - MUST ADVANCE', minute: 43, scoreState: '0-1', teamPalette: { home: '#f8fafc', away: '#16a34a', label: 'White vs Green' }, ourShape: '2-3-1 BUILD-UP', opponentShape: 'TWO-LINE BLOCK', intendedConcept: 'Split the mid-block' },
+  { stageLabel: 'GROUP STAGE - MOMENTUM SWING', minute: 51, scoreState: '0-0', teamPalette: { home: '#f97316', away: '#0f766e', label: 'Orange vs Teal' }, ourShape: '2-2 BOX', opponentShape: 'FIRST-LINE PRESS', intendedConcept: 'Bounce around pressure' },
+  { stageLabel: 'GROUP STAGE - BLIND SIDE', minute: 57, scoreState: '1-1', teamPalette: { home: '#60a5fa', away: '#f43f5e', label: 'Blue vs Rose' }, ourShape: '3-2 SUPPORT', opponentShape: 'COMPACT PRESS', intendedConcept: 'Release the third man' },
+  { stageLabel: 'GROUP STAGE - WEAK SIDE', minute: 63, scoreState: '1-0', teamPalette: { home: '#22c55e', away: '#a855f7', label: 'Green vs Violet' }, ourShape: '3-1-2 BUILD-UP', opponentShape: 'BALL-SIDE SQUEEZE', intendedConcept: 'Switch into isolation' },
+  { stageLabel: 'GROUP STAGE - PIVOT DROP', minute: 69, scoreState: '0-1', teamPalette: { home: '#fb7185', away: '#14b8a6', label: 'Coral vs Teal' }, ourShape: '2-1 REST SHAPE', opponentShape: 'CENTER LOCK', intendedConcept: 'Drop the pivot angle' },
+  { stageLabel: 'GROUP STAGE - FINAL CHANCE', minute: 82, scoreState: '1-1', teamPalette: { home: '#facc15', away: '#1d4ed8', label: 'Yellow vs Blue' }, ourShape: '3-2 BUILD-UP', opponentShape: 'HYBRID PRESS', intendedConcept: 'Choose the right action' },
+  { stageLabel: 'ROUND OF 16 - OVERLOAD', minute: 16, scoreState: '0-0', teamPalette: { home: '#06b6d4', away: '#dc2626', label: 'Cyan vs Red' }, ourShape: '3-2 WIDE BASE', opponentShape: 'SIDE OVERLOAD', intendedConcept: 'Escape to weak side' },
+  { stageLabel: 'ROUND OF 16 - RECOVERY PRESS', minute: 24, scoreState: '1-0', teamPalette: { home: '#84cc16', away: '#4338ca', label: 'Lime vs Indigo' }, ourShape: '2-3 BUILD-UP', opponentShape: 'CHASE PRESS', intendedConcept: 'Use tactical movement' },
+  { stageLabel: 'ROUND OF 16 - TOUCHLINE TRAP', minute: 38, scoreState: '0-0', teamPalette: { home: '#f59e0b', away: '#64748b', label: 'Amber vs Steel' }, ourShape: '3-1 WIDE EXIT', opponentShape: 'WIDE TRAP', intendedConcept: 'Break the side trap' },
+  { stageLabel: 'ROUND OF 16 - CENTRAL LOCK', minute: 55, scoreState: '0-1', teamPalette: { home: '#ef4444', away: '#f8fafc', label: 'Red vs White' }, ourShape: '2-3 NARROW', opponentShape: 'CENTRAL COMPACT BLOCK', intendedConcept: 'Bypass congestion' },
+  { stageLabel: 'ROUND OF 16 - HALF-SPACE RUN', minute: 72, scoreState: '1-1', teamPalette: { home: '#14b8a6', away: '#f97316', label: 'Teal vs Orange' }, ourShape: '3-2-1', opponentShape: 'MID-BLOCK SCREEN', intendedConcept: 'Enter the half-space' },
+  { stageLabel: 'QUARTER-FINAL - HIGH PRESS', minute: 9, scoreState: '0-0', teamPalette: { home: '#2563eb', away: '#fbbf24', label: 'Royal vs Gold' }, ourShape: '3-2 BUILD-UP', opponentShape: '4-4-2 HIGH PRESS', intendedConcept: 'Beat the first line' },
+  { stageLabel: 'QUARTER-FINAL - FRONT THREE', minute: 22, scoreState: '0-0', teamPalette: { home: '#16a34a', away: '#7c3aed', label: 'Green vs Purple' }, ourShape: '2-3 BUILD-UP', opponentShape: '4-3-3 MID PRESS', intendedConcept: 'Find the deep pivot' },
+  { stageLabel: 'QUARTER-FINAL - MAN LOCK', minute: 48, scoreState: '1-0', teamPalette: { home: '#f43f5e', away: '#0ea5e9', label: 'Rose vs Sky' }, ourShape: '3-1 SUPPORT', opponentShape: 'MAN-ORIENTED BLOCK', intendedConcept: 'Shake markers loose' },
+  { stageLabel: 'QUARTER-FINAL - SIDELINE SQUEEZE', minute: 66, scoreState: '1-1', teamPalette: { home: '#eab308', away: '#475569', label: 'Gold vs Slate' }, ourShape: '2-3 WIDE BASE', opponentShape: 'WIDE LOCK PRESS', intendedConcept: 'Escape the flank lock' },
+  { stageLabel: 'QUARTER-FINAL - MASTER PRESS', minute: 88, scoreState: '1-1', teamPalette: { home: '#f8fafc', away: '#dc2626', label: 'White vs Red' }, ourShape: '3-2-2 BUILD-UP', opponentShape: 'AGGRESSIVE HIGH PRESS', intendedConcept: 'Combine all tools' },
+  { stageLabel: 'SEMI-FINAL - ATTRACT PRESS', minute: 14, scoreState: '0-0', teamPalette: { home: '#0f766e', away: '#f97316', label: 'Teal vs Orange' }, ourShape: '3-2 PATIENT BASE', opponentShape: 'COMPACT PRESS', intendedConcept: 'Carry to attract' },
+  { stageLabel: 'SEMI-FINAL - THIRD MAN', minute: 33, scoreState: '0-1', teamPalette: { home: '#38bdf8', away: '#ef4444', label: 'Sky vs Red' }, ourShape: '3-1-2', opponentShape: 'LANE SCREEN', intendedConcept: 'Use the third player' },
+  { stageLabel: 'SEMI-FINAL - SWITCH MOMENT', minute: 61, scoreState: '1-1', teamPalette: { home: '#f59e0b', away: '#14b8a6', label: 'Amber vs Teal' }, ourShape: '2-3-1', opponentShape: 'INSIDE COLLAPSE', intendedConcept: 'Attract then switch' },
+  { stageLabel: 'FINAL - TWO STRIKER PRESS', minute: 76, scoreState: '0-0', teamPalette: { home: '#2563eb', away: '#f8fafc', label: 'Blue vs White' }, ourShape: 'LAVOLPIANA 3', opponentShape: '2-FORWARD HIGH PRESS', intendedConcept: 'Drop pivot between CBs' },
+  { stageLabel: 'FINAL - TITLE MOMENT', minute: 90, scoreState: '1-1', teamPalette: { home: '#facc15', away: '#16a34a', label: 'Yellow vs Green' }, ourShape: '3-2-2 MASTERCLASS', opponentShape: 'FULL MID-BLOCK', intendedConcept: 'Dismantle the block' },
+];
+
+LEVELS.forEach((level, index) => {
+  const context = WORLD_STAGE_CONTEXTS[index];
+  if (!context) return;
+  Object.assign(level, context);
+});
+
 // Expose for the engine (global LEVELS) and index.html (window.LEVELS)
 if (typeof window !== 'undefined') {
   window.LEVELS = LEVELS;

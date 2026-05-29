@@ -2,9 +2,9 @@
 
 ## Design Principle
 
-Make football tactics playable in 10-second decisions.
+Make football tactics playable in 10-second, match-defining decisions.
 
-The player should not manage a whole match. Each level is one tactical problem: escape pressure from the first or second line and reach a target zone.
+The player should not manage a whole match. Each level is one tactical problem presented as a high-stakes match moment: escape pressure from the first or second line and reach a target zone.
 
 ## Scenario Anatomy
 
@@ -12,6 +12,7 @@ Each level contains:
 
 - Our shape: the build-up structure.
 - Opponent shape: the press structure.
+- Match context: minute, score state, and competition-style stage.
 - Pressing idea: what the opponent is trying to deny.
 - Build-up answer: the tactical concept the player should discover.
 - Ball holder.
@@ -26,7 +27,9 @@ Each level contains:
 Example:
 
 ```text
-Scenario: Beat the 4-4-2 High Press
+Scenario: Knockout Drill - Beat the 4-4-2 High Press
+Minute: 78'
+Score: 1-1
 Our shape: 2-3 build-up
 Opponent shape: 4-4-2 high press
 Start: left center-back
@@ -131,6 +134,19 @@ Simple MVP rating:
 - A: clean escape with one extra action.
 - B: escaped but inefficient.
 - Failed: intercepted, trapped, or out of actions.
+
+## 11v11 Presentation Rule
+
+The game may look like a full 11v11 tactical broadcast, but the playable logic should remain focused.
+
+Use 11v11 context for:
+
+- visual stakes,
+- formation recognition,
+- off-ball context,
+- tournament-style presentation.
+
+Do not require full 22-player simulation for the core puzzle until retention proves the concept.
 
 Next scoring model:
 

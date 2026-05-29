@@ -10,14 +10,16 @@ const I18N_STORAGE_KEY = 'buildup-lab:lang';
 const I18N = {
   en: {
     'lang.label': 'EN',
-    'header.subtitle': 'MATCHDAY ANALYTICS',
-    'header.board': 'TACTICAL BOARD V2.0',
+    'header.subtitle': 'WORLD STAGE CHALLENGE',
+    'header.board': 'MATCHDAY TACTICAL BOARD',
     'audio.on': 'AUDIO: ON',
     'audio.off': 'AUDIO: OFF',
 
-    'panel.scenarios': 'SCENARIOS DIRECTORY',
+    'panel.scenarios': 'MATCH MOMENTS',
+    'featured.kicker': 'FEATURED MATCH MOMENT',
+    'featured.play': 'PLAY FEATURED MOMENT',
     'tab.0': 'TUTS', 'tab.1': 'PATS', 'tab.2': 'SHAPES', 'tab.3': 'ADV', 'tab.4': 'GED',
-    'card.subtitle': 'build-up vs press',
+    'card.subtitle': 'world-stage build-up',
 
     'action.pass.title': 'PASS',        'action.pass.sub': 'direct lane',
     'action.bounce.title': 'BOUNCE',    'action.bounce.sub': 'one-two',
@@ -25,7 +27,7 @@ const I18N = {
     'action.switchPlay.title': 'SWITCH','action.switchPlay.sub': 'far-side',
     'action.dropPivot.title': 'DROP DM','action.dropPivot.sub': 'deep support',
 
-    'coach.note': 'COACHING NOTE: Play the direct pass or select a tactical action.',
+    'coach.note': 'MATCH NOTE: Solve the pressure moment in limited actions.',
 
     'panel.feed': 'LIVE ANALYTICAL FEED',
     'stat.ourShape': 'OUR SHAPE:',
@@ -57,16 +59,17 @@ const I18N = {
     'lose.adjust': 'ADJUST POSITION [Z]',
     'lose.reset': 'RESET DRILL [R]',
 
-    'result.badge': 'DRILL ACCOMPLISHED',
+    'result.badge': 'MOMENT SOLVED',
     'result.title': 'PRESS BEATEN!',
     'result.grade': 'TACTICAL GRADE',
     'result.actions': 'ACTIONS USED:',
     'result.lines': 'LINES BROKEN:',
     'result.outlet': 'ESCAPE CHANNEL:',
+    'result.concept': 'CONCEPT:',
     'result.retry': 'RETRY SETUP',
     'result.next': 'NEXT SETUP',
-    'result.share': 'SHARE PERFORMANCE SUMMARY',
-    'result.copied': 'SUMMARY COPIED!',
+    'result.share': 'SHARE CHALLENGE RESULT',
+    'result.copied': 'CHALLENGE RESULT COPIED!',
 
     'channel.LW': 'LEFT WING',
     'channel.LHS': 'LEFT HALF-SPACE',
@@ -74,7 +77,7 @@ const I18N = {
     'channel.RHS': 'RIGHT HALF-SPACE',
     'channel.RW': 'RIGHT WING',
 
-    'canvas.escaped': 'PRESS ESCAPED!',
+    'canvas.escaped': 'MATCH MOMENT SOLVED!',
     'canvas.free': 'FREE',
 
     'lane.safe': 'safe lane',
@@ -112,6 +115,8 @@ const I18N = {
     'audio.off': '사운드: 꺼짐',
 
     'panel.scenarios': '시나리오 목록',
+    'featured.kicker': '추천 매치 모먼트',
+    'featured.play': '추천 장면 플레이',
     'tab.0': '기초', 'tab.1': '패턴', 'tab.2': '형태', 'tab.3': '심화', 'tab.4': '전술',
     'card.subtitle': '빌드업 대 압박',
 
@@ -159,6 +164,7 @@ const I18N = {
     'result.actions': '사용 액션:',
     'result.lines': '돌파한 라인:',
     'result.outlet': '탈출 채널:',
+    'result.concept': '컨셉:',
     'result.retry': '다시 시도',
     'result.next': '다음 세트',
     'result.share': '결과 요약 공유',
@@ -208,6 +214,8 @@ const I18N = {
     'audio.off': 'サウンド: OFF',
 
     'panel.scenarios': 'シナリオ一覧',
+    'featured.kicker': 'FEATURED MATCH MOMENT',
+    'featured.play': 'PLAY FEATURED MOMENT',
     'tab.0': '基礎', 'tab.1': '型', 'tab.2': '形', 'tab.3': '応用', 'tab.4': '戦術',
     'card.subtitle': 'ビルドアップ対プレス',
 

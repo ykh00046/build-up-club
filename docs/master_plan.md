@@ -2,13 +2,13 @@
 
 ## Product North Star
 
-Build-Up Lab is a compact football tactics puzzle about escaping pressure during build-up.
+Build-Up Lab is a compact world-stage football tactics puzzle about escaping pressure during decisive build-up moments.
 
 The player should not feel like they are solving an abstract line puzzle. They should feel like they are reading a press, creating a free man, and breaking into the right channel.
 
 Core promise:
 
-> Can you beat the press before the trap closes?
+> Can you solve the match-defining build-up moment before the press closes?
 
 ## Current State
 
@@ -40,8 +40,45 @@ Use documents this way:
 - `docs/tactical_research.md`: football theory and research notes.
 - `docs/phase_c_spec.md`: implementation spec for next tactical depth phase.
 - `docs/football_prototype_review.md`: what to reuse from the contributor prototype.
+- `docs/world_stage_strategy.md`: tournament-style attention strategy and 11v11 expansion guardrails.
 - `docs/implementation_plan.md`: historical implementation plan and broader phases.
 - `docs/task.md`: checklist status.
+
+## World Stage Direction
+
+Goal:
+
+Make the project attractive to a broader football audience without turning it into a full 11v11 simulator too early.
+
+Decision:
+
+- Keep the playable core as short tactical scenarios.
+- Present scenarios as big-match highlight problems.
+- Use an 11v11 match wrapper for context, not full simulation.
+- Avoid official World Cup, FIFA, national team, and player branding unless licensed.
+
+Near-term product language:
+
+- World Stage Challenge.
+- International Matchday.
+- Knockout Drill.
+- Match-Defining Moment.
+- Formation vs Formation.
+
+Near-term implementation:
+
+- Added match minute, score state, tournament-style stage label, and team palette metadata to each scenario.
+- Render tournament-style labels in scenario cards and briefing.
+- Include match context in share summaries so results read like a challenge moment.
+- Added faded, non-interactive 11v11 off-ball context around the active puzzle zone.
+
+Result packaging:
+
+- Show match context on the solved result modal.
+- Summarize the solved moment in one shareable sentence.
+- Keep the result screen focused on grade, actions, lines broken, outlet, and concept.
+- Promote one featured match moment from the scenario sidebar so new players see a high-stakes entry point before the level directory.
+- Add a compact share-card preview inside the result modal as the basis for later image export.
 
 ## Step 0: Preserve The Current Prototype
 
