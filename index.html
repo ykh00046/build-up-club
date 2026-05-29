@@ -1333,6 +1333,7 @@ const t = window.t;
 const tLevel = window.tLevel;
 const tChannel = window.tChannel;
 const tFlavor = window.tFlavor;
+const tTeam = window.tTeam;
 const getLang = window.getLang;
 const setLang = window.setLang;
 const I18N_LANGS = window.I18N_LANGS;
@@ -1905,22 +1906,22 @@ const Game = {
   matchContextText(lvl = this.currentLevel) {
     if (!lvl) return t('card.subtitle');
     const stage = tFlavor(lvl.id, 'stage') || getLevelTacticalLabel(lvl.id);
-    const minute = typeof lvl.minute === 'number' ? `${lvl.minute}'` : 'MATCH CLOCK';
+    const minute = typeof lvl.minute === 'number' ? `${lvl.minute}'` : t('match.clock');
     const score = lvl.scoreState || '0-0';
     return `${stage} | ${minute} | ${score}`;
   },
 
   matchContextShort(lvl = this.currentLevel) {
-    if (!lvl) return 'International Matchday';
-    const minute = typeof lvl.minute === 'number' ? `${lvl.minute}'` : 'MATCH CLOCK';
+    if (!lvl) return t('match.matchday');
+    const minute = typeof lvl.minute === 'number' ? `${lvl.minute}'` : t('match.clock');
     const score = lvl.scoreState || '0-0';
-    return `${minute} | ${score} | ${lvl.teamPalette?.label || 'International Matchday'}`;
+    return `${minute} | ${score} | ${tTeam(lvl.teamPalette?.label) || t('match.matchday')}`;
   },
 
   momentRecapText(lvl = this.currentLevel) {
     const concept = (lvl ? tFlavor(lvl.id, 'concept') : '') || t('val.concept');
     const outlet = this.resultTargetChannelShort ? tChannel(this.resultTargetChannelShort) : t('val.freeSpace');
-    return `${concept}. Outlet found through ${outlet}.`;
+    return t('recap.line', { concept, outlet });
   },
 
   renderFeaturedMoment() {
@@ -1933,7 +1934,7 @@ const Game = {
 
     if (title) title.textContent = `${tFlavor(lvl.id, 'stage') || getLevelTacticalLabel(lvl.id)}: ${tLevel(lvl.id, 'name')}`;
     if (meta) {
-      const minute = typeof lvl.minute === 'number' ? `${lvl.minute}'` : 'MATCH CLOCK';
+      const minute = typeof lvl.minute === 'number' ? `${lvl.minute}'` : t('match.clock');
       meta.textContent = `${minute} | ${lvl.scoreState || '0-0'} | ${tFlavor(lvl.id, 'concept') || t('val.concept')}`;
     }
     if (panel) {

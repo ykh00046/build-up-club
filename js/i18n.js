@@ -111,6 +111,15 @@ const I18N = {
 
     'log.trap': 'TRAP {zone} — press collapses',
     'log.win': 'WIN — PRESS ESCAPED → {zone}',
+    'match.clock': 'MATCH CLOCK',
+    'match.matchday': 'International Matchday',
+    'recap.line': '{concept}. Outlet found through {outlet}.',
+    'color.amber': 'Amber', 'color.emerald': 'Emerald', 'color.sky': 'Sky', 'color.flame': 'Flame',
+    'color.crimson': 'Crimson', 'color.gold': 'Gold', 'color.royal': 'Royal', 'color.white': 'White',
+    'color.green': 'Green', 'color.orange': 'Orange', 'color.teal': 'Teal', 'color.blue': 'Blue',
+    'color.rose': 'Rose', 'color.violet': 'Violet', 'color.coral': 'Coral', 'color.yellow': 'Yellow',
+    'color.cyan': 'Cyan', 'color.red': 'Red', 'color.lime': 'Lime', 'color.indigo': 'Indigo',
+    'color.steel': 'Steel', 'color.slate': 'Slate', 'color.purple': 'Purple',
   },
 
   ko: {
@@ -216,6 +225,15 @@ const I18N = {
 
     'log.trap': '트랩 {zone} — 압박 붕괴',
     'log.win': '성공 — 압박 돌파 → {zone}',
+    'match.clock': '경기 시계',
+    'match.matchday': '인터내셔널 매치데이',
+    'recap.line': '{concept}. {outlet} 쪽으로 탈출.',
+    'color.amber': '앰버', 'color.emerald': '에메랄드', 'color.sky': '스카이', 'color.flame': '플레임',
+    'color.crimson': '크림슨', 'color.gold': '골드', 'color.royal': '로열', 'color.white': '화이트',
+    'color.green': '그린', 'color.orange': '오렌지', 'color.teal': '틸', 'color.blue': '블루',
+    'color.rose': '로즈', 'color.violet': '바이올렛', 'color.coral': '코랄', 'color.yellow': '옐로',
+    'color.cyan': '시안', 'color.red': '레드', 'color.lime': '라임', 'color.indigo': '인디고',
+    'color.steel': '스틸', 'color.slate': '슬레이트', 'color.purple': '퍼플',
   },
 
   ja: {
@@ -262,10 +280,39 @@ const I18N = {
     'val.ourShape': '自フォーメーション',
     'val.pressShape': 'プレス形',
     'val.concept': '狙いの概念',
-    'val.situation': '戦術状況',
-    'val.start': 'ドリル開始',
-    'val.escaped': 'プレス突破!',
-    'val.free': 'フリー',
+    'val.freeSpace': 'フリースペース',
+
+    'intro.formation': '自フォーメーション',
+    'intro.pressShape': 'プレス形',
+    'intro.concept': '狙いの概念',
+    'intro.situation': '戦術状況',
+    'intro.start': 'ドリル開始',
+
+    'lose.badge': '失敗検知',
+    'lose.title': 'ドリル中断！',
+    'lose.adjust': '位置調整 [Z]',
+    'lose.reset': 'ドリルリセット [R]',
+
+    'result.badge': 'モーメント攻略',
+    'result.title': 'プレス突破！',
+    'result.grade': '戦術評価',
+    'result.actions': '使用アクション:',
+    'result.lines': '突破ライン:',
+    'result.outlet': '脱出チャンネル:',
+    'result.concept': 'コンセプト:',
+    'result.retry': '再挑戦',
+    'result.next': '次のセット',
+    'result.share': '結果を共有',
+    'result.copied': '結果をコピー！',
+
+    'channel.LW': '左サイド',
+    'channel.LHS': '左ハーフスペース',
+    'channel.C': '中央',
+    'channel.RHS': '右ハーフスペース',
+    'channel.RW': '右サイド',
+
+    'canvas.escaped': 'マッチモーメント突破！',
+    'canvas.free': 'フリー',
 
     'lane.safe': '安全なレーン',
     'lane.lineBreaking': '{n}ライン突破',
@@ -292,6 +339,15 @@ const I18N = {
 
     'log.trap': '罠 {zone} — プレス崩壊',
     'log.win': '成功 — プレス突破 → {zone}',
+    'match.clock': '試合クロック',
+    'match.matchday': '国際マッチデー',
+    'recap.line': '{concept}。{outlet}から出口確保。',
+    'color.amber': 'アンバー', 'color.emerald': 'エメラルド', 'color.sky': 'スカイ', 'color.flame': 'フレイム',
+    'color.crimson': 'クリムゾン', 'color.gold': 'ゴールド', 'color.royal': 'ロイヤル', 'color.white': 'ホワイト',
+    'color.green': 'グリーン', 'color.orange': 'オレンジ', 'color.teal': 'ティール', 'color.blue': 'ブルー',
+    'color.rose': 'ローズ', 'color.violet': 'バイオレット', 'color.coral': 'コーラル', 'color.yellow': 'イエロー',
+    'color.cyan': 'シアン', 'color.red': 'レッド', 'color.lime': 'ライム', 'color.indigo': 'インディゴ',
+    'color.steel': 'スチール', 'color.slate': 'スレート', 'color.purple': 'パープル',
   },
 };
 
@@ -458,6 +514,13 @@ function tFlavor(id, field) {
   return en[field] || '';
 }
 
+// Translate a "ColorA vs ColorB" team-palette label by tokenizing the colour words.
+function tTeam(label) {
+  if (!label) return '';
+  if (__lang === 'en') return label;
+  return String(label).split(' vs ').map(c => t('color.' + c.trim().toLowerCase())).join(' vs ');
+}
+
 // Translated full channel name from a short code (LW/LHS/C/RHS/RW).
 function tChannel(shortCode) { return t('channel.' + shortCode); }
 
@@ -470,4 +533,5 @@ if (typeof window !== 'undefined') {
   window.tLevel = tLevel;
   window.tChannel = tChannel;
   window.tFlavor = tFlavor;
+  window.tTeam = tTeam;
 }
