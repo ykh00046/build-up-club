@@ -127,18 +127,19 @@ function deserializeLevel(hash) {
 }
 
 function getPlayerSubRole(labelText) {
+  const tr = (typeof window !== 'undefined' && window.t) ? window.t : (k => k);
   switch (labelText) {
-    case 'GK': return 'SWEED GK';
-    case 'LCB': return 'B-PLAYING CB';
-    case 'RCB': return 'B-PLAYING CB';
-    case 'LB': return 'INVERTED FB';
-    case 'RB': return 'WINGBACK';
-    case 'DM': return 'DEEP PIVOT';
-    case '8R': return 'MEZZALA';
-    case '8L': return 'BOX-TO-BOX';
-    case 'AM': return 'ADVANCED PL';
-    case 'CM': return 'CENTRE MID';
-    case 'FW': return 'FALSE NINE';
+    case 'GK': return tr('role.gk');
+    case 'LCB': return tr('role.cb');
+    case 'RCB': return tr('role.cb');
+    case 'LB': return tr('role.invFb');
+    case 'RB': return tr('role.wingback');
+    case 'DM': return tr('role.pivot');
+    case '8R': return tr('role.mezzala');
+    case '8L': return tr('role.b2b');
+    case 'AM': return tr('role.advPl');
+    case 'CM': return tr('role.cm');
+    case 'FW': return tr('role.falseNine');
     default: return '';
   }
 }
@@ -221,10 +222,11 @@ function drawPlayer(ctx, x, y, hasBall, highlighted, passRange, labelText) {
 }
 
 function getDefenderSubRole(type) {
-  if (type === 'presser') return '1ST PRESSER';
-  if (type === 'chase') return 'TRAP WIDE';
-  if (type === 'patrol') return 'FAR-SIDE LOCK';
-  return 'SCREEN PIVOT';
+  const tr = (typeof window !== 'undefined' && window.t) ? window.t : (k => k);
+  if (type === 'presser') return tr('role.presser');
+  if (type === 'chase') return tr('role.chase');
+  if (type === 'patrol') return tr('role.patrol');
+  return tr('role.static');
 }
 
 function drawDefender(ctx, d, time, labelText) {

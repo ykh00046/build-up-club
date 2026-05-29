@@ -1050,7 +1050,7 @@
         <!-- populated dynamically -->
       </div>
       <div style="padding: 10px; border-top: 1px solid rgba(255,255,255,0.03); display: flex; flex-direction: column; gap: 6px;">
-        <button id="editor-mode-btn" class="technical-btn" style="width: 100%; text-align: center; color: var(--accent-amber); border-color: var(--accent-amber); font-weight: bold;">DRILL EDITOR</button>
+        <button id="editor-mode-btn" class="technical-btn" style="width: 100%; text-align: center; color: var(--accent-amber); border-color: var(--accent-amber); font-weight: bold;" data-i18n="btn.editor">DRILL EDITOR</button>
       </div>
     </aside>
 
@@ -1174,19 +1174,19 @@
         <!-- ticker logs populated dynamically -->
       </div>
 
-      <div class="panel-header" style="border-top: 1px solid rgba(255,255,255,0.03); margin-top: 5px;">TACTICAL GUIDES</div>
+      <div class="panel-header" style="border-top: 1px solid rgba(255,255,255,0.03); margin-top: 5px;" data-i18n="panel.guides">TACTICAL GUIDES</div>
       <div class="guides-box" style="padding: 10px 14px; display: flex; flex-direction: column; gap: 8px; background: rgba(255,255,255,0.01);">
         <label style="display: flex; align-items: center; gap: 8px; font-size: 8.5px; font-weight: 800; color: var(--text-muted); cursor: pointer; letter-spacing: 0.5px;">
-          <input type="checkbox" id="chk-guide-radius" checked style="accent-color: var(--accent-amber); cursor: pointer; width: 11px; height: 11px;"> PRESSING RADIUS
+          <input type="checkbox" id="chk-guide-radius" checked style="accent-color: var(--accent-amber); cursor: pointer; width: 11px; height: 11px;"> <span data-i18n="guide.radius">PRESSING RADIUS</span>
         </label>
         <label style="display: flex; align-items: center; gap: 8px; font-size: 8.5px; font-weight: 800; color: var(--text-muted); cursor: pointer; letter-spacing: 0.5px;">
-          <input type="checkbox" id="chk-guide-shadow" checked style="accent-color: var(--accent-amber); cursor: pointer; width: 11px; height: 11px;"> COVER SHADOWS
+          <input type="checkbox" id="chk-guide-shadow" checked style="accent-color: var(--accent-amber); cursor: pointer; width: 11px; height: 11px;"> <span data-i18n="guide.shadow">COVER SHADOWS</span>
         </label>
         <label style="display: flex; align-items: center; gap: 8px; font-size: 8.5px; font-weight: 800; color: var(--text-muted); cursor: pointer; letter-spacing: 0.5px;">
-          <input type="checkbox" id="chk-guide-channels" checked style="accent-color: var(--accent-amber); cursor: pointer; width: 11px; height: 11px;"> HALFSPACE CHANNELS
+          <input type="checkbox" id="chk-guide-channels" checked style="accent-color: var(--accent-amber); cursor: pointer; width: 11px; height: 11px;"> <span data-i18n="guide.channels">HALFSPACE CHANNELS</span>
         </label>
         <label style="display: flex; align-items: center; gap: 8px; font-size: 8.5px; font-weight: 800; color: var(--text-muted); cursor: pointer; letter-spacing: 0.5px;">
-          <input type="checkbox" id="chk-guide-engagement" checked style="accent-color: var(--accent-amber); cursor: pointer; width: 11px; height: 11px;"> ENGAGEMENT LINES
+          <input type="checkbox" id="chk-guide-engagement" checked style="accent-color: var(--accent-amber); cursor: pointer; width: 11px; height: 11px;"> <span data-i18n="guide.engagement">ENGAGEMENT LINES</span>
         </label>
       </div>
     </aside>
@@ -1734,7 +1734,7 @@ const Game = {
       const editorToolbar = document.getElementById('editor-toolbar');
       
       if (this.editorMode) {
-        editorModeBtn.textContent = "PLAY MODE";
+        editorModeBtn.textContent = t('btn.playMode');
         editorModeBtn.style.color = "var(--accent-mint)";
         editorModeBtn.style.borderColor = "var(--accent-mint)";
         
@@ -1764,7 +1764,7 @@ const Game = {
         
         this.loadLevel(99);
       } else {
-        editorModeBtn.textContent = "DRILL EDITOR";
+        editorModeBtn.textContent = t('btn.editor');
         editorModeBtn.style.color = "var(--accent-amber)";
         editorModeBtn.style.borderColor = "var(--accent-amber)";
         
@@ -1856,7 +1856,7 @@ const Game = {
       this.editorMode = false;
       AudioMgr.play('goal');
       
-        editorModeBtn.textContent = "DRILL EDITOR";
+        editorModeBtn.textContent = t('btn.editor');
       editorModeBtn.style.color = "var(--accent-amber)";
       editorModeBtn.style.borderColor = "var(--accent-amber)";
       
@@ -2042,7 +2042,7 @@ const Game = {
     // Action Limit checkmarks
     let indicatorText = '';
     for (let i = 0; i < this.passLimit; i++) {
-      indicatorText += (i < this.passCount) ? '??' : '??';
+      indicatorText += (i < this.passCount) ? '■ ' : '□ ';
     }
     const limitEl = document.getElementById('stat-action-limit');
     limitEl.textContent = indicatorText;
@@ -2189,6 +2189,9 @@ const Game = {
     // Audio button reflects state in the chosen language
     const audioBtn = document.getElementById('audio-toggle-btn');
     if (audioBtn) audioBtn.textContent = AudioMgr.muted ? t('audio.off') : t('audio.on');
+    // Editor button reflects current mode (data-i18n default is the inactive label)
+    const editorBtn = document.getElementById('editor-mode-btn');
+    if (editorBtn) editorBtn.textContent = this.editorMode ? t('btn.playMode') : t('btn.editor');
     // Re-render dynamic text surfaces (guard: may run before save/level are ready)
     if (StorageMgr.data) this.renderScenarioList();
     if (this.currentLevel) this.updateLiveFeed();
