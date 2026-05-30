@@ -31,11 +31,18 @@ The player should feel:
 
 ## Core Loop
 
-1. Read our build-up shape and the opponent's pressing shape.
-2. Select a pass or tactical action.
-3. Opponent pressure shifts after each action.
-4. Escape into a target zone before losing the ball or running out of actions.
-5. Get a rating based on efficiency, risk, and tactical quality.
+The current loop needs reform. A static "find the correct pass" puzzle is not fun enough on its own.
+
+New target loop:
+
+1. Scan the opponent's pressure.
+2. Create or protect a passing angle.
+3. Commit a pass, carry, or tactical action.
+4. Watch the press react and pressure rise.
+5. Exploit the opened space before the press collapses.
+6. Get rated on concept execution, pressure control, efficiency, and risk.
+
+The game should feel like surviving and manipulating pressure, not only selecting a legal line.
 
 ## MVP Scope
 
@@ -79,11 +86,13 @@ That is clearer and stronger than:
 Within the next prototype, the game should prove:
 
 - A new player understands the objective within 30 seconds.
+- A new player understands the pressure meter within 10 seconds.
 - A football-aware player recognizes the tactical idea immediately.
 - At least 20 test players can complete the first 5 levels without explanation.
 - At least 30% of testers voluntarily play 5 or more levels.
 - The game produces shareable puzzle moments: "try solving this press."
 - A casual football fan understands that each scenario is a high-stakes match moment, not a generic drill.
+- Failed attempts feel close enough that players retry voluntarily.
 
 ## Monetization Direction
 

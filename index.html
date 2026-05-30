@@ -518,6 +518,42 @@
     color: var(--accent-amber);
   }
 
+  .pressure-widget {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    padding: 7px 0 2px;
+  }
+
+  .pressure-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 8px;
+    font-weight: 900;
+    color: var(--text-muted);
+  }
+
+  .pressure-head strong {
+    color: var(--accent-amber);
+  }
+
+  .pressure-track {
+    height: 7px;
+    border-radius: 3px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.05);
+    overflow: hidden;
+  }
+
+  .pressure-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--accent-mint), var(--accent-amber), var(--accent-crimson));
+    transition: width 0.24s ease;
+  }
+
   /* Ticker Box */
   .ticker-box {
     font-family: 'JetBrains Mono', monospace;
@@ -1066,20 +1102,28 @@
           <div class="key">1</div>
           <div class="card-text">
             <div class="title" data-i18n="action.pass.title">PASS</div>
-            <div class="subtitle" data-i18n="action.pass.sub">direct lane</div>
+            <div class="subtitle" data-i18n="action.pass.sub">to feet</div>
+          </div>
+          <div class="count">-</div>
+        </button>
+        <button class="action-card" data-action="carry">
+          <div class="key">2</div>
+          <div class="card-text">
+            <div class="title" data-i18n="action.carry.title">CARRY</div>
+            <div class="subtitle" data-i18n="action.carry.sub">create angle</div>
           </div>
           <div class="count">-</div>
         </button>
         <button class="action-card" data-action="bounce">
-          <div class="key">2</div>
+          <div class="key">3</div>
           <div class="card-text">
             <div class="title" data-i18n="action.bounce.title">BOUNCE</div>
-            <div class="subtitle" data-i18n="action.bounce.sub">one-two</div>
+            <div class="subtitle" data-i18n="action.bounce.sub">wall pass</div>
           </div>
           <div id="count-bounce" class="count">x0</div>
         </button>
         <button class="action-card" data-action="thirdMan">
-          <div class="key">3</div>
+          <div class="key">4</div>
           <div class="card-text">
             <div class="title" data-i18n="action.thirdMan.title">3RD MAN</div>
             <div class="subtitle" data-i18n="action.thirdMan.sub">blind-side</div>
@@ -1087,15 +1131,15 @@
           <div id="count-thirdMan" class="count">x0</div>
         </button>
         <button class="action-card" data-action="switchPlay">
-          <div class="key">4</div>
+          <div class="key">5</div>
           <div class="card-text">
             <div class="title" data-i18n="action.switchPlay.title">SWITCH</div>
-            <div class="subtitle" data-i18n="action.switchPlay.sub">far-side</div>
+            <div class="subtitle" data-i18n="action.switchPlay.sub">space drop</div>
           </div>
           <div id="count-switchPlay" class="count">x0</div>
         </button>
         <button class="action-card" data-action="dropPivot">
-          <div class="key">5</div>
+          <div class="key">6</div>
           <div class="card-text">
             <div class="title" data-i18n="action.dropPivot.title">DROP DM</div>
             <div class="subtitle" data-i18n="action.dropPivot.sub">deep support</div>
@@ -1158,6 +1202,15 @@
         <div class="stat-row">
           <span class="label" data-i18n="stat.actionLimit">ACTION LIMIT:</span>
           <span id="stat-action-limit" class="value">-</span>
+        </div>
+        <div class="pressure-widget">
+          <div class="pressure-head">
+            <span data-i18n="stat.pressure">PRESSURE:</span>
+            <strong id="stat-pressure-value">0%</strong>
+          </div>
+          <div class="pressure-track">
+            <div id="stat-pressure-fill" class="pressure-fill"></div>
+          </div>
         </div>
         <div class="stat-row">
           <span class="label" data-i18n="stat.linesBroken">LINES BROKEN:</span>
@@ -1241,8 +1294,8 @@
 
     <div class="result-stats">
       <div class="grade-emblem-container">
-        <div id="result-grade" class="grade-emblem">S</div>
-        <div class="grade-label" data-i18n="result.grade">TACTICAL GRADE</div>
+        <div id="result-grade" class="grade-emblem">✓</div>
+        <div class="grade-label" data-i18n="result.grade">OUTCOME</div>
       </div>
       <div class="details-container">
         <p><span data-i18n="result.actions">ACTIONS USED:</span> <span id="result-actions">-</span></p>
@@ -1262,7 +1315,7 @@
           <div id="share-card-title" class="share-card-title">MATCH MOMENT SOLVED</div>
           <div id="share-card-meta" class="share-card-meta">Find the free pivot. Outlet found through centre.</div>
         </div>
-        <div id="share-card-grade" class="share-card-grade">S</div>
+        <div id="share-card-grade" class="share-card-grade">✓</div>
       </div>
     </div>
 
@@ -1387,9 +1440,12 @@ const Game = {
   defenders: [],
   targetZone: null,
   trapZones: [],
-  ball: { x: 0, y: 0, targetX: 0, targetY: 0, startX: 0, startY: 0, state: 'held', progress: 0, stage: 1, scaleEffect: 1.0 },
+  ball: { x: 0, y: 0, targetX: 0, targetY: 0, startX: 0, startY: 0, state: 'held', progress: 0, stage: 1, scaleEffect: 1.0, passConcept: 'pass', interceptReason: '' },
   passCount: 0,
   passLimit: 0,
+  pressureLevel: 0,
+  pressureMax: 100,
+  pendingPressureDelta: 0,
   currentPlayerIdx: -1,
   trail: [],
   passHistory: [],
@@ -1406,6 +1462,7 @@ const Game = {
   lastReceiverState: { status: 'free', reason: '' },
   goalAnim: null,
   particles: [],
+  movementFx: [],
 
   resultStars: 0,
   resultPasses: 0,
@@ -1427,6 +1484,7 @@ const Game = {
   dropPivotOriginalPos: null,
   passTargetIsTargetZone: false,
   passTargetIdx: -1,
+  passSpaceTarget: null,
 
   // ??? Init ???
   init() {
@@ -1573,6 +1631,9 @@ const Game = {
         const action = card.dataset.action;
         if (action === 'pass') {
           this.setActiveAction('pass');
+          AudioMgr.play('click');
+        } else if (action === 'carry') {
+          this.setActiveAction('carry');
           AudioMgr.play('click');
         } else {
           const uses = this.tacticalActions[action] || 0;
@@ -1968,8 +2029,7 @@ const Game = {
       
       let gradeEl = '<div class="card-grade">-</div>';
       if (isUnlocked && data.stars > 0) {
-        const grade = StorageMgr.starsToGrade(data.stars);
-        gradeEl = `<div class="card-grade grade-${grade.toLowerCase()}">${grade}</div>`;
+        gradeEl = `<div class="card-grade grade-a">✓</div>`;
       } else if (!isUnlocked) {
         gradeEl = `<div class="card-grade">LOCK</div>`;
       }
@@ -2019,6 +2079,8 @@ const Game = {
     // Pass Button
     const passBtn = document.querySelector('.action-card[data-action="pass"]');
     passBtn.className = `action-card ${this.activeAction === 'pass' ? 'active' : ''}`;
+    const carryBtn = document.querySelector('.action-card[data-action="carry"]');
+    if (carryBtn) carryBtn.className = `action-card ${this.activeAction === 'carry' ? 'active' : ''}`;
 
     // Action quantities
     const actions = ['bounce', 'thirdMan', 'switchPlay', 'dropPivot'];
@@ -2049,6 +2111,15 @@ const Game = {
     const limitEl = document.getElementById('stat-action-limit');
     limitEl.textContent = indicatorText;
     limitEl.style.color = (this.passCount >= this.passLimit) ? "var(--accent-crimson)" : "var(--accent-amber)";
+
+    const pressurePct = this.pressureMax > 0 ? Math.round((this.pressureLevel / this.pressureMax) * 100) : 0;
+    const pressureValue = document.getElementById('stat-pressure-value');
+    const pressureFill = document.getElementById('stat-pressure-fill');
+    if (pressureValue) {
+      pressureValue.textContent = `${pressurePct}%`;
+      pressureValue.style.color = pressurePct >= 80 ? "var(--accent-crimson)" : (pressurePct >= 55 ? "var(--accent-amber)" : "var(--accent-mint)");
+    }
+    if (pressureFill) pressureFill.style.width = `${pressurePct}%`;
 
     // Lines & Active Channels
     document.getElementById('stat-lines-broken').textContent = this.resultLinesBroken || 0;
@@ -2132,13 +2203,13 @@ const Game = {
       document.getElementById('result-match-context').textContent = this.matchContextText(lvl);
       document.getElementById('result-moment-line').textContent = this.momentRecapText(lvl);
 
-      const grade = StorageMgr.starsToGrade(this.resultStars);
       const gradeEl = document.getElementById('result-grade');
-      gradeEl.textContent = grade;
-      gradeEl.className = `grade-emblem`; // reset
-      if (grade === 'S') gradeEl.style.borderColor = "var(--accent-amber)";
-      else if (grade === 'A') gradeEl.style.borderColor = "var(--accent-mint)";
-      else gradeEl.style.borderColor = "var(--text-main)";
+      gradeEl.textContent = '✓';
+      gradeEl.className = `grade-emblem`;
+      gradeEl.style.borderColor = "var(--accent-mint)";
+      gradeEl.style.color = "var(--accent-mint)";
+      gradeEl.style.background = "rgba(16,185,129,0.1)";
+      gradeEl.style.boxShadow = "0 0 15px rgba(16,185,129,0.2)";
 
       document.getElementById('result-actions').textContent = `${this.resultPasses} / ${lvl.optimalPasses}`;
       document.getElementById('result-lines').textContent = this.resultLinesBroken;
@@ -2148,8 +2219,9 @@ const Game = {
       document.getElementById('share-card-score').textContent = this.matchContextShort(lvl);
       document.getElementById('share-card-title').textContent = `${tLevel(lvl.id, 'name')} solved`;
       document.getElementById('share-card-meta').textContent = this.momentRecapText(lvl);
-      document.getElementById('share-card-grade').textContent = grade;
-      document.getElementById('share-card-grade').style.borderColor = gradeEl.style.borderColor;
+      document.getElementById('share-card-grade').textContent = '✓';
+      document.getElementById('share-card-grade').style.borderColor = "var(--accent-mint)";
+      document.getElementById('share-card-grade').style.color = "var(--accent-mint)";
       document.getElementById('result-share-feedback').textContent = "";
     }
 
@@ -2173,6 +2245,10 @@ const Game = {
     if (key === 'fail.trappedBy') {
       const code = (this.lastFailVars && this.lastFailVars.reasonCode) || 'pressureRadius';
       return t('fail.trappedBy', { reason: t('reason.' + code) });
+    }
+    if (key === 'fail.interceptBy') {
+      const code = (this.lastFailVars && this.lastFailVars.reasonCode) || 'pressureRadius';
+      return t('fail.interceptBy', { reason: t('reason.' + code) });
     }
     return t(key);
   },
@@ -2235,6 +2311,12 @@ const Game = {
       p.y += p.vy * this.dt;
       p.life -= this.dt;
       if (p.life <= 0) this.particles.splice(i, 1);
+    }
+
+    for (let i = this.movementFx.length - 1; i >= 0; i--) {
+      const fx = this.movementFx[i];
+      fx.elapsed += this.dt;
+      if (fx.elapsed >= fx.duration) this.movementFx.splice(i, 1);
     }
 
     if (this.state === States.GAME_PASSING) {
@@ -2350,7 +2432,7 @@ const Game = {
     }
 
     if (intercepted) {
-      this.triggerIntercept(b, 'fail.intercept');
+      this.triggerIntercept(b, 'fail.interceptBy', { reasonCode: b.interceptReason || 'pressureRadius' });
     }
   },
 
@@ -2367,6 +2449,149 @@ const Game = {
     // HTML Overlay synchronization
     this.updateLiveFeed();
     this.showModal('lose-modal');
+  },
+
+  pressureDeltaForLane(lane, action = 'pass') {
+    let delta = action === 'carry' ? 10 : 8;
+    if (action === 'bounce' || action === 'thirdMan' || action === 'switchPlay' || action === 'dropPivot') {
+      delta = 5;
+    }
+    if (lane) {
+      if (lane.status === 'risky') delta += 10;
+      else if (lane.status === 'baited') delta += 16;
+      else if (lane.status === 'lineBreaking') delta -= 3;
+      else if (lane.status === 'blocked') delta += 22;
+    }
+    if (action === 'dropPivot') delta -= 2;
+    return Math.max(-8, delta);
+  },
+
+  applyPressureDelta(delta) {
+    if (!Number.isFinite(delta) || delta === 0) return false;
+    this.pressureLevel = Math.max(0, Math.min(this.pressureMax, this.pressureLevel + delta));
+    return this.pressureLevel >= this.pressureMax;
+  },
+
+  failByPressure() {
+    this.state = States.GAME_LOSE;
+    this.lastFailKey = 'fail.pressureMax';
+    this.lastFailVars = null;
+    AudioMgr.play('lock');
+    const holder = this.players[this.currentPlayerIdx] || this.ball;
+    this.failMark = { x: holder.x, y: holder.y, alpha: 1.5 };
+    this.showModal('lose-modal');
+    this.updateLiveFeed();
+  },
+
+  drawRouteBadge(ctx, text, x, y, color = C.uiAccent, detail = '') {
+    ctx.save();
+    ctx.font = '800 5.5px "Outfit"';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const label = detail ? `${text} | ${detail}` : text;
+    const w = Math.max(34, ctx.measureText(label).width + 8);
+    ctx.fillStyle = 'rgba(4, 10, 8, 0.82)';
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(x - w / 2, y - 6, w, 12, 3);
+    else ctx.rect(x - w / 2, y - 6, w, 12);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = color;
+    ctx.fillText(label, x, y + 0.5);
+    ctx.restore();
+  },
+
+  drawLandingZone(ctx, x, y, label, color = C.uiAccent, detail = '') {
+    ctx.save();
+    ctx.strokeStyle = color;
+    ctx.fillStyle = color === C.passBlocked ? 'rgba(235,87,87,0.08)' : 'rgba(0,245,212,0.08)';
+    ctx.lineWidth = 1.2;
+    ctx.setLineDash([3, 2]);
+    ctx.beginPath();
+    ctx.ellipse(x, y, 18, 10, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.setLineDash([]);
+    this.drawRouteBadge(ctx, label, x, y - 15, color, detail);
+    ctx.restore();
+  },
+
+  spaceRead(lane) {
+    if (!lane) return { label: t('space.open'), color: C.uiAccent, detail: '' };
+    const reason = lane.reason ? t('reason.' + lane.reason) : '';
+    if (lane.status === 'blocked') return { label: t('space.noSpace'), color: C.passBlocked, detail: reason };
+    if (lane.status === 'risky') return { label: t('space.contested'), color: C.passRisky, detail: reason };
+    if (lane.status === 'baited') return { label: t('space.trap'), color: C.passRisky, detail: reason };
+    return { label: t('space.open'), color: C.uiAccent, detail: t('space.runner') };
+  },
+
+  rejectPassRead(lane, point) {
+    AudioMgr.play('fail');
+    this.shake.amount = 2;
+    if (point) this.failMark = { x: point.x, y: point.y, alpha: 1.2 };
+    const reason = lane && lane.reason ? t('reason.' + lane.reason) : t('reason.pressureRadius');
+    const footer = document.getElementById('coaching-feed-footer');
+    if (footer) {
+      footer.innerHTML = `<span style="color: var(--accent-crimson); font-weight: 900;">${t('space.noSpace')}</span> <span style="color: var(--text-muted);">- ${reason}</span>`;
+    }
+  },
+
+  spacePassLanding(from, runner) {
+    if (!from || !runner) return runner;
+    const forward = runner.x >= from.x ? 1 : -1;
+    const side = runner.y >= FIELD_Y0 + FIELD_H / 2 ? 1 : -1;
+    const lead = {
+      x: runner.x + forward * 20,
+      y: runner.y + side * 10
+    };
+    return {
+      x: Math.max(FIELD_X0 + PLAYER_RADIUS, Math.min(FIELD_X1 - PLAYER_RADIUS, lead.x)),
+      y: Math.max(FIELD_Y0 + PLAYER_RADIUS, Math.min(FIELD_Y1 - PLAYER_RADIUS, lead.y))
+    };
+  },
+
+  addMovementFx(kind, index, from, to, duration = 0.34) {
+    if (!from || !to) return;
+    if (dist(from, to) < 0.5) return;
+    this.movementFx.push({
+      kind,
+      index,
+      from: { x: from.x, y: from.y },
+      to: { x: to.x, y: to.y },
+      elapsed: 0,
+      duration
+    });
+  },
+
+  visualPoint(kind, index, base) {
+    const fx = this.movementFx.find(item => item.kind === kind && item.index === index);
+    if (!fx) return base;
+    const t = Math.min(1, fx.elapsed / fx.duration);
+    const eased = 1 - Math.pow(1 - t, 3);
+    return {
+      x: lerp(fx.from.x, fx.to.x, eased),
+      y: lerp(fx.from.y, fx.to.y, eased)
+    };
+  },
+
+  animateSupportShift(receiverIdx, prevPlayers) {
+    const holder = this.players[receiverIdx];
+    if (!holder || !prevPlayers) return;
+
+    for (let i = 0; i < this.players.length; i++) {
+      if (i === receiverIdx) continue;
+      const p = this.players[i];
+      const old = prevPlayers[i] || p;
+      const dirY = p.y < holder.y ? -1 : 1;
+      const forwardBias = p.x < holder.x ? 4 : -2;
+      const target = {
+        x: Math.max(FIELD_X0 + 8, Math.min(FIELD_X1 - 8, p.x + forwardBias)),
+        y: Math.max(FIELD_Y0 + 8, Math.min(FIELD_Y1 - 8, p.y + dirY * 5))
+      };
+      this.addMovementFx('player', i, old, target, 0.32);
+    }
   },
 
   resolvePassing() {
@@ -2422,16 +2647,24 @@ const Game = {
       return;
     }
 
+    const snap = this.passHistory[this.passHistory.length - 1];
     this.players[this.currentPlayerIdx].hasBall = false;
     this.currentPlayerIdx = this.passTargetIdx;
     this.players[this.currentPlayerIdx].hasBall = true;
+    const previousHolder = snap ? snap.players[snap.playerIdx] : null;
+    this.players[this.currentPlayerIdx].facingAngle = previousHolder ? Math.atan2(previousHolder.y - this.players[this.currentPlayerIdx].y, previousHolder.x - this.players[this.currentPlayerIdx].x) : 0;
+    this.players.forEach((p, i) => {
+      if (i !== this.currentPlayerIdx) {
+        p.facingAngle = Math.atan2(this.players[this.currentPlayerIdx].y - p.y, this.players[this.currentPlayerIdx].x - p.x);
+      }
+    });
     b.x = this.players[this.currentPlayerIdx].x;
     b.y = this.players[this.currentPlayerIdx].y;
 
     this.activeAction = 'pass';
 
-    const snap = this.passHistory[this.passHistory.length - 1];
     const prevHolderX = snap ? snap.players[snap.playerIdx].x : null;
+    this.animateSupportShift(this.currentPlayerIdx, snap ? snap.players : this.players);
 
     // Advance the block once, folding the trap collapse into the same call ??mirrors the
     // solver's advanceDefs (single step; trap-side defenders step twice) so runtime and
@@ -2449,6 +2682,12 @@ const Game = {
         reason: 'trapZone',
         text: `TRAP ${triggeredTrap.label || 'Trap Zone'} - press collapses`
       });
+    }
+    const pressureDelta = this.pendingPressureDelta + (triggeredTrap ? 14 : 0);
+    this.pendingPressureDelta = 0;
+    if (this.applyPressureDelta(pressureDelta)) {
+      this.failByPressure();
+      return;
     }
 
     const rec = this.players[this.currentPlayerIdx];
@@ -2495,13 +2734,65 @@ const Game = {
 
   advanceDefenders(prevHolderX, trapZone = null) {
     const holder = this.players[this.currentPlayerIdx];
-    this.defenders = this.defenders.map(d => {
+    const previous = this.defenders.map(d => ({ ...d }));
+    const next = this.defenders.map(d => {
       let nd = stepDefender(d, holder, prevHolderX);
       if (trapZone && dist(d, { x: trapZone.x + trapZone.w / 2, y: trapZone.y + trapZone.h / 2 }) < 150) {
         nd = stepDefender(nd, holder, prevHolderX);
       }
       return nd;
     });
+    this.defenders = next;
+    next.forEach((d, i) => this.addMovementFx('defender', i, previous[i], d, trapZone ? 0.42 : 0.34));
+  },
+
+  // Predict where the press will shift if the ball arrives at `target`
+  // (mirrors advanceDefenders, non-mutating) — powers the reaction telegraph.
+  predictDefenders(target) {
+    const from = this.players[this.currentPlayerIdx];
+    const prevHolderX = from ? from.x : null;
+    const trap = pointInTrapZone(target, this.trapZones);
+    return this.defenders.map(d => {
+      let nd = stepDefender(d, target, prevHolderX);
+      if (trap && dist(d, { x: trap.x + trap.w / 2, y: trap.y + trap.h / 2 }) < 150) {
+        nd = stepDefender(nd, target, prevHolderX);
+      }
+      return { from: { x: d.x, y: d.y }, to: { x: nd.x, y: nd.y } };
+    });
+  },
+
+  // Read, don't solve: a faint lean-nudge hints which way the press will tip
+  // for the considered move — not exact destinations. You confirm the bite by
+  // committing/carrying, where the press actually slides in (live animation).
+  drawReactionTelegraph(ctx, target) {
+    if (!target) return;
+    const preds = this.predictDefenders(target);
+    const LEAN = 13; // short hint, never the full move
+    ctx.save();
+    ctx.lineCap = 'round';
+    for (const p of preds) {
+      const full = dist(p.from, p.to);
+      if (full < 4) continue; // only defenders that actually lean
+      const ang = Math.atan2(p.to.y - p.from.y, p.to.x - p.from.x);
+      const len = Math.min(full, LEAN);
+      const tx = p.from.x + Math.cos(ang) * len;
+      const ty = p.from.y + Math.sin(ang) * len;
+      // soft lean line off the defender's edge (don't draw over the disc)
+      const sx = p.from.x + Math.cos(ang) * (PLAYER_RADIUS - 1);
+      const sy = p.from.y + Math.sin(ang) * (PLAYER_RADIUS - 1);
+      ctx.strokeStyle = 'rgba(255,120,120,0.5)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(sx, sy);
+      ctx.lineTo(tx, ty);
+      ctx.stroke();
+      // tiny tip dot — direction of the bite, not where they land
+      ctx.fillStyle = 'rgba(255,120,120,0.6)';
+      ctx.beginPath();
+      ctx.arc(tx, ty, 1.6, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
   },
 
   checkSoftLock() {
@@ -2510,14 +2801,14 @@ const Game = {
 
     if (this.targetZone) {
       const tzCenter = { x: this.targetZone.x + this.targetZone.w / 2, y: this.targetZone.y + this.targetZone.h / 2 };
-      const lane = evaluateLane(holder, tzCenter, this.defenders, { trapZones: this.trapZones });
+      const lane = evaluateLane(holder, tzCenter, this.defenders, { trapZones: this.trapZones, passerFacingAngle: holder.facingAngle });
       if (lane.status !== 'blocked') return false;
     }
 
     for (let i = 0; i < this.players.length; i++) {
       if (i === this.currentPlayerIdx) continue;
       const p = this.players[i];
-      const lane = evaluateLane(holder, p, this.defenders, { trapZones: this.trapZones });
+      const lane = evaluateLane(holder, p, this.defenders, { trapZones: this.trapZones, passerFacingAngle: holder.facingAngle });
       if (lane.status !== 'blocked') return false;
     }
 
@@ -2546,10 +2837,14 @@ const Game = {
     this.currentLevel = lvl;
     this.passCount = 0;
     this.passLimit = lvl.passLimit;
+    this.pressureMax = lvl.pressureMax || 100;
+    this.pressureLevel = lvl.startPressure || 18;
+    this.pendingPressureDelta = 0;
     this.trail = [];
     this.passHistory = [];
     this.actionLog = [];
     this.particles = [];
+    this.movementFx = [];
     this.failMark = null;
     this.lastFailKey = '';
     this.lastFailVars = null;
@@ -2564,6 +2859,7 @@ const Game = {
     this.passUsesThirdMan = false;
     this.passUsesSwitch = false;
     this.passTargetIsTargetZone = false;
+    this.passSpaceTarget = null;
 
     this.thirdManRunnerIdx = -1;
     this.thirdManOriginalPos = null;
@@ -2574,6 +2870,7 @@ const Game = {
       x: p.x, y: p.y,
       hasBall: !!p.hasBall,
       passRange: p.passRange || 150,
+      facingAngle: typeof p.facingAngle === 'number' ? p.facingAngle : 0,
     }));
 
     this.defenders = lvl.defenders.map(d => ({
@@ -2587,6 +2884,7 @@ const Game = {
       patrolDir: 1,
       speed: d.speed || 1,
       alertRange: d.alertRange || 80,
+      facingAngle: typeof d.facingAngle === 'number' ? d.facingAngle : Math.PI,
     }));
 
     this.targetZone = lvl.targetZone ? { ...lvl.targetZone } : null;
@@ -2596,6 +2894,15 @@ const Game = {
     if (this.currentPlayerIdx < 0 && this.players.length > 0) {
       this.currentPlayerIdx = 0;
       this.players[0].hasBall = true;
+    }
+    const holderForFacing = this.players[this.currentPlayerIdx];
+    if (holderForFacing) {
+      this.players.forEach((p, i) => {
+        p.facingAngle = i === this.currentPlayerIdx ? 0 : Math.atan2(holderForFacing.y - p.y, holderForFacing.x - p.x);
+      });
+      this.defenders.forEach(d => {
+        d.facingAngle = Math.atan2(holderForFacing.y - d.y, holderForFacing.x - d.x);
+      });
     }
     this.startHolderX = this.currentPlayerIdx >= 0 ? this.players[this.currentPlayerIdx].x : 0;
     this.resultLinesBroken = 0;
@@ -2688,25 +2995,26 @@ const Game = {
 
     let lane1 = null, lane2 = null;
     let mainLane = null;
+    const receivePoint = usesSwitch ? this.spacePassLanding(from, target) : target;
 
     if (usesBounce || usesThirdMan) {
       const conn = this.players[connIdx];
-      lane1 = evaluateLane(from, conn, this.defenders, { ignoreRange: true, trapZones: this.trapZones });
-      lane2 = evaluateLane(conn, target, this.defenders, { ignoreRange: true, trapZones: this.trapZones });
+      lane1 = evaluateLane(from, conn, this.defenders, { ignoreRange: true, trapZones: this.trapZones, passerFacingAngle: from.facingAngle });
+      lane2 = evaluateLane(conn, target, this.defenders, { ignoreRange: true, trapZones: this.trapZones, passerFacingAngle: conn.facingAngle });
     } else {
-      mainLane = evaluateLane(from, target, this.defenders, { switchPlay: usesSwitch, trapZones: this.trapZones });
+      mainLane = evaluateLane(from, receivePoint, this.defenders, { switchPlay: usesSwitch, trapZones: this.trapZones, passerFacingAngle: from.facingAngle });
     }
 
     if (usesBounce || usesThirdMan) {
       if (lane1.status === 'blocked' && (lane1.reason === 'outOfRange' || lane1.reason === 'switchRange')) {
-        AudioMgr.play('fail'); this.shake.amount = 2; return;
+        this.rejectPassRead(lane1, conn); return;
       }
       if (lane2.status === 'blocked' && (lane2.reason === 'outOfRange' || lane2.reason === 'switchRange')) {
-        AudioMgr.play('fail'); this.shake.amount = 2; return;
+        this.rejectPassRead(lane2, target); return;
       }
     } else {
       if (mainLane.status === 'blocked' && (mainLane.reason === 'outOfRange' || mainLane.reason === 'switchRange' || mainLane.reason === 'notIsolated')) {
-        AudioMgr.play('fail'); this.shake.amount = 2; return;
+        this.rejectPassRead(mainLane, receivePoint); return;
       }
     }
 
@@ -2715,6 +3023,8 @@ const Game = {
       players: this.players.map(p => ({...p})),
       defenders: this.defenders.map(d => ({...d, patrolPath: d.patrolPath ? d.patrolPath.map(pp => ({...pp})) : null})),
       passCount: this.passCount,
+      pressureLevel: this.pressureLevel,
+      pendingPressureDelta: this.pendingPressureDelta,
       ballX: this.ball.x, ballY: this.ball.y,
       trail: [...this.trail],
       actionLog: this.actionLog.map(entry => ({ ...entry })),
@@ -2726,9 +3036,11 @@ const Game = {
     this.passUsesThirdMan = false;
     this.passUsesSwitch = false;
     this.passTargetIsTargetZone = false;
+    this.passSpaceTarget = null;
 
     this.ball.willBeIntercepted = false;
     this.ball.interceptor = null;
+    this.ball.interceptReason = '';
     this.ball.interceptStage = 1;
 
     if (usesBounce) {
@@ -2738,10 +3050,12 @@ const Game = {
       if (lane1.status === 'blocked') {
         this.ball.willBeIntercepted = true;
         this.ball.interceptor = lane1.byDefender;
+        this.ball.interceptReason = lane1.reason;
         this.ball.interceptStage = 1;
       } else if (lane2.status === 'blocked') {
         this.ball.willBeIntercepted = true;
         this.ball.interceptor = lane2.byDefender;
+        this.ball.interceptReason = lane2.reason;
         this.ball.interceptStage = 2;
       }
     } else if (usesThirdMan) {
@@ -2751,14 +3065,22 @@ const Game = {
       if (lane1.status === 'blocked') {
         this.ball.willBeIntercepted = true;
         this.ball.interceptor = lane1.byDefender;
+        this.ball.interceptReason = lane1.reason;
         this.ball.interceptStage = 1;
       } else if (lane2.status === 'blocked') {
         this.ball.willBeIntercepted = true;
         this.ball.interceptor = lane2.byDefender;
+        this.ball.interceptReason = lane2.reason;
         this.ball.interceptStage = 2;
       }
     } else if (usesSwitch) {
       this.passUsesSwitch = true;
+      this.passSpaceTarget = { ...receivePoint };
+      const runFrom = { x: target.x, y: target.y };
+      target.x = receivePoint.x;
+      target.y = receivePoint.y;
+      target.facingAngle = Math.atan2(from.y - target.y, from.x - target.x);
+      this.addMovementFx('player', targetIdx, runFrom, receivePoint, 0.52);
       this.tacticalActions.switchPlay--;
       this.passCount++;
     } else {
@@ -2769,6 +3091,7 @@ const Game = {
       if (mainLane.status === 'blocked') {
         this.ball.willBeIntercepted = true;
         this.ball.interceptor = mainLane.byDefender;
+        this.ball.interceptReason = mainLane.reason;
         this.ball.interceptStage = 1;
       }
     }
@@ -2777,6 +3100,8 @@ const Game = {
 
     const logAction = usesBounce ? 'bounce' : (usesThirdMan ? 'thirdMan' : (usesSwitch ? 'switchPlay' : (usesDropPivot ? 'dropPivot' : 'pass')));
     const logLane = (usesBounce || usesThirdMan) ? combineLaneResults([lane1, lane2]) : mainLane;
+    this.ball.passConcept = logAction;
+    this.pendingPressureDelta = this.pressureDeltaForLane(logLane, logAction);
     const logFrom = getPlayerLabel(from, this.currentPlayerIdx);
     const logTarget = getPlayerLabel(target, targetIdx);
     this.actionLog.push({
@@ -2792,8 +3117,8 @@ const Game = {
 
     this.ball.startX = from.x;
     this.ball.startY = from.y;
-    this.ball.targetX = target.x;
-    this.ball.targetY = target.y;
+    this.ball.targetX = receivePoint.x;
+    this.ball.targetY = receivePoint.y;
     this.ball.progress = 0;
     this.ball.stage = 1;
     this.ball.state = 'moving';
@@ -2822,7 +3147,7 @@ const Game = {
 
     const from = this.players[this.currentPlayerIdx];
     const tzCenter = { x: this.targetZone.x + this.targetZone.w / 2, y: this.targetZone.y + this.targetZone.h / 2 };
-    const mainLane = evaluateLane(from, tzCenter, this.defenders, { trapZones: this.trapZones });
+    const mainLane = evaluateLane(from, tzCenter, this.defenders, { trapZones: this.trapZones, passerFacingAngle: from.facingAngle });
 
     if (mainLane.status === 'blocked' && (mainLane.reason === 'outOfRange' || mainLane.reason === 'switchRange')) {
       AudioMgr.play('fail');
@@ -2835,6 +3160,8 @@ const Game = {
       players: this.players.map(p => ({...p})),
       defenders: this.defenders.map(d => ({...d, patrolPath: d.patrolPath ? d.patrolPath.map(pp => ({...pp})) : null})),
       passCount: this.passCount,
+      pressureLevel: this.pressureLevel,
+      pendingPressureDelta: this.pendingPressureDelta,
       ballX: this.ball.x, ballY: this.ball.y,
       trail: [...this.trail],
       actionLog: this.actionLog.map(entry => ({ ...entry })),
@@ -2847,6 +3174,7 @@ const Game = {
     this.passUsesSwitch = false;
     this.passTargetIsTargetZone = true;
     this.passTargetIdx = -1;
+    this.pendingPressureDelta = this.pressureDeltaForLane(mainLane, 'pass');
     this.actionLog.push({
       step: this.actionLog.length + 1,
       action: 'pass',
@@ -2860,12 +3188,15 @@ const Game = {
 
     this.ball.willBeIntercepted = false;
     this.ball.interceptor = null;
+    this.ball.interceptReason = '';
     this.ball.interceptStage = 1;
+    this.ball.passConcept = 'spacePass';
     
     this.passCount++;
     if (mainLane.status === 'blocked') {
       this.ball.willBeIntercepted = true;
       this.ball.interceptor = mainLane.byDefender;
+      this.ball.interceptReason = mainLane.reason;
       this.ball.interceptStage = 1;
     }
 
@@ -2882,6 +3213,81 @@ const Game = {
     this.updateLiveFeed();
   },
 
+  performCarry(pos) {
+    if (this.state !== States.GAME_IDLE) return;
+    if (this.passCount >= this.passLimit) return;
+    const holder = this.players[this.currentPlayerIdx];
+    if (!holder) return;
+
+    const dx = pos.x - holder.x;
+    const dy = pos.y - holder.y;
+    const d = Math.sqrt(dx * dx + dy * dy);
+    if (d < 3) return;
+
+    this.passHistory.push({
+      playerIdx: this.currentPlayerIdx,
+      players: this.players.map(p => ({...p})),
+      defenders: this.defenders.map(d => ({...d, patrolPath: d.patrolPath ? d.patrolPath.map(pp => ({...pp})) : null})),
+      passCount: this.passCount,
+      pressureLevel: this.pressureLevel,
+      pendingPressureDelta: this.pendingPressureDelta,
+      ballX: this.ball.x, ballY: this.ball.y,
+      trail: [...this.trail],
+      actionLog: this.actionLog.map(entry => ({ ...entry })),
+      tacticalActions: { ...this.tacticalActions },
+      activeAction: this.activeAction
+    });
+
+    const old = { x: holder.x, y: holder.y };
+    const step = Math.min(18, d);
+    holder.x = Math.max(FIELD_X0 + PLAYER_RADIUS, Math.min(FIELD_X1 - PLAYER_RADIUS, holder.x + (dx / d) * step));
+    holder.y = Math.max(FIELD_Y0 + PLAYER_RADIUS, Math.min(FIELD_Y1 - PLAYER_RADIUS, holder.y + (dy / d) * step));
+    holder.facingAngle = Math.atan2(dy, dx);
+    this.ball.x = holder.x;
+    this.ball.y = holder.y;
+    this.addMovementFx('player', this.currentPlayerIdx, old, holder, 0.26);
+
+    this.players.forEach((p, i) => {
+      if (i !== this.currentPlayerIdx) {
+        p.facingAngle = Math.atan2(holder.y - p.y, holder.x - p.x);
+      }
+    });
+
+    const snap = this.passHistory[this.passHistory.length - 1];
+    this.advanceDefenders(snap ? snap.players[snap.playerIdx].x : null, null);
+    this.passCount++;
+    this.pendingPressureDelta = 0;
+    const pressureMaxed = this.applyPressureDelta(this.pressureDeltaForLane({ status: 'safe' }, 'carry'));
+    this.activeAction = 'pass';
+    this.actionLog.push({
+      step: this.actionLog.length + 1,
+      action: 'carry',
+      label: getActionLogLabel('carry'),
+      from: getPlayerLabel(holder, this.currentPlayerIdx),
+      to: getPlayerLabel(holder, this.currentPlayerIdx),
+      laneStatus: 'safe',
+      reason: 'bodyAngle',
+      text: `CARRY ${getPlayerLabel(holder, this.currentPlayerIdx)} - angle created`
+    });
+
+    if (pressureMaxed) {
+      this.failByPressure();
+    } else if (this.checkSoftLock()) {
+      this.state = States.GAME_LOSE;
+      this.lastFailKey = 'fail.noOutlet';
+      this.lastFailVars = null;
+      AudioMgr.play('lock');
+      this.failMark = { x: holder.x, y: holder.y, alpha: 1.5 };
+      this.showModal('lose-modal');
+    } else {
+      AudioMgr.play('pass');
+      this.spawnParticles(holder.x, holder.y, C.uiAccent, 5);
+    }
+
+    this.updateActionToolbar();
+    this.updateLiveFeed();
+  },
+
   undo() {
     if (this.passHistory.length === 0) return;
     if (this.state !== States.GAME_IDLE && this.state !== States.GAME_LOSE) return;
@@ -2893,6 +3299,8 @@ const Game = {
     this.players = snap.players;
     this.defenders = snap.defenders;
     this.passCount = snap.passCount;
+    this.pressureLevel = typeof snap.pressureLevel === 'number' ? snap.pressureLevel : this.pressureLevel;
+    this.pendingPressureDelta = snap.pendingPressureDelta || 0;
     this.lastFailKey = '';
     this.lastFailVars = null;
     this.lastReceiverState = { status: 'free', reason: '' };
@@ -2901,6 +3309,8 @@ const Game = {
     this.ball.state = 'held';
     this.ball.progress = 0;
     this.ball.scaleEffect = 1.0;
+    this.movementFx = [];
+    this.passSpaceTarget = null;
     this.trail = snap.trail;
     this.actionLog = snap.actionLog ? snap.actionLog.map(entry => ({ ...entry })) : [];
     this.failMark = null;
@@ -3003,6 +3413,11 @@ const Game = {
     }
 
     if (this.state !== States.GAME_IDLE) return;
+
+    if (this.activeAction === 'carry') {
+      this.performCarry(pos);
+      return;
+    }
 
     // Target Zone click detection
     if (this.targetZone) {
@@ -3227,10 +3642,11 @@ const Game = {
     
     switch (e.key.toLowerCase()) {
       case '1': this.setActiveAction('pass'); AudioMgr.play('click'); break;
-      case '2': if (this.tacticalActions.bounce > 0) this.setActiveAction('bounce'); else AudioMgr.play('lock'); break;
-      case '3': if (this.tacticalActions.thirdMan > 0) this.setActiveAction('thirdMan'); else AudioMgr.play('lock'); break;
-      case '4': if (this.tacticalActions.switchPlay > 0) this.setActiveAction('switchPlay'); else AudioMgr.play('lock'); break;
-      case '5': if (this.tacticalActions.dropPivot > 0) this.setActiveAction('dropPivot'); else AudioMgr.play('lock'); break;
+      case '2': this.setActiveAction('carry'); AudioMgr.play('click'); break;
+      case '3': if (this.tacticalActions.bounce > 0) this.setActiveAction('bounce'); else AudioMgr.play('lock'); break;
+      case '4': if (this.tacticalActions.thirdMan > 0) this.setActiveAction('thirdMan'); else AudioMgr.play('lock'); break;
+      case '5': if (this.tacticalActions.switchPlay > 0) this.setActiveAction('switchPlay'); else AudioMgr.play('lock'); break;
+      case '6': if (this.tacticalActions.dropPivot > 0) this.setActiveAction('dropPivot'); else AudioMgr.play('lock'); break;
       case 'z': this.undo(); break;
       case 'r': this.loadLevel(this.levelId); AudioMgr.play('click'); break;
     }
@@ -3252,13 +3668,12 @@ const Game = {
   },
 
   copySummaryToClipboard() {
-    const grade = StorageMgr.starsToGrade(this.resultStars);
     const zone = this.resultTargetChannelShort ? tChannel(this.resultTargetChannelShort) : t('val.freeSpace');
     const steps = this.actionLog.map(entry => `${String(entry.step).padStart(2, '0')} ${this.tickerText(entry)}`);
     steps.push(t('log.win', { zone }));
     const route = steps.join('\n');
 
-    const summary = `[BUILD-UP LAB - WORLD STAGE] ${t('canvas.escaped')}\n${this.matchContextText(this.currentLevel)}\n${getLevelTacticalLabel(this.levelId)}: ${tLevel(this.levelId, 'name')}\n${this.momentRecapText(this.currentLevel)}\n${t('intro.situation')}: ${tLevel(this.levelId, 'intro')}\n${t('result.grade')}: [${grade}] (${this.resultPasses}/${this.currentLevel.optimalPasses})\n${t('result.outlet')} ${zone}\n${route}`;
+    const summary = `[BUILD-UP LAB - WORLD STAGE] ${t('canvas.escaped')}\n${this.matchContextText(this.currentLevel)}\n${getLevelTacticalLabel(this.levelId)}: ${tLevel(this.levelId, 'name')}\n${this.momentRecapText(this.currentLevel)}\n${t('intro.situation')}: ${tLevel(this.levelId, 'intro')}\n${t('result.actions')} ${this.resultPasses}/${this.currentLevel.optimalPasses}\n${t('result.outlet')} ${zone}\n${route}`;
 
     const handleFeedback = () => {
       this.spawnParticles(INTERNAL_W / 2, INTERNAL_H / 2, C.uiAccent, 8);
@@ -3342,12 +3757,19 @@ const Game = {
     // Draw defenders with cover shadows
     for (let i = 0; i < this.defenders.length; i++) {
       const d = this.defenders[i];
+      const dp = this.visualPoint('defender', i, d);
+      const visualDefender = { ...d, x: dp.x, y: dp.y };
       const labelText = getDefenderLabel(d, i);
-      drawDefender(ctx, d, this.time, labelText);
+      drawDefender(ctx, visualDefender, this.time, labelText);
+    }
+
+    // Bait & punish: telegraph how the press will commit to the considered move
+    if (this.state === States.GAME_IDLE && !this.editorMode && this.hoveredPlayerIdx >= 0) {
+      this.drawReactionTelegraph(ctx, this.players[this.hoveredPlayerIdx]);
     }
 
     // Draw pass guides
-    if (this.state === States.GAME_IDLE && this.hoveredPlayerIdx !== -1) {
+    if (this.state === States.GAME_IDLE && this.activeAction !== 'carry' && this.hoveredPlayerIdx !== -1) {
       const from = this.players[this.currentPlayerIdx];
       let target;
       if (this.hoveredPlayerIdx === -2) {
@@ -3370,8 +3792,8 @@ const Game = {
           const conn = this.players[connIdx];
           
           if (conn) {
-            const lane1 = evaluateLane(from, conn, this.defenders, { ignoreRange: true, trapZones: this.trapZones });
-            const lane2 = evaluateLane(conn, target, this.defenders, { ignoreRange: true, trapZones: this.trapZones });
+            const lane1 = evaluateLane(from, conn, this.defenders, { ignoreRange: true, trapZones: this.trapZones, passerFacingAngle: from.facingAngle });
+            const lane2 = evaluateLane(conn, target, this.defenders, { ignoreRange: true, trapZones: this.trapZones, passerFacingAngle: conn.facingAngle });
             const lane = combineLaneResults([lane1, lane2]);
             const status = lane.status;
 
@@ -3386,16 +3808,14 @@ const Game = {
             ctx.moveTo(from.x, from.y);
             ctx.lineTo(conn.x, conn.y);
             ctx.stroke();
+            this.drawRouteBadge(ctx, '1 WALL', (from.x + conn.x)/2, (from.y + conn.y)/2 - 8, color);
             
             ctx.beginPath();
             ctx.moveTo(conn.x, conn.y);
             ctx.lineTo(target.x, target.y);
             ctx.stroke();
-
-            ctx.fillStyle = C.uiAccent;
-            ctx.font = 'bold 6px Outfit';
-            ctx.textAlign = 'center';
-            ctx.fillText(isBounce ? 'BOUNCE' : '3RD MAN', (from.x + conn.x)/2, (from.y + conn.y)/2 - 4);
+            this.drawRouteBadge(ctx, isBounce ? '2 RETURN' : '2 RUNNER', (conn.x + target.x)/2, (conn.y + target.y)/2 - 8, color);
+            this.drawLandingZone(ctx, conn.x, conn.y, isBounce ? 'BOUNCE POINT' : 'CONNECTOR', color);
 
             if (lane1.status === 'blocked') {
               drawCutBadge(ctx, from, conn, lane1.byDefender);
@@ -3405,31 +3825,42 @@ const Game = {
             }
           }
         } else if (isSwitch) {
-          const lane = evaluateLane(from, target, this.defenders, { switchPlay: true, trapZones: this.trapZones });
-          ctx.strokeStyle = lane.status === 'blocked' ? C.passBlocked : C.passSafe;
+          const landing = this.spacePassLanding(from, target);
+          const lane = evaluateLane(from, landing, this.defenders, { switchPlay: true, trapZones: this.trapZones, passerFacingAngle: from.facingAngle });
+          const space = this.spaceRead(lane);
+          ctx.strokeStyle = space.color;
           ctx.lineWidth = 1.5;
           
-          const midX = (from.x + target.x) / 2;
-          const midY = (from.y + target.y) / 2 - 25;
+          const midX = (from.x + landing.x) / 2;
+          const midY = (from.y + landing.y) / 2 - 25;
           
           ctx.beginPath();
           ctx.moveTo(from.x, from.y);
-          ctx.quadraticCurveTo(midX, midY, target.x, target.y);
+          ctx.quadraticCurveTo(midX, midY, landing.x, landing.y);
           ctx.stroke();
+          this.drawLandingZone(ctx, landing.x, landing.y, space.label, space.color, space.detail);
+
+          ctx.save();
+          ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+          ctx.lineWidth = 1;
+          ctx.setLineDash([2, 2]);
+          ctx.beginPath();
+          ctx.moveTo(target.x, target.y);
+          ctx.lineTo(landing.x, landing.y);
+          ctx.stroke();
+          this.drawRouteBadge(ctx, 'RUN', (target.x + landing.x) / 2, (target.y + landing.y) / 2 + 9, 'rgba(255,255,255,0.65)');
+          ctx.restore();
 
           // Render Tactical Label for Switch
           ctx.save();
-          ctx.fillStyle = C.uiAccent;
-          ctx.font = 'bold 5.5px "Outfit"';
-          ctx.textAlign = 'center';
-          ctx.fillText('SWITCH PLAY', midX, midY + 12);
+          this.drawRouteBadge(ctx, t('space.longPass'), midX, midY + 12, space.color, lane.status === 'blocked' ? space.detail : t('space.leadPass'));
           ctx.restore();
 
           if (lane.status === 'blocked') {
-            drawCutBadge(ctx, from, target, lane.byDefender);
+            drawCutBadge(ctx, from, landing, lane.byDefender);
           }
         } else {
-          const lane = evaluateLane(from, target, this.defenders, { trapZones: this.trapZones });
+          const lane = evaluateLane(from, target, this.defenders, { trapZones: this.trapZones, passerFacingAngle: from.facingAngle });
           let color = C.passSafe;
           if (lane.status === 'blocked') color = C.passBlocked;
           else if (lane.status === 'risky' || lane.status === 'baited') color = C.passRisky;
@@ -3440,6 +3871,7 @@ const Game = {
           ctx.moveTo(from.x, from.y);
           ctx.lineTo(target.x, target.y);
           ctx.stroke();
+          this.drawLandingZone(ctx, target.x, target.y, 'TO FEET', color);
 
           // Render Tactical Label for Straight Pass
           ctx.save();
@@ -3460,7 +3892,7 @@ const Game = {
           } else if (target.x < from.x - 10) {
             labelText = 'RESET';
           }
-          ctx.fillText(labelText, mx, my);
+          this.drawRouteBadge(ctx, labelText, mx, my, color, lane.status === 'blocked' ? t('reason.' + (lane.reason || 'pressureRadius')) : '');
           ctx.restore();
 
           if (lane.status === 'blocked') {
@@ -3483,18 +3915,19 @@ const Game = {
     // Draw Players
     for (let i = 0; i < this.players.length; i++) {
       const p = this.players[i];
-      let px = p.x;
-      let py = p.y;
+      const vp = this.visualPoint('player', i, p);
+      let px = vp.x;
+      let py = vp.y;
 
       const isHighlighted = (this.state === States.GAME_IDLE && this.hoveredPlayerIdx === i);
       const labelText = getPlayerLabel(p, i);
-      drawPlayer(ctx, px, py, p.hasBall, isHighlighted, p.passRange, labelText);
+      drawPlayer(ctx, px, py, p.hasBall, isHighlighted, p.passRange, labelText, p.facingAngle);
 
       // "free man" hint in tutorial levels (1-3)
       if (this.levelId <= 3 && this.state === States.GAME_IDLE && i !== this.currentPlayerIdx) {
         const from = this.players[this.currentPlayerIdx];
         if (from) {
-          const lane = evaluateLane(from, p, this.defenders, { trapZones: this.trapZones });
+          const lane = evaluateLane(from, p, this.defenders, { trapZones: this.trapZones, passerFacingAngle: from.facingAngle });
           if (lane.status !== 'blocked') {
             ctx.save();
             ctx.fillStyle = C.uiAccent;
@@ -3528,6 +3961,7 @@ const Game = {
         ctx.lineTo(this.ball.targetX, this.ball.targetY);
         ctx.stroke();
         ctx.restore();
+        this.drawLandingZone(ctx, this.ball.targetX, this.ball.targetY, t('space.open'), C.uiAccent, t('space.runner'));
 
         // Draw ball projection shadow on the ground (gets smaller at high altitude)
         const shadowSize = Math.max(1, BALL_RADIUS * (1.0 - 0.4 * Math.sin(this.ball.progress * Math.PI)));

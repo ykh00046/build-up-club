@@ -135,3 +135,23 @@ Archive path:
 - [x] Include solved moment recap in the share summary.
 - [x] Add a compact visual share card layout.
 - [x] Add a daily/featured match moment entry point.
+
+## Milestone 14: Gameplay Reform
+
+- [x] Define why the current structure is not fun enough.
+- [x] Document the new pressure-manipulation core loop.
+- [x] Add pressure meter data model and UI.
+- [x] Add visible post-pass movement animation for our support shape and opponent press shift.
+- [x] Add body orientation rendering for attackers and defenders.
+- [x] Reframe cover shadow as a defender body-orientation shadow over our teammate.
+- [x] Add passer body-angle risk to lane evaluation.
+- [x] Make pass concepts visually distinct: direct to-feet, bounce wall pass, third-man, and long space drop.
+- [x] Model long space passes as runner movement into a landing zone.
+- [x] Show space-pass landing read: open, contested, trap, or no-space with reason.
+- [ ] Add pressure changes to pass, carry, tactical action, trap, and reset outcomes.
+- [ ] Add `requiredConcepts` and `forbiddenShortcuts` level metadata.
+- [ ] Upgrade S/A/B scoring to include pressure and intended concept completion.
+- [x] Add a simple Carry action for angle creation.
+- [ ] Implement named press schemes: 442HighPress, 433MidPress, WideTrap, ManLock.
+- [ ] Rebuild five flagship levels as a Reform Test Pack.
+- [ ] Add solver/report checks that compare optimal route against intended concepts.

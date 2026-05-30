@@ -6,6 +6,18 @@ Make football tactics playable in 10-second, match-defining decisions.
 
 The player should not manage a whole match. Each level is one tactical problem presented as a high-stakes match moment: escape pressure from the first or second line and reach a target zone.
 
+Current reform principle:
+
+The game must stop feeling like a static tactics worksheet. The player should feel pressure rising, manipulate that pressure, and escape before the collapse.
+
+Movement principle:
+
+Our team and the opponent must visibly move around each pass. Even if the rules stay turn-based, the presentation should show support angles opening, defenders shifting, and the press reacting before the next decision.
+
+Body orientation principle:
+
+Players and defenders need a body direction. Pass quality and cover shadow should be read from that direction, not only from circular distance.
+
 ## Scenario Anatomy
 
 Each level contains:
@@ -64,7 +76,7 @@ Initial pressing types:
 
 - Static Block: defenders hold shape and block lanes.
 - Directional Press: nearest defender steps toward the ball.
-- Cover Shadow: defender blocks a passing lane behind them.
+- Cover Shadow: defender uses body orientation to hide one of our players behind their pressing angle.
 - Trap Side: opponent wants to force play toward one side.
 - Man-Oriented Press: defenders follow assigned players after actions.
 - Wide Trap: the opponent invites a pass to the sideline, then collapses.
@@ -74,6 +86,8 @@ MVP opponent logic:
 
 - Each defender has a zone, pressure radius, and cover-shadow cone.
 - After each action, defenders shift one step according to the pressing rule.
+- Defender shifts should animate over a short beat instead of snapping instantly.
+- Defenders face the ball holder; their cover shadow is cast behind their body direction.
 - Interception happens when the ball path crosses a pressure radius or cover shadow.
 - Trap zones trigger extra pressure after the receiver enters them.
 
@@ -134,6 +148,34 @@ Simple MVP rating:
 - A: clean escape with one extra action.
 - B: escaped but inefficient.
 - Failed: intercepted, trapped, or out of actions.
+
+Reform scoring:
+
+- Track pressure at finish.
+- Track whether required tactical concepts were used.
+- Penalize shortcuts that ignore the scenario's intended idea.
+- Reward routes that manipulate the press before escaping.
+- Make S impossible when the player bypasses the intended concept through a dull shortcut.
+
+## Pressure Meter
+
+Add a visible pressure meter to make the scenario feel alive.
+
+Pressure rises when:
+
+- the player uses a safe but passive pass,
+- the player resets backward without purpose,
+- the receiver is near a defender,
+- the ball enters a trap zone,
+- the player repeats low-value actions.
+
+Pressure falls or pauses when:
+
+- the player uses the intended tactical concept,
+- the player breaks a pressing line,
+- the player creates a high-value outlet.
+
+At maximum pressure, the press collapses and the receiver is trapped.
 
 ## 11v11 Presentation Rule
 

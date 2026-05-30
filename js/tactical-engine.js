@@ -17,13 +17,14 @@ const CHANNELS = [
   { y0: 199, y1: 246, short: 'RW',  label: 'RIGHT WING' },
 ];
 
-const TACTICAL_ACTION_ORDER = ['pass', 'bounce', 'thirdMan', 'switchPlay', 'dropPivot'];
+const TACTICAL_ACTION_ORDER = ['pass', 'carry', 'bounce', 'thirdMan', 'switchPlay', 'dropPivot'];
 const TACTICAL_ACTIONS = {
-  pass: { id: 'pass', key: '1', label: 'PASS', sub: 'direct lane', desc: 'Play the clearest available lane.', concept: 'freeMan' },
-  bounce: { id: 'bounce', key: '2', label: 'BOUNCE', sub: 'one-two connector', desc: 'Use a connector to bounce around the first presser.', concept: 'thirdPlayerSupport' },
-  thirdMan: { id: 'thirdMan', key: '3', label: '3RD MAN', sub: 'blind-side run', desc: 'Find a runner arriving beyond the pressure line.', concept: 'thirdManRun' },
-  switchPlay: { id: 'switchPlay', key: '4', label: 'SWITCH', sub: 'far-side release', desc: 'Go over the ball-side squeeze into weak-side space.', concept: 'switchPlay' },
-  dropPivot: { id: 'dropPivot', key: '5', label: 'DROP DM', sub: 'deeper support', desc: 'Drop the pivot to create a safer first angle.', concept: 'dropPivot' }
+  pass: { id: 'pass', key: '1', label: 'PASS', sub: 'to feet', desc: 'Play a direct ground pass into a teammate.', concept: 'freeMan' },
+  carry: { id: 'carry', key: '2', label: 'CARRY', sub: 'create angle', desc: 'Take a short touch to change body angle before passing.', concept: 'carryAngle' },
+  bounce: { id: 'bounce', key: '3', label: 'BOUNCE', sub: 'wall pass', desc: 'Use a connector to bounce around the first presser.', concept: 'thirdPlayerSupport' },
+  thirdMan: { id: 'thirdMan', key: '4', label: '3RD MAN', sub: 'blind-side run', desc: 'Find a runner arriving beyond the pressure line.', concept: 'thirdManRun' },
+  switchPlay: { id: 'switchPlay', key: '5', label: 'SWITCH', sub: 'space drop', desc: 'Go over the ball-side squeeze into weak-side space.', concept: 'switchPlay' },
+  dropPivot: { id: 'dropPivot', key: '6', label: 'DROP DM', sub: 'deeper support', desc: 'Drop the pivot to create a safer first angle.', concept: 'dropPivot' }
 };
 
 const COHESION_Y = 4;
@@ -33,6 +34,7 @@ const PRESS_TRAP_BONUS = 4;
 // within this radius of the receiver, the weak side isn't isolated and the
 // switch is not on. Keeps the long ball from being a free escape to any far man.
 const SWITCH_ISOLATION_RADIUS = 46;
+const PASS_BODY_ANGLE_RISK = 95;
 
 const LANE_STATUS_RANK = {
   safe: 0,
@@ -88,22 +90,33 @@ function pointInTrapZone(p, trapZones = []) {
   return null;
 }
 
-function pointInCoverShadow(p, d, h) {
-  const vHD = { x: d.x - h.x, y: d.y - h.y };
-  const distHD = Math.sqrt(vHD.x * vHD.x + vHD.y * vHD.y);
-  if (distHD === 0) return false;
-  const dirHD = { x: vHD.x / distHD, y: vHD.y / distHD };
+function normalizeAngle(a) {
+  while (a <= -Math.PI) a += Math.PI * 2;
+  while (a > Math.PI) a -= Math.PI * 2;
+  return a;
+}
 
+function angleDiff(a, b) {
+  return Math.abs(normalizeAngle(a - b));
+}
+
+function defenderFacingAngle(d, holder) {
+  if (typeof d.facingAngle === 'number') return d.facingAngle;
+  if (!holder) return Math.PI;
+  return Math.atan2(holder.y - d.y, holder.x - d.x);
+}
+
+function pointInCoverShadow(p, d, h) {
   const vDP = { x: p.x - d.x, y: p.y - d.y };
   const distDP = Math.sqrt(vDP.x * vDP.x + vDP.y * vDP.y);
   if (distDP === 0) return false;
   if (distDP > d.coverShadowLength) return false;
-  const dirDP = { x: vDP.x / distDP, y: vDP.y / distDP };
 
-  const dot = dirHD.x * dirDP.x + dirHD.y * dirDP.y;
-  if (dot <= 0) return false;
-
-  const angle = Math.acos(dot) * 180 / Math.PI;
+  // Cover shadow is cast behind the defender's body orientation. If the
+  // defender faces the ball holder, the covered teammate is behind the defender.
+  const shadowAngle = normalizeAngle(defenderFacingAngle(d, h) + Math.PI);
+  const targetAngle = Math.atan2(vDP.y, vDP.x);
+  const angle = angleDiff(shadowAngle, targetAngle) * 180 / Math.PI;
   return angle <= (d.coverShadowAngle / 2);
 }
 
@@ -126,6 +139,7 @@ function lineIntersectsCoverShadow(p1, p2, d, h) {
 function stepDefender(d, holder, prevHolderX) {
   const nd = { ...d, patrolPath: d.patrolPath ? d.patrolPath.map(p => ({ ...p })) : null };
   if (!holder) return nd;
+  nd.facingAngle = Math.atan2(holder.y - d.y, holder.x - d.x);
   const backPass = (prevHolderX != null) && (holder.x < prevHolderX - 2);
   const ch = channelOf(holder.y);
   const onWing = (ch === 0 || ch === 4);
@@ -282,6 +296,15 @@ function evaluateLane(from, to, defenders, opts = {}) {
   let byDefender = null;
   let trapRisk = 0;
 
+  if (typeof opts.passerFacingAngle === 'number') {
+    const passAngle = Math.atan2(to.y - from.y, to.x - from.x);
+    const bodyAngle = angleDiff(opts.passerFacingAngle, passAngle) * 180 / Math.PI;
+    if (bodyAngle > PASS_BODY_ANGLE_RISK) {
+      worst = 'risky';
+      reason = 'bodyAngle';
+    }
+  }
+
   for (const z of trapZones) {
     if (pointInRect(to.x, to.y, z.x, z.y, z.w, z.h)) {
       worst = 'baited';
@@ -296,7 +319,7 @@ function evaluateLane(from, to, defenders, opts = {}) {
       return makeLaneResult('blocked', 'pressureRadius', { byDefender: d });
     }
 
-    if (!ignoreShadow && lineIntersectsCoverShadow(from, to, d, from)) {
+    if (!ignoreShadow && pointInCoverShadow(to, d, from)) {
       return makeLaneResult('blocked', 'coverShadow', { byDefender: d });
     }
 
@@ -757,6 +780,9 @@ if (typeof window !== 'undefined') {
   window.pointInTrapZone = pointInTrapZone;
   window.pointInCoverShadow = pointInCoverShadow;
   window.lineIntersectsCoverShadow = lineIntersectsCoverShadow;
+  window.normalizeAngle = normalizeAngle;
+  window.angleDiff = angleDiff;
+  window.defenderFacingAngle = defenderFacingAngle;
   window.stepDefender = stepDefender;
   window.getLevelTacticalMetadata = getLevelTacticalMetadata;
   window.getPlayerLabel = getPlayerLabel;

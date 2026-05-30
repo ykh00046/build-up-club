@@ -37,6 +37,7 @@ Use documents this way:
 - `docs/master_plan.md`: current step-by-step roadmap. Start here.
 - `docs/product_direction.md`: product positioning and target audience.
 - `docs/game_design.md`: stable gameplay rules and UX principles.
+- `docs/gameplay_reform_plan.md`: reform plan for making the game more fun and less worksheet-like.
 - `docs/tactical_research.md`: football theory and research notes.
 - `docs/phase_c_spec.md`: implementation spec for next tactical depth phase.
 - `docs/football_prototype_review.md`: what to reuse from the contributor prototype.
@@ -79,6 +80,23 @@ Result packaging:
 - Keep the result screen focused on grade, actions, lines broken, outlet, and concept.
 - Promote one featured match moment from the scenario sidebar so new players see a high-stakes entry point before the level directory.
 - Add a compact share-card preview inside the result modal as the basis for later image export.
+
+## Gameplay Reform Direction
+
+Problem:
+
+The current game is tactically coherent, but it can feel like a static tactics worksheet.
+
+Decision:
+
+- Stop adding more ordinary levels for now.
+- Reform the core loop around pressure escalation, manipulation, and escape.
+- Add a visible pressure meter.
+- Animate our support shape and opponent press shift around each pass so the board feels alive.
+- Add intent-based scoring so the best route must use the intended tactical concept, not only the shortest pass count.
+- Add named press schemes with readable reactions.
+- Add a simple carry action to let the player create passing angles.
+- Rebuild five flagship levels as a Reform Test Pack before expanding content.
 
 ## Step 0: Preserve The Current Prototype
 

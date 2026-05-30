@@ -186,7 +186,7 @@ function drawCutBadge(ctx, from, to, defender) {
   ctx.restore();
 }
 
-function drawPlayer(ctx, x, y, hasBall, highlighted, passRange, labelText) {
+function drawPlayer(ctx, x, y, hasBall, highlighted, passRange, labelText, facingAngle) {
   if (highlighted && passRange) {
     drawPixelCircle(ctx, x, y, passRange, C.passRange, C.passRangeStroke, 1);
   }
@@ -219,6 +219,17 @@ function drawPlayer(ctx, x, y, hasBall, highlighted, passRange, labelText) {
     drawPixelCircle(ctx, x, y, PLAYER_RADIUS + 5, null, C.uiAccent, 2);
     ctx.restore();
   }
+
+  if (typeof facingAngle === 'number') {
+    ctx.save();
+    ctx.strokeStyle = hasBall ? C.uiAccent : 'rgba(255,255,255,0.45)';
+    ctx.lineWidth = hasBall ? 1.4 : 0.9;
+    ctx.beginPath();
+    ctx.moveTo(x + Math.cos(facingAngle) * (PLAYER_RADIUS - 1), y + Math.sin(facingAngle) * (PLAYER_RADIUS - 1));
+    ctx.lineTo(x + Math.cos(facingAngle) * (PLAYER_RADIUS + 5), y + Math.sin(facingAngle) * (PLAYER_RADIUS + 5));
+    ctx.stroke();
+    ctx.restore();
+  }
 }
 
 function getDefenderSubRole(type) {
@@ -236,9 +247,7 @@ function drawDefender(ctx, d, time, labelText) {
   if (d.type === 'presser' && d.coverShadowAngle && d.coverShadowLength && Game.guides.shadow) {
     const holder = Game.players[Game.currentPlayerIdx];
     if (holder) {
-      const dx = d.x - holder.x;
-      const dy = d.y - holder.y;
-      const baseAngle = Math.atan2(dy, dx);
+      const baseAngle = normalizeAngle(defenderFacingAngle(d, holder) + Math.PI);
       const halfAngle = (d.coverShadowAngle * Math.PI / 180) / 2;
 
       ctx.save();
@@ -325,10 +334,10 @@ function drawDefender(ctx, d, time, labelText) {
     ctx.fill();
   }
 
-  // Draw defender body orientation indicator (Face Direction towards ball)
+  // Draw defender body orientation indicator.
   const holder = Game.players[Game.currentPlayerIdx];
   if (holder) {
-    const angle = Math.atan2(holder.y - py, holder.x - px);
+    const angle = defenderFacingAngle(d, holder);
     ctx.save();
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.65)';
     ctx.lineWidth = 1.2;
