@@ -1,0 +1,1286 @@
+{
+  "viewport": {
+    "width": 1440,
+    "height": 1000
+  },
+  "states": {
+    "title": [
+      {
+        "tag": "BUTTON",
+        "id": "btn-hub",
+        "text": "← 클럽 허브",
+        "role": null,
+        "tabindex": null,
+        "box": [
+          1244,
+          10,
+          93,
+          28
+        ]
+      },
+      {
+        "tag": "BUTTON",
+        "id": "btn-retry",
+        "text": "다시 도전",
+        "role": null,
+        "tabindex": null,
+        "box": [
+          1351,
+          10,
+          73,
+          28
+        ]
+      },
+      {
+        "tag": "SUMMARY",
+        "id": "",
+        "text": "보기 ⚙",
+        "role": null,
+        "tabindex": null,
+        "box": [
+          1043,
+          70,
+          60,
+          24
+        ]
+      },
+      {
+        "tag": "BUTTON",
+        "id": "btn-guide",
+        "text": "플레이 가이드",
+        "role": null,
+        "tabindex": null,
+        "box": [
+          999,
+          113,
+          104,
+          30
+        ]
+      },
+      {
+        "tag": "CANVAS",
+        "id": "pitch",
+        "text": "11대11 전술 보드 — 방향키로 받을 동료 선택, Enter로 패스, 1~9 액션, Space 기다리기",
+        "role": "application",
+        "tabindex": "0",
+        "box": [
+          13,
+          154,
+          1102,
+          802
+        ]
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "text": "발밑 패스",
+        "role": null,
+        "tabindex": null,
+        "box": [
+          26,
+          955,
+          1,
+          34
+        ]
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "text": "기다리기",
+        "role": null,
+        "tabindex": null,
+        "box": [
+          26,
+          955,
+          1,
+          34
+        ]
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "text": "운반",
+        "role": null,
+        "tabindex": null,
+        "box": [
+          26,
+          955,
+          1,
+          34
+        ]
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "text": "슈팅",
+        "role": null,
+        "tabindex": null,
+        "box": [
+          26,
+          955,
+          1,
+          34
+        ]
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "text": "라인 밀어내기",
+        "role": null,
+        "tabindex": null,
+        "box": [
+          1192,
+          223,
+          103,
+          27
+        ]
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "text": "내려와 연결",
+        "role": null,
+        "tabindex": null,
+        "box": [
+          1300,
+          223,
+          103,
+          27
+        ]
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "text": "라인 사이",
+        "role": null,
+        "tabindex": null,
+        "box": [
+          1192,
+          256,
+          103,
+          27
+        ]
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "text": "빌드업 보조",
+        "role": null,
+        "tabindex": null,
+        "box": [
+          1300,
+          256,
+          103,
+          27
+        ]
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "text": "풀백 전진",
+        "role": null,
+        "tabindex": null,
+        "box": [
+          1192,
+          289,
+          103,
+          27
+        ]
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "text": "후방 안정",
+        "role": null,
+        "tabindex": null,
+        "box": [
+          1300,
+          289,
+          103,
+          27
+        ]
+      },
+      {
+        "tag": "SUMMARY",
+        "id": "",
+        "text": "브리핑 · 매치 정보",
+        "role": null,
+        "tabindex": null,
+        "box": [
+          1141,
+          406,
+          274,
+          34
+        ]
+      },
+      {
+        "tag": "SUMMARY",
+        "id": "",
+        "text": "TACTICAL ARCHIVE\n0",
+        "role": null,
+        "tabindex": null,
+        "box": [
+          1141,
+          450,
+          274,
+          34
+        ]
+      },
+      {
+        "tag": "DIV",
+        "id": "title-overlay",
+        "text": "11V11 TACTICAL FOOTBALL CLUB\nBUILD-UP\nCLUB\n\n압박을 깨고 클럽을 키워라. 매 경기는 한 번의 결정적 빌드업 모먼트 — 이겨서 선수를 강화하고, 디비전을 올라 1부 우승까지.\n\n시작하기\n아무 곳이나 클릭해도 시작합니다",
+        "role": "dialog",
+        "tabindex": "-1",
+        "box": [
+          0,
+          0,
+          1440,
+          1000
+        ]
+      },
+      {
+        "tag": "BUTTON",
+        "id": "btn-kickoff",
+        "text": "시작하기",
+        "role": null,
+        "tabindex": null,
+        "box": [
+          115,
+          852,
+          132,
+          48
+        ]
+      }
+    ],
+    "hub": [
+      {
+        "tag": "BUTTON",
+        "id": "btn-hub",
+        "text": "← 클럽 허브",
+        "role": null,
+        "tabindex": null,
+        "box": [
+          1244,
+          10,
+          93,
+          28
+        ]
+      },
+      {
+        "tag": "BUTTON",
+        "id": "btn-retry",
+        "text": "다시 도전",
+        "role": null,
+        "tabindex": null,
+        "box": [
+          1351,
+          10,
+          73,
+          28
+        ]
+      },
+      {
+        "tag": "SUMMARY",
+        "id": "",
+        "text": "보기 ⚙",
+        "role": null,
+        "tabindex": null,
+        "box": [
+          1043,
+          70,
+          60,
+          24
+        ]
+      },
+      {
+        "tag": "BUTTON",
+        "id": "btn-guide",
+        "text": "플레이 가이드",
+        "role": null,
+        "tabindex": null,
+        "box": [
+          999,
+          113,
+          104,
+          30
+        ]
+      },
+      {
+        "tag": "BUTTON",
+        "id": "btn-guide-dismiss",
+        "text": "전체 전술 보기",
+        "role": null,
+        "tabindex": null,
+        "box": [
+          274,
+          245,
+          75,
+          16
+        ]
+      },
+      {
+        "tag": "CANVAS",
+        "id": "pitch",
+        "text": "11대11 전술 보드 — 방향키로 받을 동료 선택, Enter로 패스, 1~9 액션, Space 기다리기",
+        "role": "application",
+        "tabindex": "0",
+        "box": [
+          13,
+          154,
+          1102,
+          802
+        ]
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "text": "발밑 패스",
+        "role": null,
+        "tabindex": null,
+        "box": [
+          26,
+          955,
+          1,
+          34
+        ]
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "text": "기다리기",
+        "role": null,
+        "tabindex": null,
+        "box": [
+          26,
+          955,
+          1,
+          34
+        ]
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "text": "운반",
+        "role": null,
+        "tabindex": null,
+        "box": [
+          26,
+          955,
+          1,
+          34
+        ]
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "text": "슈팅",
+        "role": null,
+        "tabindex": null,
+        "box": [
+          26,
+          955,
+          1,
+          34
+        ]
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "text": "라인 밀어내기",
+        "role": null,
+        "tabindex": null,
+        "box": [
+          1192,
+          223,
+          103,
+          27
+        ]
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "text": "내려와 연결",
+        "role": null,
+        "tabindex": null,
+        "box": [
+          1300,
+          223,
+          103,
+          27
+        ]
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "text": "라인 사이",
+        "role": null,
+        "tabindex": null,
+        "box": [
+          1192,
+          256,
+          103,
+          27
+        ]
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "text": "빌드업 보조",
+        "role": null,
+        "tabindex": null,
+        "box": [
+          1300,
+          256,
+          103,
+          27
+        ]
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "text": "풀백 전진",
+        "role": null,
+        "tabindex": null,
+        "box": [
+          1192,
+          289,
+          103,
+          27
+        ]
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "text": "후방 안정",
+        "role": null,
+        "tabindex": null,
+        "box": [
+          1300,
+          289,
+          103,
+          27
+        ]
+      },
+      {
+        "tag": "SUMMARY",
+        "id": "",
+        "text": "브리핑 · 매치 정보",
+        "role": null,
+        "tabindex": null,
+        "box": [
+          1141,
+          406,
+          274,
+          34
+        ]
+      },
+      {
+        "tag": "SUMMARY",
+        "id": "",
+        "text": "TACTICAL ARCHIVE\n0",
+        "role": null,
+        "tabindex": null,
+        "box": [
+          1141,
+          450,
+          274,
+          34
+        ]
+      },
+      {
+        "tag": "BUTTON",
+        "id": "hub-name",
+        "text": "내 클럽",
+        "role": null,
+        "tabindex": null,
+        "box": [
+          338,
+          52,
+          90,
+          28
+        ]
+      },
+      {
+        "tag": "BUTTON",
+        "id": "hub-lang",
+        "text": "EN",
+        "role": null,
+        "tabindex": null,
+        "box": [
+          1117,
+          50,
+          43,
+          32
+        ]
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "text": "강화\n29",
+        "role": null,
+        "tabindex": null,
+        "box": [
+          295,
+          410,
+          185,
+          34
+        ]
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "text": "강화\n21",
+        "role": null,
+        "tabindex": null,
+        "box": [
+          518,
+          420,
+          185,
+          34
+        ]
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "text": "강화\n21",
+        "role": null,
+        "tabindex": null,
+        "box": [
+          740,
+          420,
+          185,
+          34
+        ]
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "text": "강화\n35",
+        "role": null,
+        "tabindex": null,
+        "box": [
+          963,
+          410,
+          185,
+          34
+        ]
+      },
+      {
+        "tag": "BUTTON",
+        "id": "hub-philo",
+        "text": "철학 선택\n0P",
+        "role": null,
+        "tabindex": null,
+        "box": [
+          280,
+          481,
+          213,
+          43
+        ]
+      },
+      {
+        "tag": "BUTTON",
+        "id": "hub-stadium",
+        "text": "스타디움 · Lv 1\n264",
+        "role": null,
+        "tabindex": null,
+        "box": [
+          503,
+          481,
+          213,
+          43
+        ]
+      },
+      {
+        "tag": "BUTTON",
+        "id": "hub-boost",
+        "text": "⚡ 수익 2배 (30분)\nFREE",
+        "role": null,
+        "tabindex": null,
+        "box": [
+          725,
+          481,
+          213,
+          43
+        ]
+      },
+      {
+        "tag": "BUTTON",
+        "id": "hub-prestige",
+        "text": "재창단(프레스티지)\n레거시 +1",
+        "role": null,
+        "tabindex": null,
+        "box": [
+          948,
+          481,
+          213,
+          43
+        ]
+      },
+      {
+        "tag": "BUTTON",
+        "id": "hub-play",
+        "text": "다음 경기 →",
+        "role": null,
+        "tabindex": null,
+        "box": [
+          1002,
+          560,
+          141,
+          50
+        ]
+      }
+    ],
+    "tactics": [
+      {
+        "tag": "BUTTON",
+        "id": "btn-hub",
+        "text": "← 클럽 허브",
+        "role": null,
+        "tabindex": null,
+        "box": [
+          1244,
+          10,
+          93,
+          28
+        ]
+      },
+      {
+        "tag": "BUTTON",
+        "id": "btn-retry",
+        "text": "다시 도전",
+        "role": null,
+        "tabindex": null,
+        "box": [
+          1351,
+          10,
+          73,
+          28
+        ]
+      },
+      {
+        "tag": "SUMMARY",
+        "id": "",
+        "text": "보기 ⚙",
+        "role": null,
+        "tabindex": null,
+        "box": [
+          1043,
+          70,
+          60,
+          24
+        ]
+      },
+      {
+        "tag": "BUTTON",
+        "id": "btn-guide",
+        "text": "플레이 가이드",
+        "role": null,
+        "tabindex": null,
+        "box": [
+          999,
+          113,
+          104,
+          30
+        ]
+      },
+      {
+        "tag": "BUTTON",
+        "id": "btn-guide-dismiss",
+        "text": "전체 전술 보기",
+        "role": null,
+        "tabindex": null,
+        "box": [
+          274,
+          245,
+          75,
+          16
+        ]
+      },
+      {
+        "tag": "CANVAS",
+        "id": "pitch",
+        "text": "11대11 전술 보드 — 방향키로 받을 동료 선택, Enter로 패스, 1~9 액션, Space 기다리기",
+        "role": "application",
+        "tabindex": "0",
+        "box": [
+          13,
+          154,
+          1102,
+          802
+        ]
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "text": "발밑 패스",
+        "role": null,
+        "tabindex": null,
+        "box": [
+          26,
+          955,
+          1,
+          34
+        ]
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "text": "기다리기",
+        "role": null,
+        "tabindex": null,
+        "box": [
+          26,
+          955,
+          1,
+          34
+        ]
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "text": "운반",
+        "role": null,
+        "tabindex": null,
+        "box": [
+          26,
+          955,
+          1,
+          34
+        ]
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "text": "슈팅",
+        "role": null,
+        "tabindex": null,
+        "box": [
+          26,
+          955,
+          1,
+          34
+        ]
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "text": "라인 밀어내기",
+        "role": null,
+        "tabindex": null,
+        "box": [
+          1192,
+          223,
+          103,
+          27
+        ]
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "text": "내려와 연결",
+        "role": null,
+        "tabindex": null,
+        "box": [
+          1300,
+          223,
+          103,
+          27
+        ]
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "text": "라인 사이",
+        "role": null,
+        "tabindex": null,
+        "box": [
+          1192,
+          256,
+          103,
+          27
+        ]
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "text": "빌드업 보조",
+        "role": null,
+        "tabindex": null,
+        "box": [
+          1300,
+          256,
+          103,
+          27
+        ]
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "text": "풀백 전진",
+        "role": null,
+        "tabindex": null,
+        "box": [
+          1192,
+          289,
+          103,
+          27
+        ]
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "text": "후방 안정",
+        "role": null,
+        "tabindex": null,
+        "box": [
+          1300,
+          289,
+          103,
+          27
+        ]
+      },
+      {
+        "tag": "SUMMARY",
+        "id": "",
+        "text": "브리핑 · 매치 정보",
+        "role": null,
+        "tabindex": null,
+        "box": [
+          1141,
+          406,
+          274,
+          34
+        ]
+      },
+      {
+        "tag": "SUMMARY",
+        "id": "",
+        "text": "TACTICAL ARCHIVE\n0",
+        "role": null,
+        "tabindex": null,
+        "box": [
+          1141,
+          450,
+          274,
+          34
+        ]
+      },
+      {
+        "tag": "DIV",
+        "id": "tactics-overlay",
+        "text": "D2\n전술 브리핑\nDouble Pivot 2-3 vs 5-3-2 로우블록\n대형\n9\n11\n8\n6\n10\n3\n4\n5\n15\n2\n1\n4\n5\n3\n2\n6\n8\n10\n11\n7\n9\nDouble Pivot 2-3\nvs\n5-3-2 로우블록\n상대 전술\n지역방어 블록 수비\n5백 + 3 미드가 완전히 내려선다. 강도가 낮아 함부로 나오지 않음. 약점: 윙백이 유인되면 채널 노출.\n우리가 만들 우위: 폭 확장 → 윙백 견인 → CB 사이 채널 위치 우위\n추천 마무리: 채널 침투 / 1대1\n난이도\n쉬움\n표준\n어려움\n쉬운 압박 — 패턴을 익히며 연습하세요\n시작 대형 — 경기 중 변경 가능\n전방\n라인 밀어내기\n내려와 연결\n중원\n라인 사이\n빌드업 보조\n후방\n풀백 전진\n후방 안정\n힌트: 폭 확장 → 윙백 끌어내기 → CB 채널 스루\n킥오프 시작 →",
+        "role": "dialog",
+        "tabindex": "-1",
+        "box": [
+          0,
+          0,
+          1440,
+          1000
+        ]
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "text": "쉬움",
+        "role": null,
+        "tabindex": null,
+        "box": [
+          667,
+          470,
+          145,
+          33
+        ]
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "text": "표준",
+        "role": null,
+        "tabindex": null,
+        "box": [
+          818,
+          470,
+          145,
+          33
+        ]
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "text": "어려움",
+        "role": null,
+        "tabindex": null,
+        "box": [
+          968,
+          470,
+          145,
+          33
+        ]
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "text": "라인 밀어내기",
+        "role": null,
+        "tabindex": null,
+        "box": [
+          706,
+          584,
+          201,
+          27
+        ]
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "text": "내려와 연결",
+        "role": null,
+        "tabindex": null,
+        "box": [
+          912,
+          584,
+          201,
+          27
+        ]
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "text": "라인 사이",
+        "role": null,
+        "tabindex": null,
+        "box": [
+          706,
+          617,
+          201,
+          27
+        ]
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "text": "빌드업 보조",
+        "role": null,
+        "tabindex": null,
+        "box": [
+          912,
+          617,
+          201,
+          27
+        ]
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "text": "풀백 전진",
+        "role": null,
+        "tabindex": null,
+        "box": [
+          706,
+          650,
+          201,
+          27
+        ]
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "text": "후방 안정",
+        "role": null,
+        "tabindex": null,
+        "box": [
+          912,
+          650,
+          201,
+          27
+        ]
+      },
+      {
+        "tag": "BUTTON",
+        "id": "btn-tactics-kickoff",
+        "text": "킥오프 시작 →",
+        "role": null,
+        "tabindex": null,
+        "box": [
+          957,
+          723,
+          168,
+          46
+        ]
+      }
+    ],
+    "match": [
+      {
+        "tag": "BUTTON",
+        "id": "btn-hub",
+        "text": "← 클럽 허브",
+        "role": null,
+        "tabindex": null,
+        "box": [
+          1244,
+          10,
+          93,
+          28
+        ]
+      },
+      {
+        "tag": "BUTTON",
+        "id": "btn-retry",
+        "text": "다시 도전",
+        "role": null,
+        "tabindex": null,
+        "box": [
+          1351,
+          10,
+          73,
+          28
+        ]
+      },
+      {
+        "tag": "SUMMARY",
+        "id": "",
+        "text": "보기 ⚙",
+        "role": null,
+        "tabindex": null,
+        "box": [
+          1043,
+          70,
+          60,
+          24
+        ]
+      },
+      {
+        "tag": "BUTTON",
+        "id": "btn-guide",
+        "text": "플레이 가이드",
+        "role": null,
+        "tabindex": null,
+        "box": [
+          999,
+          113,
+          104,
+          30
+        ]
+      },
+      {
+        "tag": "BUTTON",
+        "id": "btn-guide-dismiss",
+        "text": "전체 전술 보기",
+        "role": null,
+        "tabindex": null,
+        "box": [
+          274,
+          245,
+          75,
+          16
+        ]
+      },
+      {
+        "tag": "CANVAS",
+        "id": "pitch",
+        "text": "11대11 전술 보드 — 방향키로 받을 동료 선택, Enter로 패스, 1~9 액션, Space 기다리기",
+        "role": "application",
+        "tabindex": "0",
+        "box": [
+          13,
+          154,
+          1102,
+          802
+        ]
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "text": "발밑 패스",
+        "role": null,
+        "tabindex": null,
+        "box": [
+          26,
+          955,
+          1,
+          34
+        ]
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "text": "기다리기",
+        "role": null,
+        "tabindex": null,
+        "box": [
+          26,
+          955,
+          1,
+          34
+        ]
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "text": "운반",
+        "role": null,
+        "tabindex": null,
+        "box": [
+          26,
+          955,
+          1,
+          34
+        ]
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "text": "슈팅",
+        "role": null,
+        "tabindex": null,
+        "box": [
+          26,
+          955,
+          1,
+          34
+        ]
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "text": "라인 밀어내기",
+        "role": null,
+        "tabindex": null,
+        "box": [
+          1192,
+          239,
+          103,
+          27
+        ]
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "text": "내려와 연결",
+        "role": null,
+        "tabindex": null,
+        "box": [
+          1300,
+          239,
+          103,
+          27
+        ]
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "text": "라인 사이",
+        "role": null,
+        "tabindex": null,
+        "box": [
+          1192,
+          272,
+          103,
+          27
+        ]
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "text": "빌드업 보조",
+        "role": null,
+        "tabindex": null,
+        "box": [
+          1300,
+          272,
+          103,
+          27
+        ]
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "text": "풀백 전진",
+        "role": null,
+        "tabindex": null,
+        "box": [
+          1192,
+          305,
+          103,
+          27
+        ]
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "text": "후방 안정",
+        "role": null,
+        "tabindex": null,
+        "box": [
+          1300,
+          305,
+          103,
+          27
+        ]
+      },
+      {
+        "tag": "SUMMARY",
+        "id": "",
+        "text": "브리핑 · 매치 정보",
+        "role": null,
+        "tabindex": null,
+        "box": [
+          1141,
+          422,
+          274,
+          34
+        ]
+      },
+      {
+        "tag": "SUMMARY",
+        "id": "",
+        "text": "TACTICAL ARCHIVE\n0",
+        "role": null,
+        "tabindex": null,
+        "box": [
+          1141,
+          466,
+          274,
+          34
+        ]
+      }
+    ]
+  },
+  "hubMetrics": {
+    "scrollWidth": 1440,
+    "clientWidth": 1440,
+    "scrollHeight": 1000,
+    "clientHeight": 1000,
+    "hubScrollHeight": 1000,
+    "hubClientHeight": 1000
+  },
+  "matchMetrics": {
+    "scrollWidth": 1440,
+    "clientWidth": 1440,
+    "canvas": [
+      13,
+      154,
+      1102,
+      802
+    ],
+    "active": "pitch",
+    "situation": {
+      "banner": [
+        13,
+        154,
+        1102,
+        35
+      ],
+      "actionBottom": 989,
+      "viewportHeight": 1000,
+      "scrollWidth": 1440,
+      "clientWidth": 1440
+    }
+  },
+  "console": [
+    "error: Failed to load resource: net::ERR_FAILED"
+  ],
+  "errors": []
+}

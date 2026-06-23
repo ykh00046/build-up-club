@@ -1,0 +1,14 @@
+# 의존성 / 테스트 스캐폴딩 (커밋 불필요)
+node_modules/
+.verify/node_modules/
+.verify/package.json
+.verify/package-lock.json
+
+# OS / 에디터
+.DS_Store
+Thumbs.db
+*.log
+*.tmp
+
+# 빌드/임시
+dist/

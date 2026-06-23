@@ -1,0 +1,68 @@
+import { ACTION_LABELS } from './tactics.js';
+
+const INTENT_LABELS = {
+  front: { pin: '전방 고정', drop: '전방 내려와 연결' },
+  mid: { between: '중원 라인 사이', support: '중원 빌드업 보조' },
+  back: { overlap: '풀백 전진', hold: '후방 안정' },
+};
+
+function topAction(history = []) {
+  const counts = new Map();
+  for (const action of history) counts.set(action, (counts.get(action) || 0) + 1);
+  return [...counts.entries()].sort((a, b) => b[1] - a[1])[0] || null;
+}
+
+function joinIntents(lineIntents = {}) {
+  return Object.entries(lineIntents)
+    .map(([group, intent]) => INTENT_LABELS[group]?.[intent])
+    .filter(Boolean)
+    .join(' · ');
+}
+
+function pickWorked(state) {
+  const f = state.facts || {};
+  const helpful = (state.lastTacticalFactors || []).filter((x) => x.multiplier < 1);
+  if (f.situationsResolved > 0) return `상황 대응 ${f.situationsResolved}회로 상대 변화를 다시 흔들었습니다.`;
+  if (f.windowsUsed > 0) return `열린 공간을 ${f.windowsUsed}회 활용해 압박 뒤를 공략했습니다.`;
+  if (f.linesBroken > 0) return `라인 ${f.linesBroken}개를 통과하며 전진 구조는 만들었습니다.`;
+  if (helpful[0]) return helpful[0].label;
+  return joinIntents(state.lineIntents) || '전술 구조를 유지했습니다.';
+}
+
+function pickRead(state) {
+  const active = state.situations?.active || [];
+  const costly = (state.lastTacticalFactors || []).filter((x) => x.multiplier > 1);
+  if (active.length) return `${active.at(-1).title}이(가) 해결되지 않은 채 남았습니다.`;
+  if (state.adaptRead) return `${ACTION_LABELS[state.adaptRead] ?? state.adaptRead} 반복을 상대가 읽기 시작했습니다.`;
+  if (costly[0]) return costly[0].label;
+  const top = topAction(state.actionHistory);
+  if (top && top[1] >= 2) return `${ACTION_LABELS[top[0]] ?? top[0]} 비중이 높았습니다. 다음엔 한 번 변주가 필요합니다.`;
+  return '상대에게 뚜렷하게 읽힌 패턴은 없었습니다.';
+}
+
+function pickDecisive(outcome, state) {
+  const zone = outcome?.zoneId ? ` · 슛 존 ${outcome.zoneId}` : '';
+  const xg = outcome?.xg != null ? ` · xG ${Math.round(outcome.xg * 100)}%` : '';
+  const tone = outcome?.tone === 'goal' ? '득점' : outcome?.tone === 'near' ? '찬스' : '공격 종료';
+  return `${tone}${zone}${xg} · ${state.turn}턴`;
+}
+
+function pickNext(state, outcome) {
+  const active = state.situations?.active || [];
+  if (active.some((s) => s.id === 'pressure_surge')) return '압박 강화가 보이면 기다리기보다 원투/써드맨으로 첫 압박선을 바로 벗기세요.';
+  if (active.some((s) => s.id === 'flank_lock')) return '전환이 읽히면 중앙 조합으로 수비를 다시 모은 뒤 약측을 여세요.';
+  if (active.some((s) => s.id === 'counter_risk')) return '풀백 전진 후 공격이 막히면 후방 안정으로 역습 리스크를 먼저 줄이세요.';
+  if (state.adaptRead) return `${ACTION_LABELS[state.adaptRead] ?? state.adaptRead}를 한 번 쉬고 다른 루트로 시작하세요.`;
+  if (outcome?.tone === 'fail') return '다음 시도는 전진보다 출구 확보를 먼저 보고, 첫 패스 전 압박수를 한 번 더 움직이세요.';
+  if (outcome?.tone === 'near') return '찬스까지는 만들었습니다. 마지막 패스 직전 슛 각도와 압박 거리를 한 번 더 확인하세요.';
+  return '성공 루트가 보였습니다. 같은 구조를 반복하기 전 한 번 다른 액션으로 상대 적응을 늦추세요.';
+}
+
+export function buildTacticalReport(state, outcome) {
+  return {
+    worked: pickWorked(state),
+    read: pickRead(state),
+    decisive: pickDecisive(outcome, state),
+    next: pickNext(state, outcome),
+  };
+}
