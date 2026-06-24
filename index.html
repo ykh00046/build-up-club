@@ -689,6 +689,8 @@
     @media (prefers-reduced-motion: reduce) {
       .hub-badge, .hub-card-btn, .event-choice { transition: none; }
       .xp-pop, .eff-chip.chip-in { animation: none; }
+      /* 무한 반복 장식 애니메이션(cta-pulse·glow·shimmer·pulse 등) 일괄 정지 — 모션 민감 사용자 보호. */
+      *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; }
     }
 
     /* ─── 메뉴·HUD 폴리시 ───────────────────────────────────────────────────── */
@@ -717,7 +719,7 @@
     /* ─── tutorial overlay (onboarding) ─────────────────────────────────── */
     #tutorial-overlay { position: fixed; inset: 0; z-index: 90; background: rgba(5,8,12,0.88); display: none; align-items: center; justify-content: center; }
     #tutorial-overlay.visible { display: flex; }
-    .tut-wrap { width: min(420px, calc(100% - 36px)); background: var(--panel-1); border: 1px solid var(--line); border-radius: 14px; padding: 28px 26px 22px; text-align: center; animation: card-appear 0.4s cubic-bezier(0.16,1,0.3,1); }
+    .tut-wrap { width: min(420px, calc(100% - 36px)); background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 28px 26px 22px; text-align: center; animation: card-appear 0.4s cubic-bezier(0.16,1,0.3,1); }
     .tut-step-tag { display: inline-block; font-size: 10px; font-weight: 800; letter-spacing: .8px; color: var(--accent); background: rgba(93,214,197,0.10); border: 1px solid rgba(93,214,197,0.28); border-radius: 9px; padding: 3px 10px; margin-bottom: 14px; }
     .tut-title { font-size: 19px; font-weight: 800; color: var(--text); margin-bottom: 10px; }
     .tut-body { font-size: 13px; line-height: 1.6; color: var(--text-muted); margin-bottom: 18px; }

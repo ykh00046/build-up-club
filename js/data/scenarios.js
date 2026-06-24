@@ -1,7 +1,7 @@
 // The 2×2 MVP matrix (unified_concept_plan §12).
 // Same loop, different setups — each cell forces a different bait pattern.
 
-import { buildSalida32, buildDoublePivot23, build433Hybrid, build442Man, build442Zonal, build433Gegen, build4231Midblock, build532Lowblock } from './formations.js';
+import { buildSalida32, buildDoublePivot23, build433Ours, build442Ours, build433Hybrid, build442Man, build442Zonal, build433Gegen, build4231Midblock, build532Lowblock } from './formations.js';
 
 export const SCENARIOS = {
   A1: {
@@ -131,7 +131,7 @@ export const SCENARIOS = {
     ourShapeName: '4-3-3',
     oppShapeName: '4-3-3 게겐프레스',
     scheme: 'gegen', intensity: 'high', compactness: 'tight',
-    buildOurs: build433Hybrid,
+    buildOurs: build433Ours,
     buildOpp: build433Gegen,
     briefing: '같은 형태의 4-3-3이 달려듭니다. 첫 압박 파도가 가장 빠릅니다 — 원터치 조합으로 첫 추적을 벗기면 등 뒤가 벌겁니다. 두 번째 파도가 오기 전에 결정지어야 합니다.',
     oppPlan: '동형 4-3-3이 즉시 달려드는 게겐프레스. 첫 파도가 가장 강하고 두 번째 파도는 약해짐. 약점: 첫 파도를 벗기면 백라인 전환 비었음.',
@@ -146,7 +146,7 @@ export const SCENARIOS = {
     ourShapeName: '4-4-2',
     oppShapeName: '4-2-3-1 하이브리드',
     scheme: 'hybrid', intensity: 'mid', compactness: 'normal',
-    buildOurs: build442Zonal,
+    buildOurs: build442Ours,
     buildOpp: build4231Midblock,
     briefing: '4-2-3-1이 상황을 보며 점프합니다. 언제 압박이 올지 읽어야 합니다 — 점프 타이밍을 속이면 10번의 커버 섀도우 바깥이 열립니다. 써드맨 움직임으로 점프를 빗나가게 하세요.',
     oppPlan: '4-2-3-1이 선택적으로 점프하는 하이브리드 압박. 상황 보며 추적. 약점: 커버 섀도우 바깥의 제3의 선수 움직임.',

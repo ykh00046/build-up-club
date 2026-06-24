@@ -48,6 +48,42 @@ export function buildDoublePivot23() {
   ];
 }
 
+// 4-3-3: 정형 4-3-3 보유 형태 — 단일 피벗(6) + 두 8번 + 전방 3인.
+// (E1 거울매치용 us 4-3-3. salida 빌드업이 아닌 표준 배치.)
+export function build433Ours() {
+  return [
+    P({ id: 'us-gk',  role: 'GK',  num: 1,  label: 'GK',     x: 6,  y: 34, traits: { pass: .8, longPass: .6, pressResistance: .55, pace: .3, shot: {} } }),
+    P({ id: 'us-lcb', role: 'CB',  num: 4,  label: 'LCB',    x: 16, y: 25, traits: { pass: .85, longPass: .7, pressResistance: .7, pace: .5, shot: {} } }),
+    P({ id: 'us-rcb', role: 'CB',  num: 5,  label: 'RCB',    x: 16, y: 43, traits: { pass: .85, longPass: .65, pressResistance: .75, pace: .55, carry: .8, shot: {} } }),
+    P({ id: 'us-lb',  role: 'FB',  num: 3,  label: 'LB',     x: 32, y: 9,  traits: { pass: .72, longPass: .5, pressResistance: .6, pace: .88, shot: { cutbackDeliver: 1.1 } } }),
+    P({ id: 'us-rb',  role: 'FB',  num: 2,  label: 'RB',     x: 32, y: 59, traits: { pass: .72, longPass: .5, pressResistance: .6, pace: .85, shot: { cutbackDeliver: 1.1 } } }),
+    P({ id: 'us-6',   role: 'DM',  num: 6,  label: '6',      x: 32, y: 34, traits: { pass: .9, longPass: .8, pressResistance: .85, pace: .5, shot: { midRange: 1.0, centralD: .9 } } }),
+    P({ id: 'us-l8',  role: '8',   num: 8,  label: 'L8',     x: 48, y: 24, traits: { pass: .85, longPass: .6, pressResistance: .8, pace: .72, shot: { cutback: 1.2, centralD: 1.0, midRange: .9, closeRange: 1.0 } } }),
+    P({ id: 'us-r8',  role: '8',   num: 10, label: 'R8',     x: 48, y: 44, traits: { pass: .85, longPass: .65, pressResistance: .8, pace: .75, shot: { cutback: 1.2, centralD: 1.1, midRange: 1.0, closeRange: 1.0 } } }),
+    P({ id: 'us-lw',  role: 'W',   num: 11, label: 'LW',     x: 70, y: 9,  traits: { pass: .75, longPass: .4, pressResistance: .7, pace: .95, shot: { halfSpace: 1.2, cutback: .9 } } }),
+    P({ id: 'us-rw',  role: 'W',   num: 7,  label: 'RW',     x: 70, y: 59, traits: { pass: .75, longPass: .4, pressResistance: .7, pace: .9, shot: { halfSpace: 1.15, cutback: .9 } } }),
+    P({ id: 'us-st',  role: 'ST',  num: 9,  label: 'ST',     x: 80, y: 34, traits: { pass: .7, longPass: .3, pressResistance: .65, pace: .8, shot: { sixYard: 1.3, header: 1.2, halfSpace: .9, centralD: .9, closeRange: 1.15 } } }),
+  ];
+}
+
+// 4-4-2: 두 줄의 4 + 투톱. 측면 미드는 폭을 잡고, 중앙 더블이 스크린, 두 ST가 전방을 공유.
+// (E2 us 4-4-2 — opp 4-2-3-1 미드블록 상대.)
+export function build442Ours() {
+  return [
+    P({ id: 'us-gk',  role: 'GK',  num: 1,  label: 'GK',     x: 6,  y: 34, traits: { pass: .78, longPass: .6, pressResistance: .5, pace: .3, shot: {} } }),
+    P({ id: 'us-lcb', role: 'CB',  num: 4,  label: 'LCB',    x: 16, y: 26, traits: { pass: .82, longPass: .65, pressResistance: .68, pace: .5, shot: {} } }),
+    P({ id: 'us-rcb', role: 'CB',  num: 5,  label: 'RCB',    x: 16, y: 42, traits: { pass: .82, longPass: .6, pressResistance: .7, pace: .55, shot: {} } }),
+    P({ id: 'us-lb',  role: 'FB',  num: 3,  label: 'LB',     x: 30, y: 9,  traits: { pass: .72, longPass: .5, pressResistance: .6, pace: .85, shot: { cutbackDeliver: 1.05 } } }),
+    P({ id: 'us-rb',  role: 'FB',  num: 2,  label: 'RB',     x: 30, y: 59, traits: { pass: .72, longPass: .5, pressResistance: .6, pace: .85, shot: { cutbackDeliver: 1.05 } } }),
+    P({ id: 'us-6',   role: '8',   num: 6,  label: 'LCM',    x: 42, y: 28, traits: { pass: .88, longPass: .72, pressResistance: .82, pace: .6, shot: { midRange: 1.0, centralD: .95 } } }),
+    P({ id: 'us-l8',  role: '8',   num: 8,  label: 'RCM',    x: 42, y: 40, traits: { pass: .88, longPass: .68, pressResistance: .82, pace: .62, shot: { midRange: 1.05, centralD: 1.0, closeRange: .95 } } }),
+    P({ id: 'us-lw',  role: 'W',   num: 11, label: 'LM',     x: 56, y: 10, traits: { pass: .76, longPass: .45, pressResistance: .7, pace: .92, shot: { halfSpace: 1.1, cutback: 1.0 } } }),
+    P({ id: 'us-rw',  role: 'W',   num: 7,  label: 'RM',     x: 56, y: 58, traits: { pass: .76, longPass: .45, pressResistance: .7, pace: .9, shot: { halfSpace: 1.1, cutback: 1.0 } } }),
+    P({ id: 'us-st',  role: 'ST',  num: 9,  label: 'ST',     x: 78, y: 28, traits: { pass: .72, longPass: .35, pressResistance: .68, pace: .82, shot: { sixYard: 1.3, header: 1.25, halfSpace: .95, closeRange: 1.15 } } }),
+    P({ id: 'us-r8',  role: 'ST',  num: 10, label: 'ST2',    x: 78, y: 40, traits: { pass: .74, longPass: .35, pressResistance: .68, pace: .8, shot: { sixYard: 1.25, header: 1.3, centralD: 1.0, closeRange: 1.2 } } }),
+  ];
+}
+
 // ─── Opponent presses ──────────────────────────────────────────
 // Opp players carry: line ('front'|'mid'|'back'|'gk'), jumpiness (who commits),
 // leash (how far they stray from anchor), and optionally markId (man/hybrid).

@@ -106,6 +106,10 @@ export function normalizeState(raw = {}) {
   }
   for (const key of ['w', 'd', 'l']) next.record[key] = Math.max(0, finiteOr(next.record[key], 0));
   next.divIdx = Math.max(0, Math.min(DIVISIONS.length - 1, Math.floor(next.divIdx)));
+  // 챔피언/프레스티지 플래그는 최상위 디비전에서만 유효. 하위 디비전과 불일치하는
+  // 손상·구버전 세이브가 addPoints의 승점 클램프(259)로 영구 소프트락 되는 것을 막는다.
+  if (next.divIdx < DIVISIONS.length - 1) { next.isChampion = false; next.canPrestige = false; }
+  else { next.isChampion = Boolean(next.isChampion); next.canPrestige = Boolean(next.canPrestige); }
   next.effects = Array.isArray(src.effects) ? src.effects.filter(Boolean) : [];
   // 레거시 철학 id 보정 — counter→direct, gegen→pressproof (Sprint 4 id 정합).
   const LEGACY_PHILO = { counter: 'direct', gegen: 'pressproof' };

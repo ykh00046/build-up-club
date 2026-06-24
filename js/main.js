@@ -1226,9 +1226,18 @@ function updateTacticalHud(s) {
 // ─── render loop ─────────────────────────────────────────────────────────────
 let lastTs = performance.now();
 let lastWindowKey = null;
+// 피치를 가리는 풀스크린 오버레이가 떠 있으면 매치는 상호작용 불가 — 그동안
+// engine.update + 전체 렌더 + 프레임당 프리뷰 계산을 건너뛴다(배터리/CPU 절약).
+const PITCH_COVER_SEL = '#title-overlay.visible, #outcome-overlay.visible, #select-overlay.visible, #tactics-overlay.visible, #hub-overlay.visible, #career-result.visible, #event-overlay.visible, #tutorial-overlay.visible, #philo-overlay.visible';
+function renderPaused() {
+  return document.hidden || !!document.querySelector(PITCH_COVER_SEL);
+}
 function loop(ts) {
+  requestAnimationFrame(loop);
   const dt = Math.min(50, ts - lastTs);
   lastTs = ts;
+  // 오버레이가 피치를 덮는 동안은 무거운 작업을 멈춘다(루프는 살아있어 닫히면 자동 재개).
+  if (renderPaused()) return;
   engine.update(dt);
 
   const s = engine.state;
@@ -1330,7 +1339,7 @@ function loop(ts) {
     if (careerActive) settleCareerMatch();
     else showOutcome(engine, newAttempt, nextCell);
   }
-  requestAnimationFrame(loop);
+  // (재스케줄은 loop() 진입부에서 처리 — 여기서 다시 호출하면 프레임당 이중 예약됨)
 }
 
 window.addEventListener('resize', resize);

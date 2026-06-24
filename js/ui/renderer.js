@@ -745,6 +745,8 @@ function drawBall(ball) {
   if (ballPrevLog) {
     const d = Math.hypot(logX - ballPrevLog.x, logY - ballPrevLog.y);
     if (d > 0.1 && d < r * 6) ballSpin += (d / r) * 0.9 * (Math.sign(logX - ballPrevLog.x) || 1);
+    // 긴 세션에서 무한 누적 시 sin/cos 부동소수 정밀도 손실 — 2π로 래핑.
+    ballSpin %= (Math.PI * 2);
   }
   ballPrevLog = { x: logX, y: logY };
   // 축구공 패널.
