@@ -44,6 +44,69 @@ export function initHub(opts) {
     const v = prompt(getLang() === 'ko' ? '클럽 이름' : 'Club name', clubLabel());
     if (v != null) { club.clubName = v.slice(0, 24); save(); renderHub(); }
   });
+  // 탭 전환
+  for (const tab of document.querySelectorAll('.hub-tab')) {
+    tab.addEventListener('click', () => switchHubTab(tab.dataset.tab));
+  }
+}
+
+// ── 단계적 해금 ────────────────────────────────────────────────
+// 시스템을 한 번에 쏟지 않고 진행도에 따라 하나씩 연다(순차 공개).
+// 가시성만 게이팅 — 엔진/저장 로직은 건드리지 않는다.
+const HUB_TABS = ['match', 'squad', 'club'];
+
+function hubUnlocks() {
+  const mp = club.record.w + club.record.d + club.record.l;
+  const tier = division().tier;
+  const anyXp = Object.values(club.identityXp || {}).some((v) => v > 0);
+  const identity = mp >= 2 || anyXp;
+  const philosophy = mp >= 3 || (club.philoPoints || 0) > 0 || tier <= 4 || !!currentPhilosophy();
+  const seasonGoals = tier <= 4 || mp >= 6;
+  const prestige = !!club.canPrestige;
+  return { mp, tier, identity, philosophy, seasonGoals, prestige, clubTab: identity || philosophy || seasonGoals || prestige };
+}
+
+function switchHubTab(name) {
+  for (const t of HUB_TABS) {
+    const btn = $('tab-' + t);
+    const panel = $('hub-panel-' + t);
+    const on = t === name;
+    if (btn) { btn.classList.toggle('on', on); btn.setAttribute('aria-selected', on ? 'true' : 'false'); }
+    if (panel) { panel.hidden = !on; panel.classList.toggle('on', on); }
+  }
+  if (name === 'club') markClubSeen();
+}
+
+function markClubSeen() {
+  const u = hubUnlocks();
+  club.hubSeen = { identity: u.identity, philosophy: u.philosophy, seasonGoals: u.seasonGoals, prestige: u.prestige };
+  save();
+  const dot = $('tab-club-dot'); if (dot) dot.hidden = true;
+}
+
+// 해금 상태를 화면에 반영 — renderHub 끝에서 호출(콘텐츠 채운 뒤 가시성 결정).
+function applyUnlocks() {
+  const u = hubUnlocks();
+  const clubBtn = $('tab-club'); if (clubBtn) clubBtn.hidden = !u.clubTab;
+  setHidden('hub-philo', !u.philosophy);
+  setHidden('hub-identity', !u.identity);
+  setHidden('hub-season-goals', !u.seasonGoals);
+  // 새 해금 알림 점
+  const seen = club.hubSeen || {};
+  const fresh = (u.identity && !seen.identity) || (u.philosophy && !seen.philosophy)
+             || (u.seasonGoals && !seen.seasonGoals) || (u.prestige && !seen.prestige);
+  const dot = $('tab-club-dot'); if (dot) dot.hidden = !(u.clubTab && fresh);
+  // 다음 해금 한 줄 안내 (클럽 탭이 열렸지만 철학은 아직일 때)
+  const lk = $('hub-locked');
+  if (lk) {
+    if (u.clubTab && !u.philosophy) {
+      lk.hidden = false;
+      lk.innerHTML = `<span class="lk-icon">🔒</span>곧 <b>클럽 철학</b>이 열립니다 — 경기를 더 치러보세요`;
+    } else lk.hidden = true;
+  }
+  // 클럽 탭이 잠겼는데 활성 상태면 경기 탭으로 되돌림
+  const clubPanel = $('hub-panel-club');
+  if (!u.clubTab && clubPanel && !clubPanel.hidden) switchHubTab('match');
 }
 
 function pulse(el) {
@@ -114,6 +177,7 @@ export function renderHub() {
   }
 
   renderNextMatch();
+  applyUnlocks();
 }
 
 function renderIdentity() {
@@ -246,15 +310,18 @@ function renderSquad() {
     const pv = upgradePreview(p.key);
     const isAtk = p.atk >= p.def;
     const statKo = isAtk ? t('hub.atk') : t('hub.def');
-    const stat = isAtk ? pv.atk : pv.def;
-    const winUp = pv.win.to > pv.win.from;
     const dShot = Math.round((pv.shot.to - pv.shot.from) * 100);
     const dPass = +(((pv.pass.to - pv.pass.from) * 100).toFixed(1));
     const dGk = Math.round((pv.gk.to - pv.gk.from) * 100);
+    // 상세는 툴팁으로만 — 카드 표면엔 한 줄도 늘리지 않는다.
     const detail = `${t('pos.' + p.key)} Lv${lvl}→${lvl + 1} · `
       + `${t('hub.atk')} ${pv.atk.from}→${pv.atk.to}, ${t('hub.def')} ${pv.def.from}→${pv.def.to} · `
       + (isAtk ? `슛 보정 +${dShot}%, 패스 안정 +${dPass} · ` : `선방 +${dGk}% · `)
       + `${t('match.win')} ${pv.win.from}%→${pv.win.to}%`;
+    // 강화의 가치를 토큰 하나로: 승률이 오르면 승률, 아니면 스탯 증가분.
+    const winDelta = pv.win.to - pv.win.from;
+    const statDelta = isAtk ? (pv.atk.to - pv.atk.from) : (pv.def.to - pv.def.from);
+    const delta = winDelta > 0 ? `${t('match.win')} +${winDelta}%` : `${statKo} +${statDelta}`;
     const accent = posAccentColor(p.key);
     return `
       <div class="sq-card" data-pos="${p.key}" style="border-left: 3px solid ${accent}">
@@ -266,12 +333,9 @@ function renderSquad() {
           ${p.atk ? `<span class="sq-bar atk" title="ATK"><i style="width:${Math.min(100, lvl * p.atk * 4)}%"></i></span>` : ''}
           ${p.def ? `<span class="sq-bar def" title="DEF"><i style="width:${Math.min(100, lvl * p.def * 4)}%"></i></span>` : ''}
         </div>
-        <div class="sq-prev" title="${detail}">
-          <span class="sq-prev-stat">${statKo} ${stat.from}→<b>${stat.to}</b></span>
-          <span class="sq-prev-win ${winUp ? 'up' : ''}">${t('match.win')} ${pv.win.from}→${pv.win.to}%</span>
-        </div>
-        <button class="sq-buy ${afford ? '' : 'no'}" data-pos="${p.key}" aria-label="${detail}">
-          <span>${t('hub.upgrade')}</span><span class="sq-cost">${formatNum(cost)}</span>
+        <button class="sq-buy ${afford ? '' : 'no'}" data-pos="${p.key}" title="${detail}" aria-label="${detail}">
+          <span class="sq-act">${t('hub.upgrade')}<small class="sq-delta">${delta}</small></span>
+          <span class="sq-cost">${formatNum(cost)}</span>
         </button>
       </div>`;
   }).join('');
@@ -308,6 +372,7 @@ function renderNextMatch() {
 
 function setText(id, v) { const el = $(id); if (el) el.textContent = v; }
 function setHtml(id, v) { const el = $(id); if (el) el.innerHTML = v; }
+function setHidden(id, v) { const el = $(id); if (el) el.hidden = v; }
 function toggleAfford(id, ok) { const el = $(id); if (el) el.classList.toggle('no', !ok); }
 
 // Darken a hex color by a factor (0-1). Used for badge gradient.

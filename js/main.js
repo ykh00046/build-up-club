@@ -423,6 +423,19 @@ const RING_LABELS = {
 };
 let ringHover = null;
 
+// 고급 액션 접기/펼치기 — 기본 4개만 노출해 첫 화면을 단순하게. 선택은 저장.
+const actionbarEl = document.querySelector('.actionbar');
+const ADV_KEY = 'beat-the-block:adv:v1';
+const moreBtn = document.getElementById('btn-action-more');
+function setAdvExpanded(expanded) {
+  if (!actionbarEl || !moreBtn) return;
+  actionbarEl.classList.toggle('adv-collapsed', !expanded);
+  moreBtn.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+  try { localStorage.setItem(ADV_KEY, expanded ? 'open' : 'closed'); } catch { /* private */ }
+}
+try { if (localStorage.getItem(ADV_KEY) === 'open') setAdvExpanded(true); } catch { /* private */ }
+moreBtn?.addEventListener('click', () => setAdvExpanded(actionbarEl.classList.contains('adv-collapsed')));
+
 function activateAction(id) {
   if (engine.state.status !== 'live' || engine.busy) return;
   if (id === 'hold' || id === 'shoot') {
@@ -462,6 +475,8 @@ function updateGuide() {
     const locked = !guideDismissed && stage === 1 && btn.dataset.guideTier === 'advanced';
     btn.classList.toggle('guide-locked', locked);
   }
+  // 첫 플레이 1단계에선 '고급' 토글도 숨겨 기본기에 집중시킨다.
+  actionbarEl?.classList.toggle('guide-stage1', !guideDismissed && stage === 1);
 }
 
 document.getElementById('btn-guide-dismiss')?.addEventListener('click', dismissGuide);
