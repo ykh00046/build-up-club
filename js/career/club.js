@@ -55,7 +55,7 @@ function freshState() {
     points: 0,
     matchday: 0,            // 누적 경기 수 (시나리오 로테이션용)
     clubName: '',
-    clubColor: '#5dd6c5',
+    clubColor: '#4d8bff',
     legacy: 0,
     champions: 0,
     canPrestige: false,

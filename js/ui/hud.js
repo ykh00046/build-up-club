@@ -72,7 +72,7 @@ export function renderLog(engine) {
   const newest = el.querySelector('.log-new');
   if (newest) {
     newest.style.transition = 'background-color 0.8s ease-out';
-    newest.style.backgroundColor = 'rgba(93, 214, 197, 0.18)';
+    newest.style.backgroundColor = 'rgba(77, 139, 255, 0.18)';
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         newest.style.backgroundColor = 'transparent';
@@ -139,7 +139,7 @@ function renderMetrics(m) {
 
 function spawnConfetti(container) {
   if (prefersReducedMotion()) return;   // 접근성: 모션 최소화 시 색종이 생략
-  const CONFETTI_COLORS = ['#5dd6c5', '#f5a623', '#ffffff', '#8df0e2', '#ffd28a'];
+  const CONFETTI_COLORS = ['#4d8bff', '#ffc24b', '#ffffff', '#9fc0ff', '#ffd28a'];
   const COUNT = 35;
   const confettiEls = [];
   // Inject keyframes once if not already present.

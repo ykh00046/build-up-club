@@ -148,7 +148,7 @@ function drawActionRing(view) {
     ctx.fill();
     ctx.strokeStyle = isShoot
       ? 'rgba(245, 166, 35, 0.95)'
-      : active ? 'rgba(93, 214, 197, 0.95)' : 'rgba(93, 214, 197, 0.38)';
+      : active ? 'rgba(77, 139, 255, 0.95)' : 'rgba(77, 139, 255, 0.38)';
     ctx.lineWidth = active ? 1.6 : 1;
     roundRect(px, py, w, hh, 10);
     ctx.stroke();
@@ -342,7 +342,7 @@ function drawPhaseLine(phase) {
 // window points at — made visible so the player reads the edge, not luck.
 const EDGE_STYLE = {
   numerical:        { fill: 'rgba(245, 200, 66, 0.13)', ring: 'rgba(245, 200, 66, 0.6)',  ko: '+1' },
-  between_lines:    { fill: 'rgba(93, 214, 197, 0.13)', ring: 'rgba(93, 214, 197, 0.6)',  ko: '라인 사이' },
+  between_lines:    { fill: 'rgba(77, 139, 255, 0.13)', ring: 'rgba(77, 139, 255, 0.6)',  ko: '라인 사이' },
   overload_between: { fill: 'rgba(140, 230, 140, 0.16)', ring: 'rgba(140, 230, 140, 0.7)', ko: '+1 사이' },
 };
 function drawSuperiorityZones(zones) {
@@ -373,8 +373,8 @@ function drawRewardWindow(w) {
   const breath = 1 + Math.sin(pulse * (strong ? 5 : 9)) * (strong ? 0.10 : 0.04);
   const r = w.r * breath * scale;
   const g = ctx.createRadialGradient(mx(w.x), my(w.y), r * 0.2, mx(w.x), my(w.y), r);
-  g.addColorStop(0, strong ? 'rgba(93,214,197,0.28)' : 'rgba(93,214,197,0.16)');
-  g.addColorStop(1, 'rgba(93,214,197,0)');
+  g.addColorStop(0, strong ? 'rgba(77, 139, 255,0.28)' : 'rgba(77, 139, 255,0.16)');
+  g.addColorStop(1, 'rgba(77, 139, 255,0)');
   ctx.fillStyle = g;
   ctx.beginPath(); ctx.arc(mx(w.x), my(w.y), r, 0, Math.PI * 2); ctx.fill();
   ctx.strokeStyle = COLORS.windowEdge;
@@ -628,7 +628,7 @@ function drawToken(p, isHolder, pressureExpr) {
   ctx.restore();
   // 베이스 디스크(평면 색) + 소유자 글로우.
   ctx.save();
-  if (isHolder) { ctx.shadowColor = us ? 'rgba(93, 214, 197, 0.6)' : 'rgba(255, 92, 92, 0.55)'; ctx.shadowBlur = 11; }
+  if (isHolder) { ctx.shadowColor = us ? 'rgba(77, 139, 255, 0.6)' : 'rgba(255, 92, 92, 0.55)'; ctx.shadowBlur = 11; }
   ctx.fillStyle = us ? (usColor || COLORS.us) : COLORS.opp;
   ctx.strokeStyle = us ? (usColor ? shadeHex(usColor, -0.45) : COLORS.usStroke) : COLORS.oppStroke;
   ctx.lineWidth = 1;
@@ -657,7 +657,7 @@ function drawToken(p, isHolder, pressureExpr) {
     const speed = 2 + ringLevel * 6;
     const breath = Math.sin(pulse * speed) * (1.5 + ringLevel * 2);
     const rr = r + 5 + (1 - ringLevel) * 4 + breath;
-    ctx.strokeStyle = ringLevel > 0.65 ? 'rgba(255, 92, 92, 0.9)' : ringLevel > 0.3 ? 'rgba(245, 166, 35, 0.85)' : 'rgba(93, 214, 197, 0.8)';
+    ctx.strokeStyle = ringLevel > 0.65 ? 'rgba(255, 92, 92, 0.9)' : ringLevel > 0.3 ? 'rgba(245, 166, 35, 0.85)' : 'rgba(77, 139, 255, 0.8)';
     ctx.lineWidth = 1.6 + ringLevel;
     ctx.beginPath(); ctx.arc(cx, cy, rr, 0, Math.PI * 2); ctx.stroke();
   }

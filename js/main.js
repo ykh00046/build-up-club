@@ -296,7 +296,7 @@ function buildFormationSvg(scn, intents = { front: 'pin', mid: 'between', back: 
   for (const p of opps) {
     if (p.line === 'gk') continue;
     const cx = mx(p.x), cy = my(p.y);
-    d += `<circle cx="${cx}" cy="${cy}" r="8.5" fill="#e35d5d" fill-opacity="0.83"/>`;
+    d += `<circle cx="${cx}" cy="${cy}" r="8.5" fill="#ff5a6e" fill-opacity="0.83"/>`;
     d += `<text x="${cx}" y="${(Number(cy) + 3.5).toFixed(1)}" text-anchor="middle" font-size="7.5" fill="#fff" font-weight="700" font-family="system-ui,sans-serif">${p.num}</text>`;
   }
   // 우리 선수: ghost(homeX) + 인텐트 적용 위치(adjusted)
@@ -308,18 +308,18 @@ function buildFormationSvg(scn, intents = { front: 'pin', mid: 'between', back: 
     // Ghost: 기본 위치 (점선 원, 인텐트로 움직이는 경우만)
     if (moved) {
       const gx = mx(p.x), gy = my(p.y);
-      d += `<circle cx="${gx}" cy="${gy}" r="8" fill="none" stroke="#5dd6c5" stroke-opacity="0.22" stroke-width="1.2" stroke-dasharray="3 2"/>`;
+      d += `<circle cx="${gx}" cy="${gy}" r="8" fill="none" stroke="#4d8bff" stroke-opacity="0.22" stroke-width="1.2" stroke-dasharray="3 2"/>`;
       // 화살표 선
       const tx = mx(adjX), ty = my(p.y);
-      d += `<line x1="${gx}" y1="${gy}" x2="${tx}" y2="${ty}" stroke="#5dd6c5" stroke-opacity="0.30" stroke-width="1" marker-end="url(#arr)"/>`;
+      d += `<line x1="${gx}" y1="${gy}" x2="${tx}" y2="${ty}" stroke="#4d8bff" stroke-opacity="0.30" stroke-width="1" marker-end="url(#arr)"/>`;
     }
     // Solid: 인텐트 적용 위치
     const cx = mx(adjX), cy = my(p.y);
-    d += `<circle cx="${cx}" cy="${cy}" r="8.5" fill="#5dd6c5" fill-opacity="${moved ? '1' : '0.88'}"/>`;
+    d += `<circle cx="${cx}" cy="${cy}" r="8.5" fill="#4d8bff" fill-opacity="${moved ? '1' : '0.88'}"/>`;
     d += `<text x="${cx}" y="${(Number(cy) + 3.5).toFixed(1)}" text-anchor="middle" font-size="7.5" fill="#062018" font-weight="800" font-family="system-ui,sans-serif">${p.num}</text>`;
   }
   // 화살표 마커 정의
-  const arrowDef = `<defs><marker id="arr" markerWidth="4" markerHeight="4" refX="3" refY="2" orient="auto"><path d="M0,0 L4,2 L0,4 Z" fill="#5dd6c5" fill-opacity="0.45"/></marker></defs>`;
+  const arrowDef = `<defs><marker id="arr" markerWidth="4" markerHeight="4" refX="3" refY="2" orient="auto"><path d="M0,0 L4,2 L0,4 Z" fill="#4d8bff" fill-opacity="0.45"/></marker></defs>`;
   return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">${arrowDef}${d}</svg>`;
 }
 
@@ -983,7 +983,7 @@ function settleCareerMatch() {
 // 색종이 파티클 — Web Animations API로 자체 낙하/회전(추가 CSS 불필요).
 function spawnConfetti(host, n = 42) {
   if (!host || prefersReducedMotion()) return;   // 접근성: 모션 최소화 시 색종이 생략
-  const colors = ['#5dd6c5', '#f5a623', '#e35d5d', '#5aa9f0', '#c8a0e8', '#ffffff'];
+  const colors = ['#4d8bff', '#ffc24b', '#ff5a6e', '#5aa9f0', '#c8a0e8', '#ffffff'];
   const h = host.clientHeight || 600;
   for (let i = 0; i < n; i++) {
     const p = document.createElement('div');
@@ -1093,7 +1093,7 @@ function showCareerResult({ tone, score, income, prog, oppName, mission, seasonG
   // Win: brief green flash overlay. (접근성: 모션 최소화 시 생략)
   if (r === 'w' && !prefersReducedMotion()) {
     const flash = document.createElement('div');
-    flash.style.cssText = 'position:absolute;inset:0;background:rgba(93,214,197,0.18);pointer-events:none;z-index:999;transition:opacity 0.6s ease-out;';
+    flash.style.cssText = 'position:absolute;inset:0;background:rgba(77, 139, 255,0.18);pointer-events:none;z-index:999;transition:opacity 0.6s ease-out;';
     // (careerResult는 CSS상 position:fixed라 absolute 플래시가 그대로 덮는다.
     //  여기서 inline position을 건드리면 fixed가 덮여 오버레이가 흐름으로 떨어지는 버그.)
     careerResult.appendChild(flash);

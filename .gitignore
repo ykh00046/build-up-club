@@ -21,3 +21,7 @@ dist/
 .verify/audit-*.json
 .verify/*.png
 .verify/__pycache__/
+
+# 디자인 레퍼런스(작업용, 대용량)
+Build-up Club 화면 개선/
+_*.png
