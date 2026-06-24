@@ -112,7 +112,8 @@ function renderReport(report) {
     ['다음 경기 추천', report.next],
   ];
   const body = rows.map(([k, v]) => `<div class="tr-row"><span>${escapeHtml(k)}</span><b>${escapeHtml(v || '—')}</b></div>`).join('');
-  return renderMetrics(report.metrics) + body;
+  const sup = report.superiority ? `<div class="tr-sup">만든 우위 · <b>${escapeHtml(report.superiority)}</b></div>` : '';
+  return renderMetrics(report.metrics) + sup + body;
 }
 
 // 실제 축구 지표로 결과를 설명 (E2). 데이터는 report.js가 facts·xG로 산출.

@@ -70,6 +70,15 @@ function buildMetrics(state, outcome) {
   };
 }
 
+// 만든 우위 분류 (E3, research §2.3). facts로부터 어떤 우위를 만들었는지 읽어
+// 결과를 우위 언어로 설명한다. 질적(유인→전환 고립) > 위치(라인 사이/배후) > 수적.
+function classifySuperiority(f = {}) {
+  if ((f.baits || 0) >= 2 && (f.switches || 0) >= 1) return '질적 우위 — 유인 후 전환으로 약측 1v1 고립';
+  if ((f.linesBroken || 0) >= 2 || (f.windowsUsed || 0) >= 1) return '위치 우위 — 라인 사이·배후를 점유';
+  if ((f.situationsResolved || 0) >= 1 || (f.runs || 0) >= 2 || (f.switches || 0) >= 1) return '수적 우위 — 상황·침투로 국지적 과부하';
+  return '뚜렷한 우위는 만들지 못했습니다';
+}
+
 function pickNext(state, outcome) {
   const active = state.situations?.active || [];
   if (active.some((s) => s.id === 'pressure_surge')) return '압박 강화가 보이면 기다리기보다 원투/써드맨으로 첫 압박선을 바로 벗기세요.';
@@ -88,5 +97,6 @@ export function buildTacticalReport(state, outcome) {
     decisive: pickDecisive(outcome, state),
     next: pickNext(state, outcome),
     metrics: buildMetrics(state, outcome),
+    superiority: classifySuperiority(state.facts),
   };
 }

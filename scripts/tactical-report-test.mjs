@@ -1,5 +1,6 @@
 import { buildTacticalReport } from '../js/engine/report.js';
 import { createTacticalState } from '../js/engine/tactics.js';
+import { resolveScoreline } from '../js/career/mods.js';
 
 let fail = 0;
 const ok = (condition, message) => {
@@ -51,6 +52,26 @@ const mLow = buildTacticalReport(makeState({ facts: { linesBroken: 0, baits: 0 }
 ok(m.xt > mLow.xt && m.dominance > mLow.dominance, 'E2: 전진 많을수록 xT·지배력 증가(단조)');
 const mNoXg = buildTacticalReport(makeState(), { tone: 'fail' }).metrics;
 ok(mNoXg.xg === null, 'E2: 슛 없으면 xG=null(안전)');
+
+// ── E3: 3대 우위 분류 + 오버로드-투-아이솔레이트 보너스 ──
+const supQual = buildTacticalReport(makeState({ facts: { baits: 2, switches: 1 } }), { tone: 'goal' }).superiority;
+ok(supQual.includes('질적'), 'E3: 유인2+전환 → 질적 우위로 분류');
+const supPos = buildTacticalReport(makeState({ facts: { linesBroken: 2, baits: 0, switches: 0 } }), { tone: 'goal' }).superiority;
+ok(supPos.includes('위치'), 'E3: 라인 돌파 → 위치 우위로 분류');
+const supNone = buildTacticalReport(makeState({ facts: { baits: 0, linesBroken: 0, switches: 0, runs: 0, windowsUsed: 0, situationsResolved: 0 } }), { tone: 'fail' }).superiority;
+ok(supNone.includes('못'), 'E3: 무행동 → 우위 없음으로 분류');
+// 오버로드→전환 고립이 스코어라인 exec를 끌어올려 평균 득점이 증가(단조)
+const NM = { execMul: 1, xgMul: 1, concedeMul: 1, secondGoalBonus: 0, failConcedeRelief: 0 };
+function ourGoals(perf, n = 6000) {
+  let g = 0, seed = 11;
+  const rng = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
+  const setup = { atk: 110, def: 110, oppOVR: 200, trainingScore: {} };
+  for (let i = 0; i < n; i++) g += resolveScoreline(perf, setup, rng, NM).ourGoals;
+  return g / n;
+}
+const withIso = ourGoals({ tone: 'goal', xg: 0.3, baits: 2, switches: 1 });
+const noIso = ourGoals({ tone: 'goal', xg: 0.3, baits: 1, switches: 0 });
+ok(withIso > noIso, `E3: 오버로드→전환 고립이 득점 기여 증가 (${noIso.toFixed(3)}→${withIso.toFixed(3)})`);
 
 console.log(fail === 0 ? '\n✅ 전술 리포트 전 항목 통과' : `\n❌ ${fail}건 실패`);
 process.exit(fail === 0 ? 0 : 1);

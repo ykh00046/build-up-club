@@ -135,10 +135,13 @@ export function resolveScoreline(perf, setup, rngNext, pmods = philoMods()) {
   const P = typeof perf === 'string' ? { tone: perf } : (perf || {});
   const tone = P.tone || 'fail';
 
+  // 오버로드-투-아이솔레이트(질적 우위, E3): 한쪽을 유인(baits)한 뒤 전환(switch)하면
+  // 반대편 1v1 고립이 만들어진다. 모두에게 열린 베이스 보상(wing execMul이 추가 증폭).
+  const isolation = ((P.baits || 0) >= 2 && (P.switches || 0) >= 1) ? 0.08 : 0;
   // 빌드업 품질(압박을 얼마나 흔들었나) + 슛 품질
   const execRaw = (P.baits || 0) * 0.05 + (P.linesBroken || 0) * 0.12 + (P.switches || 0) * 0.08
                 + (P.runs || 0) * 0.05 + (P.windowsUsed || 0) * 0.10
-                + (P.situationsResolved || 0) * 0.09 + (P.decisionsMade || 0) * 0.04;
+                + (P.situationsResolved || 0) * 0.09 + (P.decisionsMade || 0) * 0.04 + isolation;
   const trainingScore = setup.trainingScore || {};
   const exec = clamp(execRaw * (pmods.execMul || 1) + (trainingScore.execAdd || 0), 0, 0.8);
   const xg = clamp((P.xg || 0) * (pmods.xgMul || 1) * (trainingScore.xgMul || 1), 0, 1);
