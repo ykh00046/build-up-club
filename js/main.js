@@ -906,6 +906,8 @@ function settleCareerMatch() {
     runs: f.runs, windowsUsed: f.windowsUsed,
     situationsResolved: f.situationsResolved, decisionsMade: f.decisionsMade,
     xg: out?.xg ?? 0,
+    // 게임스테이트 (E4): 전술 모먼트의 모멘텀·피로가 정산 스코어라인으로 흘러든다.
+    momentum: engine.state.momentum, fatigue: engine.state.fatigue,
   };
   const score = resolveScoreline(perf, setup, careerRng);
   const income = Club.settleMatch(score.result, score.cleanSheet);

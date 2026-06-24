@@ -148,12 +148,18 @@ export function resolveScoreline(perf, setup, rngNext, pmods = philoMods()) {
   const edge = clamp((setup.atk - 8) / 40, 0, 0.5);          // 공격 전력 우위
   const dominance = clamp(exec + xg * 0.35 + edge * 0.4, 0, 1);
 
+  // 게임스테이트 (E4, research §3.2). 기본값(모멘텀 50·피로 0)은 중립 → 엔진 없이
+  // 돌리는 career-sim 회귀에는 영향 없음. 실제 경기에서만 엔진 상태가 흘러든다.
+  const momentum = P.momentum ?? 50;
+  const fatigue = P.fatigue || 0;
+  const momFac = clamp(0.85 + (momentum / 100) * 0.30, 0.7, 1.2);  // 모멘텀↑ → 다득점↑
+
   let ourGoals = 0;
   if (tone === 'goal') {
     ourGoals = 1;
     // 다득점은 '수행(dominance)'이 주도, 퍽은 보조(×0.55) — 퍽 누적만으로 보장되지 않게.
-    // 배율 스택을 막기 위해 2골 상한도 0.72로 제한(상위 디비전 스윙 완화).
-    const p2 = clamp(dominance * 0.50 + (pmods.secondGoalBonus || 0) * 0.55, 0, 0.72);
+    // 배율 스택을 막기 위해 2골 상한도 0.72로 제한(상위 디비전 스윙 완화). 모멘텀이 추가 변조.
+    const p2 = clamp((dominance * 0.50 + (pmods.secondGoalBonus || 0) * 0.55) * momFac, 0, 0.72);
     if (rngNext() < p2) {
       ourGoals = 2;
       // 3골은 진짜 압도적일 때만 — dominance 0.6 초과분에 비례(최대 ~24%).
@@ -176,6 +182,9 @@ export function resolveScoreline(perf, setup, rngNext, pmods = philoMods()) {
   let oppGoals = 0;
   if (rngNext() < concedeP) oppGoals += 1;
   if (rngNext() < concedeP * 0.45) oppGoals += 1;
+  // 후반 피로 — 골은 막판에 몰린다(§3.2). 피로가 쌓였을 때만 늦은 실점 롤(피로 0이면
+  // rng를 소비하지 않아 career-sim 시퀀스 불변).
+  if (fatigue > 0 && rngNext() < concedeP * (fatigue / 100) * 0.5) oppGoals += 1;
 
   const result = ourGoals > oppGoals ? 'w' : ourGoals < oppGoals ? 'l' : 'd';
   return {
