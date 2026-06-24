@@ -47,6 +47,29 @@ function pickDecisive(outcome, state) {
   return `${tone}${zone}${xg} · ${state.turn}턴`;
 }
 
+function clampUnit(v) { return v < 0 ? 0 : v > 1 ? 1 : v; }
+
+// 결과를 실제 축구 지표 언어로 설명한다 (enhancement-plan E2). 새 시뮬레이션 없이
+// 이미 집계 중인 facts·xG를 재표현만 한다.
+//  - packing : 라인 브레이킹 = 패스·드리블로 제친 상대 라인 수 (facts.linesBroken)
+//  - xt      : 기대 위협 지수 — 전진 행동의 가중합을 0~100으로 근사
+//  - xg      : 마무리 찬스의 질 (outcome.xg)
+//  - dominance: 빌드업 지배력 — 유인·전진·해결 종합 0~100
+function buildMetrics(state, outcome) {
+  const f = state.facts || {};
+  const packing = f.linesBroken || 0;
+  const xtRaw = packing * 0.14 + (f.windowsUsed || 0) * 0.12 + (f.switches || 0) * 0.09
+    + (f.runs || 0) * 0.05 + (f.situationsResolved || 0) * 0.08 + (f.decisionsMade || 0) * 0.03;
+  const domRaw = (f.baits || 0) * 0.04 + packing * 0.12 + (f.switches || 0) * 0.08
+    + (f.windowsUsed || 0) * 0.10 + (f.situationsResolved || 0) * 0.09 + (f.runs || 0) * 0.04;
+  return {
+    packing,
+    xt: Math.round(clampUnit(xtRaw) * 100),
+    dominance: Math.round(clampUnit(domRaw) * 100),
+    xg: outcome?.xg != null ? Math.round(outcome.xg * 100) : null,
+  };
+}
+
 function pickNext(state, outcome) {
   const active = state.situations?.active || [];
   if (active.some((s) => s.id === 'pressure_surge')) return '압박 강화가 보이면 기다리기보다 원투/써드맨으로 첫 압박선을 바로 벗기세요.';
@@ -64,5 +87,6 @@ export function buildTacticalReport(state, outcome) {
     read: pickRead(state),
     decisive: pickDecisive(outcome, state),
     next: pickNext(state, outcome),
+    metrics: buildMetrics(state, outcome),
   };
 }

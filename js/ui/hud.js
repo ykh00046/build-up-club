@@ -111,7 +111,21 @@ function renderReport(report) {
     ['결정적 장면', report.decisive],
     ['다음 경기 추천', report.next],
   ];
-  return rows.map(([k, v]) => `<div class="tr-row"><span>${escapeHtml(k)}</span><b>${escapeHtml(v || '—')}</b></div>`).join('');
+  const body = rows.map(([k, v]) => `<div class="tr-row"><span>${escapeHtml(k)}</span><b>${escapeHtml(v || '—')}</b></div>`).join('');
+  return renderMetrics(report.metrics) + body;
+}
+
+// 실제 축구 지표로 결과를 설명 (E2). 데이터는 report.js가 facts·xG로 산출.
+function renderMetrics(m) {
+  if (!m) return '';
+  const cell = (label, value, title) =>
+    `<span class="tm-cell" title="${escapeHtml(title)}"><i>${escapeHtml(label)}</i><b>${escapeHtml(value)}</b></span>`;
+  return `<div class="tr-metrics">`
+    + cell('패킹', String(m.packing), '라인 브레이킹 — 패스·드리블로 제친 상대 라인 수')
+    + cell('xT', String(m.xt), '기대 위협 — 전진 행동이 만든 위협 가치 지수(0~100)')
+    + cell('xG', m.xg != null ? m.xg + '%' : '—', '기대 득점 — 마무리 찬스의 질')
+    + cell('지배력', String(m.dominance), '빌드업 지배력 — 유인·전진·상황 해결 종합(0~100)')
+    + `</div>`;
 }
 
 function spawnConfetti(container) {

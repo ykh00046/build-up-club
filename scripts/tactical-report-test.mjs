@@ -39,5 +39,18 @@ report = buildTacticalReport(makeState({
 }), { tone: 'goal' });
 ok(report.worked.includes('상황 대응'), '상황 해결을 성공 원인으로 표시');
 
+// ── E2: 결과 지표 언어화 (패킹·xT·xG·지배력) ──
+const m = buildTacticalReport(makeState({
+  facts: { baits: 2, linesBroken: 3, switches: 1, windowsUsed: 1, runs: 2, situationsResolved: 1, decisionsMade: 1 },
+}), { tone: 'goal', xg: 0.42 }).metrics;
+ok(m && m.packing === 3, 'E2: 패킹 = 라인 브레이킹 수(linesBroken)');
+ok(m.xg === 42, 'E2: xG는 outcome.xg를 % 정수로');
+ok(m.xt >= 0 && m.xt <= 100, 'E2: xT 지수 0~100 범위');
+ok(m.dominance >= 0 && m.dominance <= 100, 'E2: 지배력 0~100 범위');
+const mLow = buildTacticalReport(makeState({ facts: { linesBroken: 0, baits: 0 } }), { tone: 'fail' }).metrics;
+ok(m.xt > mLow.xt && m.dominance > mLow.dominance, 'E2: 전진 많을수록 xT·지배력 증가(단조)');
+const mNoXg = buildTacticalReport(makeState(), { tone: 'fail' }).metrics;
+ok(mNoXg.xg === null, 'E2: 슛 없으면 xG=null(안전)');
+
 console.log(fail === 0 ? '\n✅ 전술 리포트 전 항목 통과' : `\n❌ ${fail}건 실패`);
 process.exit(fail === 0 ? 0 : 1);
