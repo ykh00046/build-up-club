@@ -4,6 +4,7 @@
 import {
   club, division, DIVISIONS, POSITIONS, teamOVR, attackOVR, defenseOVR,
   upgradeCost, buyUpgrade, stadiumCost, buyStadium, oppBaseOVR,
+  setPieceCoachCost, buySetPieceCoach,
   prestige, prestigeGain, boostActive, boostRemainSec, startBoost, formatNum, save,
 } from './club.js';
 import { matchSetup, upgradePreview } from './mods.js';
@@ -35,6 +36,7 @@ export function initHub(opts) {
   $('hub-play')?.addEventListener('click', () => handlers.onPlay());
   $('hub-lang')?.addEventListener('click', () => { toggleLang(); handlers.onLang?.(); renderHub(); });
   $('hub-stadium')?.addEventListener('click', () => { if (buyStadium()) { pulse($('hub-stadium')); renderHub(); } });
+  $('hub-setpiece')?.addEventListener('click', () => { if (buySetPieceCoach()) { pulse($('hub-setpiece')); renderHub(); } });
   $('hub-boost')?.addEventListener('click', () => { if (!boostActive()) { startBoost(); save(); renderHub(); } });
   $('hub-prestige')?.addEventListener('click', () => {
     if (!club.canPrestige) return;
@@ -154,6 +156,10 @@ export function renderHub() {
   // 스타디움 / 부스트 / 프레스티지
   setHtml('hub-stadium', `<span class="cb-k">${t('hub.stadium')} · Lv ${club.stadiumLvl}</span><span class="cb-v">${formatNum(stadiumCost())}</span>`);
   toggleAfford('hub-stadium', club.cash >= stadiumCost());
+  // 세트피스 코치 (E5) — 자금 소모형, 최대 레벨에서 MAX 표시.
+  const spCost = setPieceCoachCost();
+  setHtml('hub-setpiece', `<span class="cb-k">세트피스 코치 · Lv ${club.setPieceCoach}</span><span class="cb-v">${spCost == null ? 'MAX' : formatNum(spCost)}</span>`);
+  toggleAfford('hub-setpiece', spCost != null && club.cash >= spCost);
   const boostBtn = $('hub-boost');
   if (boostBtn) {
     boostBtn.innerHTML = boostActive()

@@ -21,7 +21,8 @@ import { initAudio, unlockAudio, setSoundEnabled, soundEnabled, setPressureLevel
 import { openModal, closeModal } from './ui/modal.js';
 // ─── Career layer (idle-football-club 메타 + 통합 글루) ───────────────────────
 import * as Club from './career/club.js';
-import { applyClubBoost, resolveScoreline, BUILD_SHAPES, applyShape } from './career/mods.js';
+import { applyClubBoost, resolveScoreline, BUILD_SHAPES, applyShape, applySetPiece } from './career/mods.js';
+import { DELIVERIES, DEFAULT_DELIVERY, bestDeliveryFor, deliveryBonus } from './data/setpieces.js';
 import { initHub, renderHub, nextMatchInfo } from './career/hub.js';
 import { t } from './career/i18n.js';
 import {
@@ -64,6 +65,7 @@ let kbTargetId = null;   // 키보드로 선택한 동료(없으면 null)
 let outcomeShown = false;
 let chosenDifficulty = 'high'; // set by tactics overlay, persists across retries
 let chosenShape = 'balanced';  // 빌드업 셰이프 (E6) — 브리핑에서 선택, 리트라이/다음경기 유지
+let chosenDelivery = DEFAULT_DELIVERY;  // 세트피스 딜리버리 (E5) — 브리핑 선택
 const tacticsIntents = { front: 'pin', mid: 'between', back: 'hold' };
 
 // 선택한 셰이프의 빌더로 buildOurs를 덮어쓴 시나리오(공유 SCENARIOS는 변형하지 않음).
@@ -218,6 +220,7 @@ function populateTacticsOverlay(scn) {
   el('tactics-hint').textContent = `힌트: ${scn.hint ?? ''}`;
   updateDifficultyUI();
   updateShapeUI();
+  updateDeliveryUI();
   updateTacticsIntentUI();
 }
 
@@ -329,6 +332,22 @@ function updateDifficultyUI() {
   if (desc) desc.textContent = DIFF_DESC[chosenDifficulty] ?? '';
 }
 
+// 세트피스 딜리버리 UI 동기화 (E5) — active + 설명 + 이 상대 상성 표시.
+function updateDeliveryUI() {
+  for (const btn of document.querySelectorAll('.sp-btn')) {
+    const on = btn.dataset.delivery === chosenDelivery;
+    btn.classList.toggle('active', on);
+    btn.setAttribute('aria-pressed', String(on));
+  }
+  const desc = document.getElementById('tactics-sp-desc');
+  if (desc) {
+    const base = DELIVERIES[chosenDelivery]?.desc ?? '';
+    const strong = deliveryBonus(chosenDelivery, scenario.scheme) === 1;
+    const rec = DELIVERIES[bestDeliveryFor(scenario.scheme)]?.label;
+    desc.textContent = strong ? `${base} · ✓ 이 상대에 강함` : `${base} · 추천: ${rec}`;
+  }
+}
+
 // 빌드업 셰이프 UI 동기화 (E6) — active 버튼 + 설명 + 미니맵 셰이프 반영.
 function updateShapeUI() {
   for (const btn of document.querySelectorAll('.shape-btn')) {
@@ -366,6 +385,12 @@ for (const btn of document.querySelectorAll('.shape-btn')) {
     if (fEl) fEl.innerHTML = buildFormationSvg(shapedScenario(), { ...tacticsIntents });
   });
 }
+for (const btn of document.querySelectorAll('.sp-btn')) {
+  btn.addEventListener('click', () => {
+    chosenDelivery = btn.dataset.delivery;
+    updateDeliveryUI();
+  });
+}
 for (const row of document.querySelectorAll('.tactics-intent-row')) {
   const group = row.dataset.tgroup;
   for (const btn of row.querySelectorAll('button')) {
@@ -383,6 +408,8 @@ document.getElementById('btn-tactics-kickoff')?.addEventListener('click', () => 
   Object.assign(chosenIntents, tacticsIntents);
   // 빌드업 셰이프 트레이드오프를 이번 경기 셋업에 반영(커리어 정산·엔진 부스트 공유).
   if (currentSetup) applyShape(currentSetup, chosenShape);
+  // 세트피스 딜리버리를 셋업에 반영(상대 마킹 상성 → 정산 세트피스 채널). E5.
+  if (currentSetup) applySetPiece(currentSetup, chosenDelivery, scenario.scheme);
   closeModal(tacticsOverlay);
   newAttempt();
   updateGuide();
@@ -1027,6 +1054,7 @@ function showCareerResult({ tone, score, income, prog, oppName, mission, seasonG
     else if (score.ourGoals >= 2) parts.push('⚡ 지배적인 빌드업으로 다득점');
     else if (tone === 'goal' && score.dominance >= 0.5) parts.push('🎯 잘 풀어낸 결정적 빌드업');
     else if (tone === 'fail') parts.push('↩ 볼 로스트 — 역습 위험에 노출');
+    if (score.setPieceGoal) parts.push('⚽ 세트피스 득점 — 코너/프리킥에서 마무리');
     if (mission && !bannerText.includes(mission.title)) parts.push(`🎯 ${mission.title} +${Club.formatNum(mission.reward)}`);
     if (cond) parts.push((cond.tone === 'bad' ? '⚠ ' : '✨ ') + cond.text);
     for (const goal of seasonGoals) {
