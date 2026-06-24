@@ -6,6 +6,7 @@
 // "zone reached" — is the success signal. There are no grades anywhere.
 
 import { PHASE_LINES, PITCH_W, PITCH_H, clamp, dist, lerp } from '../data/pitch.js';
+import { josa } from '../util/josa.js';
 import {
   evaluateLane, evaluateLanding, landingZoneFor, linesBroken, offsideLine,
   nearestDefender, TACKLE_RADIUS, computeOrientation, receiverPressure,
@@ -346,7 +347,7 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
     // player knows to exploit it before the situation closes.
     if (reaction.forkHeld?.length > 0) {
       const mark = byId(reaction.forkHeld[0].markId);
-      if (mark) logLine(`${mark.label}이(가) 내려오는데 마커가 따라오지 않습니다 — 발 밑으로 받을 수 있습니다!`, 'success');
+      if (mark) logLine(`${josa(mark.label, '이', '가')} 내려오는데 마커가 따라오지 않습니다 — 발 밑으로 받을 수 있습니다!`, 'success');
     }
     // Beaten defenders are frozen inside positionBlock (separation-aware);
     // here we only tick the freeze down.
@@ -437,7 +438,7 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
         .filter((o) => o.ev.risk < 0.45)
         .sort((a, b) => b.p.x - a.p.x)[0];
       const tip = midFree
-        ? ` — ${midFree.p.label}이(가) 라인 사이에서 열려 있습니다`
+        ? ` — ${josa(midFree.p.label, '이', '가')} 라인 사이에서 열려 있습니다`
         : ' — 라인 사이에서 전개하세요';
       logLine(`빌드업 돌파 — 전진 단계입니다${tip}.`, 'success');
     } else if (state.phase === 'PROGRESSION' && h.x > PHASE_LINES.FINAL_THIRD) {
@@ -484,7 +485,7 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
   function resolvePassTo(target, { lofted = false, viaLabel = null, extraRisk = 0, autoLob = false } = {}) {
     const from = holder();
     if (isOffside(target)) {
-      return fail(`${target.label}은(는) 오프사이드 위치입니다 — 라인 뒤에서는 받을 수 없습니다.`);
+      return fail(`${josa(target.label, '은', '는')} 오프사이드 위치입니다 — 라인 뒤에서는 받을 수 없습니다.`);
     }
     // Lob option — a RESCUE, not an optimizer (review Major 4): only when the
     // ground lane is genuinely cut (≥0.45) and the chip is clearly better.
@@ -583,7 +584,7 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
       const target = byId(targetId);
       if (!target || target.side !== 'us' || target.id === state.holderId) return fail('침투할 동료를 선택하세요.');
       if (target.role === 'GK') return fail('GK는 공간 침투를 하지 않습니다.');
-      if (isOffside(target)) return fail(`${target.label}은(는) 오프사이드 위치입니다 — 먼저 온사이드로 데려오세요 (런 지시).`);
+      if (isOffside(target)) return fail(`${josa(target.label, '은', '는')} 오프사이드 위치입니다 — 먼저 온사이드로 데려오세요 (런 지시).`);
       const from = holder();
       const { zone, landing } = bestLandingFor(target);
       const lofted = dist(from, zone) > 32;
@@ -621,7 +622,7 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
       startAnim({ from: fromPos, to: zone, lofted }, lofted ? 950 : 700, () => {
         if (trapped) endAttempt('trapped', { holder: target });
       });
-      logLine(`${target.label}이(가) 공간에서 받았습니다.`, 'success');
+      logLine(`${josa(target.label, '이', '가')} 공간에서 받았습니다.`, 'success');
       return { ok: true };
     },
 
@@ -640,7 +641,7 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
         const prevOrient = h.orientation;
         h.orientation = computeOrientation(h, opps());
         if (prevOrient !== 'BACK' && h.orientation === 'BACK') {
-          logLine(`${h.label}이(가) 마커에 막혔습니다 — 리턴이 가장 안전합니다.`, 'warn');
+          logLine(`${josa(h.label, '이', '가')} 마커에 막혔습니다 — 리턴이 가장 안전합니다.`, 'warn');
         } else if (h.orientation === 'BACK') {
           const _escHint = _quickHint(h);
           if (_escHint) logLine(`등진 상태 지속 — ${_escHint.replace('→ ', '')}`, 'warn');
@@ -717,7 +718,7 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
       pressReact({ type: 'carry', trigger: 'carry' });
       maybeAdvancePhase();
       startAnim({ from: fromPos, to, lofted: false, withHolder: true }, 650, null);
-      logLine(`${h.label}이(가) 공을 운반하며 압박을 시험합니다.`, 'info');
+      logLine(`${josa(h.label, '이', '가')} 공을 운반하며 압박을 시험합니다.`, 'info');
       return { ok: true };
     },
 
@@ -854,7 +855,7 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
         startAnim({ from: fromPos, to: zone, lofted: true }, 950, () => {
           if (trapped) endAttempt('trapped', { holder: target });
         });
-        logLine(`약측 전환 — ${target.label}이(가) 마커 앞 공간에서 받습니다 (상대 ${dragged}명이 공 쪽에 쏠림).`, 'success');
+        logLine(`약측 전환 — ${josa(target.label, '이', '가')} 마커 앞 공간에서 받습니다 (상대 ${dragged}명이 공 쪽에 쏠림).`, 'success');
         return { ok: true };
       }
 
@@ -893,7 +894,7 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
       const statusKo = { open: '열린 공간', contested: '경합 공간', dead: '막힌 공간' }[pick.landing.status];
       logLine(
         intoWindow
-          ? `${runner.label}이(가) 열린 공간으로 침투합니다 — 닫히기 전에 찔러주세요!`
+          ? `${josa(runner.label, '이', '가')} 열린 공간으로 침투합니다 — 닫히기 전에 찔러주세요!`
           : `${runner.label} 침투 — ${statusKo}을 공략합니다.`,
         intoWindow || pick.landing.status === 'open' ? 'success' : 'info',
       );

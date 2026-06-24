@@ -3,6 +3,7 @@
 // what happened to the opponent.
 
 import { buildTacticalReport } from './report.js';
+import { josa } from '../util/josa.js';
 
 function name(p) { return p ? `${p.label}(${p.num})` : '동료'; }
 
@@ -26,7 +27,7 @@ export function buildOutcome(kind, state, detail = {}) {
     case 'goal':
       tone = 'goal';
       headline = `골! ${name(detail.shooter)} — ${detail.zone.ko}`;
-      body = `${name(detail.shooter)}이(가) ${detail.zone.ko}에서 마무리. 압박을 흔들어 만든 득점입니다.`;
+      body = `${josa(name(detail.shooter), '이', '가')} ${detail.zone.ko}에서 마무리. 압박을 흔들어 만든 득점입니다.`;
       break;
     case 'saved':
       tone = 'near';
@@ -44,10 +45,10 @@ export function buildOutcome(kind, state, detail = {}) {
       body = `만들어 둔 찬스가 골문을 비껴갔습니다.`;
       break;
     case 'intercepted':
-      headline = `차단 — ${name(detail.interceptor)}이(가) 읽었습니다`;
+      headline = `차단 — ${josa(name(detail.interceptor), '이', '가')} 읽었습니다`;
       body = detail.reason === 'shadow'
         ? `${name(detail.interceptor)}의 커버 섀도우 안으로 공이 들어갔습니다. 가려진 길은 먼저 상대를 움직여 열어야 합니다.`
-        : `${name(detail.interceptor)}이(가) 패스 길을 한 발 먼저 끊었습니다.`;
+        : `${josa(name(detail.interceptor), '이', '가')} 패스 길을 한 발 먼저 끊었습니다.`;
       if (detail.risk != null) body += ` (이 시도의 사전 차단 위험: ${Math.round(detail.risk * 100)}%)`;
       break;
     case 'tackled':
@@ -56,7 +57,7 @@ export function buildOutcome(kind, state, detail = {}) {
       if (detail.risk != null) body += ` (이 경로의 사전 태클 위험: ${Math.round(detail.risk * 100)}%)`;
       break;
     case 'trapped':
-      headline = `고립 — ${name(detail.holder)}이(가) 갇혔습니다`;
+      headline = `고립 — ${josa(name(detail.holder), '이', '가')} 갇혔습니다`;
       body = `받은 위치에 출구가 없었습니다. 패스가 도착한 다음 그림까지 보고 공을 보내세요.`;
       break;
     case 'collapsed':

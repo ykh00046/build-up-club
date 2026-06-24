@@ -1,4 +1,5 @@
 import { ACTION_LABELS } from './tactics.js';
+import { josa } from '../util/josa.js';
 
 const INTENT_LABELS = {
   front: { pin: '전방 고정', drop: '전방 내려와 연결' },
@@ -33,7 +34,7 @@ function pickWorked(state) {
 function pickRead(state) {
   const active = state.situations?.active || [];
   const costly = (state.lastTacticalFactors || []).filter((x) => x.multiplier > 1);
-  if (active.length) return `${active.at(-1).title}이(가) 해결되지 않은 채 남았습니다.`;
+  if (active.length) return `${josa(active.at(-1).title, '이', '가')} 해결되지 않은 채 남았습니다.`;
   if (state.adaptRead) return `${ACTION_LABELS[state.adaptRead] ?? state.adaptRead} 반복을 상대가 읽기 시작했습니다.`;
   if (costly[0]) return costly[0].label;
   const top = topAction(state.actionHistory);
