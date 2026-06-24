@@ -619,9 +619,17 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
         }
       }
       risk *= (1.15 - (h.traits?.carry ?? h.traits?.pressResistance ?? 0.6) * 0.45);
-      // Carrying INTO the central box is not a build-up tool — the back line
-      // converges (P1a: ends the free six-yard walk-in). 운반은 유인 도구다.
-      if (to.x > 85 && Math.abs(to.y - PITCH_H / 2) < 14) risk = Math.max(risk, 0.45);
+      // Carrying INTO the central box converges the back line (P1a: ends the free
+      // six-yard walk-in) — but only when an outfield defender can actually collapse
+      // onto the destination. 진짜 비워낸 박스는 유령 태클로 처벌하지 않는다(거리 비례).
+      // 운반은 유인 도구다.
+      if (to.x > 85 && Math.abs(to.y - PITCH_H / 2) < 14) {
+        const { defender: conv, d: convD } = nearestDefender(to, opps());
+        if (conv && convD < 14) {
+          const floor = 0.45 * clamp(1 - (convD - 5) / 9, 0, 1);   // 5m≤ 풀 처벌 → 14m 소멸
+          if (floor > risk) { risk = floor; tackler = conv; }
+        }
+      }
       risk = clamp(risk * tacRiskMul(state.currentAction), 0.02, 0.97);
 
       if (rollFail(risk)) {
