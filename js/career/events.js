@@ -2,7 +2,7 @@
 // 상태 변경은 club.js의 공개 API만 사용해 저장/프레스티지 규칙과 분리한다.
 
 import {
-  club, division, addEffect, grantLevels, upgradeCost, save,
+  activeTrainingEffects, club, division, addEffect, grantLevels, upgradeCost, save,
 } from './club.js';
 
 const MISSIONS = [
@@ -31,11 +31,18 @@ export function checkMission(context = {}) {
 }
 
 export function effectsSummary() {
-  return club.effects.map((effect) => ({
+  const formEffects = club.effects.map((effect) => ({
     label: effect.label || '컨디션 변화',
     tone: effect.tone || 'good',
     left: effect.until == null ? null : Math.max(0, effect.until - club.matchday),
   }));
+  const trainingEffects = activeTrainingEffects().map((effect) => ({
+    label: `훈련 · ${effect.label}`,
+    nextEffect: effect.nextEffect || null,
+    tone: effect.tone || 'good',
+    left: effect.until == null ? null : Math.max(0, effect.until - club.matchday),
+  }));
+  return [...formEffects, ...trainingEffects];
 }
 
 export function shouldTriggerEvent(gap, roll) {
@@ -121,4 +128,3 @@ export function rollPostMatchCondition(context = {}, rng = Math.random) {
   addEffect({ type: 'form', atkMul: 1.06, defMul: 1.06, until: club.matchday + 2, label: '좋은 흐름', tone: 'good' });
   return { tone: 'good', text: '좋은 흐름을 타 2경기 동안 공수 전력이 상승합니다.' };
 }
-

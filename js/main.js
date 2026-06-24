@@ -7,6 +7,8 @@
 //   3. 운반 takes a pitch point; 기다리기/슈팅 fire immediately.
 
 import { getScenario, SCENARIOS } from './data/scenarios.js';
+import { SCOUTING } from './data/scouting.js';
+import { ACTION_LABELS, tacticalFactors } from './engine/tactics.js';
 import { createEngine } from './engine/engine.js';
 import { initRenderer, render, resize, toPitch, toggles, pickActionAt } from './ui/renderer.js';
 import {
@@ -31,7 +33,10 @@ import {
 } from './career/philosophy.js';
 import {
   addIdentityXp, applyTrainingChoice, inferIdentityFromMatch, trainingOptionsFromReport,
+  updateIdentityStreak, addScenarioWin, dominantIdentityFromGains,
+  activeIdentityLevel,
 } from './career/identity.js';
+import { checkSeasonGoal } from './career/season-goals.js';
 
 
 const canvas = document.getElementById('pitch');
@@ -162,6 +167,27 @@ const SCHEME_LABELS = {
   gegen: '게겐프레싱 즉시 반격 압박',
 };
 
+// 첫 경기 전 인터랙티브 튜토리얼 단계 — roadmap 고도화(온보딩).
+// 4단계: 스카우팅 읽기 → 행동 선택 → 위험도 factor → 결과 설명.
+const TUTORIAL_STEPS = [
+  {
+    title: '상대를 먼저 읽으세요',
+    body: '전술 브리핑의 "상대 스카우팅" 카드가 상대의 성향·약점·주의·추천을 알려줍니다. 추천 행동은 실제 엔진 보정과 일치합니다.',
+  },
+  {
+    title: '행동을 선택하세요',
+    body: '하단 액션바나 피치 클릭으로 패스·운반·전환 등을 선택합니다. 초보용 행동(발밑 패스, 기다리기)은 항상 표시되고, 고급 행동은 점차 열립니다.',
+  },
+  {
+    title: '위험도 요소를 확인하세요',
+    body: '행동을 선택하면 오른쪽 패널에 "위험 요소"가 표시됩니다. 상대 scheme·내 정체성·상황이 이 행동에 어떤 영향을 주는지 즉시 볼 수 있습니다.',
+  },
+  {
+    title: '결과를 설명받고 성장하세요',
+    body: '경기 후 전술 리포트가 무엇이 잘했는지 알려주고, 훈련 선택지로 클럽 정체성을 키웁니다. 허브의 시즌 목표·정체성 레벨·승점 차트로 성장을 추적하세요.',
+  },
+];
+
 function showTacticsOverlay() {
   populateTacticsOverlay(scenario);
   openModal(tacticsOverlay, document.getElementById('btn-tactics-kickoff'));
@@ -178,9 +204,45 @@ function populateTacticsOverlay(scn) {
   el('tactics-opp-plan-text').textContent = scn.oppPlan ?? '';
   el('tactics-edge-text').textContent = scn.primaryEdge?.ko ?? '—';
   el('tactics-target-shot').textContent = scn.targetShot ?? '—';
+  populateScoutingCard(scn);
   el('tactics-hint').textContent = `힌트: ${scn.hint ?? ''}`;
   updateDifficultyUI();
   updateTacticsIntentUI();
+}
+
+// 상대 스카우팅 카드 — design-direction.md §5.3.
+// SCOUTING[scheme] 의 추천/주의 actionId 를 한국어로 보여주고, 활성 훈련 효과가
+// 어떤 행동을 돕는지 chip 으로 표시. 엔진 보정과의 일치는
+// scripts/scouting-consistency-test.mjs 가 보장한다.
+function actionLabels(ids) {
+  return ids.map((id) => ACTION_LABELS[id] ?? id).join(' · ');
+}
+function populateScoutingCard(scn) {
+  const el = (id) => document.getElementById(id);
+  const scout = SCOUTING[scn.scheme];
+  if (!scout) {
+    el('tactics-scout').hidden = true;
+    return;
+  }
+  el('tactics-scout').hidden = false;
+  el('tactics-scout-style').textContent = scout.style;
+  el('tactics-scout-weak').textContent = scout.weakness;
+  el('tactics-scout-caution').textContent = scout.caution;
+  el('tactics-scout-rec').textContent =
+    `${actionLabels(scout.recommendActions)}${scout.recommendLine ? ` · ${scout.recommendLine}` : ''}`;
+
+  const effects = Club.activeTrainingEffects();
+  const trainWrap = el('tactics-scout-train');
+  const trainList = el('tactics-scout-train-list');
+  if (effects.length === 0) {
+    trainWrap.hidden = true;
+    return;
+  }
+  trainWrap.hidden = false;
+  trainList.innerHTML = effects.map((e) => {
+    const left = e.until == null ? '' : ` (${Math.max(0, e.until - Club.club.matchday)}경기)`;
+    return `<span class="ts-chip">${e.label}${left}</span>`;
+  }).join('');
 }
 
 // x 오프셋만 필요 — engine.js의 INTENT_OFFSET에서 off 값만 미러링
@@ -469,6 +531,24 @@ function selectAction(id) {
     run_order: '침투시킬 동료를 클릭하세요 — 공 없이 공간을 공격합니다.',
   };
   setHint(hints[id] || '');
+  updateTacticalFactors(id);
+}
+
+// 매치 중 factor 툴팁 — roadmap P5. 선택한 action 의 위험도에 영향을 주는
+// 요소(scheme/정체성/적응 등)를 HUD 에 표시. tacticalFactors 라벨을 chip 으로.
+function updateTacticalFactors(actionId) {
+  const row = document.getElementById('tactic-factors-row');
+  const val = document.getElementById('tactic-factors');
+  if (!row || !val) return;
+  if (!engine || engine.state.status !== 'live' || !actionId) { row.hidden = true; return; }
+  const factors = tacticalFactors(engine.state, actionId);
+  if (factors.length === 0) { row.hidden = true; return; }
+  row.hidden = false;
+  val.innerHTML = factors.map((f) => {
+    const cls = f.multiplier < 1 ? 'up' : 'down';
+    const sign = f.multiplier < 1 ? '↑' : f.multiplier > 1 ? '↓' : '';
+    return `<span class="tf-tag ${cls}">${f.label}${sign ? ' ' + sign : ''}</span>`;
+  }).join('');
 }
 
 function setHint(text) {
@@ -712,7 +792,43 @@ function enterHub() {
     offlineShown = true;
     toast(`${t('offline.body')} <b>${Club.formatNum(offlineGain)}</b>`);
   }
+  if (Club.club.firstPlay) showTutorial();
 }
+
+// ── 온보딩 튜토리얼 (roadmap 고도화) ──
+let tutorialStep = 0;
+const tutorialOverlay = document.getElementById('tutorial-overlay');
+
+function renderTutorialStep() {
+  const step = TUTORIAL_STEPS[tutorialStep];
+  setText('tutorial-step-tag', `${tutorialStep + 1} / ${TUTORIAL_STEPS.length}`);
+  setText('tutorial-title', step.title);
+  setText('tutorial-body', step.body);
+  const dotsEl = document.getElementById('tutorial-dots');
+  dotsEl.innerHTML = TUTORIAL_STEPS.map((_, i) => `<span class="tut-dot ${i === tutorialStep ? 'on' : ''}"></span>`).join('');
+  const nextBtn = document.getElementById('tutorial-next');
+  nextBtn.textContent = tutorialStep === TUTORIAL_STEPS.length - 1 ? '시작하기 ✓' : '다음 →';
+}
+
+function showTutorial() {
+  tutorialStep = 0;
+  renderTutorialStep();
+  tutorialOverlay.classList.add('visible');
+  tutorialOverlay.setAttribute('aria-hidden', 'false');
+}
+
+function closeTutorial() {
+  tutorialOverlay.classList.remove('visible');
+  tutorialOverlay.setAttribute('aria-hidden', 'true');
+  Club.club.firstPlay = false;
+  Club.save();
+}
+
+document.getElementById('tutorial-next').addEventListener('click', () => {
+  if (tutorialStep < TUTORIAL_STEPS.length - 1) { tutorialStep++; renderTutorialStep(); }
+  else closeTutorial();
+});
+document.getElementById('tutorial-skip').addEventListener('click', closeTutorial);
 
 // 허브의 "다음 경기" → 이번 매치데이의 시나리오/상대/셋업을 잡고 전술 매치로.
 function startMatch() {
@@ -749,7 +865,13 @@ function settleCareerMatch() {
   const mission = checkMission({ ...score, tone });
   const cond = rollPostMatchCondition({ ...score, tone }, careerRng);
   const prog = Club.addPoints(score.result);
-  const identity = addIdentityXp(inferIdentityFromMatch(engine.state, out));
+  const gains = inferIdentityFromMatch(engine.state, out);
+  const identity = addIdentityXp(gains);
+  Club.recordCareerSnapshot();
+  // 시즌 목표 추적 갱신 — 우세 정체성 streak + 시나리오 승(승일 때만).
+  updateIdentityStreak(dominantIdentityFromGains(gains));
+  if (score.result === 'w') addScenarioWin(scenario.cell);
+  const seasonGoals = ['identity_streak', 'scenario_win'].map(checkSeasonGoal).filter(Boolean);
   pendingTrainingOptions = trainingOptionsFromReport(out?.report, engine.state).slice(0, 2);
   trainingTaken = false;
   pendingCareerEvent = maybeCareerEvent(careerRng);
@@ -808,7 +930,7 @@ function showCareerResult({ tone, score, income, prog, oppName, mission, cond, r
   const identityEl = document.getElementById('cr-identity');
   if (identityEl && identity) {
     identityEl.style.setProperty('--idc', identity.color);
-    identityEl.innerHTML = `<span>정체성 성장</span><strong>${identity.label}</strong><b>${Math.round(identity.value)} XP</b>`;
+    identityEl.innerHTML = `<span>정체성 성장</span><strong>${identity.label}</strong><b class="xp-pop">${Math.round(identity.value)} XP</b>`;
     identityEl.hidden = false;
   }
 
@@ -820,6 +942,7 @@ function showCareerResult({ tone, score, income, prog, oppName, mission, cond, r
       <div class="ct-list">${training.map((opt) => `
         <button type="button" class="ct-choice" data-training="${opt.id}">
           <b>${opt.label}</b><span>${opt.desc}</span>
+          ${opt.nextEffect ? `<em class="ct-next">다음 경기 · ${opt.nextEffect}</em>` : ''}
         </button>`).join('')}</div>` : '';
     for (const btn of trainingEl.querySelectorAll('.ct-choice')) {
       btn.addEventListener('click', () => {
@@ -979,22 +1102,44 @@ function renderPhiloModal() {
         <span class="pc-name">${p.name}</span><span class="pc-kicker">${p.kicker}</span><span class="pc-desc">${p.desc}</span>
       </button>`).join('');
     for (const b of list.querySelectorAll('.philo-card')) {
-      b.addEventListener('click', () => { choosePhilosophy(b.dataset.philo); Club.save(); renderPhiloModal(); renderHub(); });
+      b.addEventListener('click', () => {
+        const targetId = b.dataset.philo;
+        const prev = Club.club.philosophy;
+        // 정체성 전환 비용 안내 — 이전 철학과 다르면 확인 절차 (roadmap P4 전환 비용).
+        if (prev && prev !== targetId) {
+          const prevXp = Club.club.identityXp?.[prev] ?? 0;
+          const cost = Math.floor(prevXp * 0.2);
+          const prevName = getPhilosophy(prev)?.name ?? prev;
+          const targetName = getPhilosophy(targetId)?.name ?? targetId;
+          const msg = `[정체성 전환] ${prevName} → ${targetName}\n\n전환 비용:\n• ${prevName} XP 20% 차감 (${cost} XP)\n• 연속 기록 초기화\n\n전환하시겠습니까?`;
+          if (!window.confirm(msg)) return;
+        }
+        choosePhilosophy(targetId);
+        Club.save();
+        renderPhiloModal();
+        renderHub();
+      });
     }
   }
   const perksEl = document.getElementById('philo-perks');
   if (!perksEl) return;
   if (!cur) { perksEl.innerHTML = '<div class="philo-empty">위에서 철학을 먼저 선택하세요.</div>'; return; }
   const nextIdx = nextPerkIndex(cur.id);
+  const idLevel = activeIdentityLevel()?.level ?? 0;
   perksEl.innerHTML = `<div class="philo-perks-title" style="--pc:${cur.color}">${cur.name} 트리</div>`
     + cur.perks.map((perk, i) => {
       const unlocked = isPerkUnlocked(perk.id);
       const isNext = i === nextIdx;
-      const cls = unlocked ? 'on' : isNext ? 'next' : 'locked';
+      const t4 = perk.tier === 4;
+      // T4 고유 퍽은 정체성 Lv4 게이트. 미달 시 잠금 + 사유 표시.
+      const t4Locked = t4 && idLevel < 4;
+      const cls = unlocked ? 'on' : (isNext && !t4Locked) ? 'next' : 'locked';
+      const t4Tag = t4 ? ' <span class="pp-unique">고유</span>' : '';
       const right = unlocked ? '<span class="pp-state">해금됨 ✓</span>'
-        : isNext ? `<button type="button" class="pp-unlock"${(Club.club.philoPoints || 0) < 1 ? ' disabled' : ''}>해금 1P</button>`
+        : (isNext && !t4Locked) ? `<button type="button" class="pp-unlock"${(Club.club.philoPoints || 0) < 1 ? ' disabled' : ''}>해금 1P</button>`
+        : t4Locked ? '<span class="pp-state">정체성 Lv4 필요</span>'
         : '<span class="pp-state">잠김</span>';
-      return `<div class="philo-perk ${cls}"><span class="pp-tier">T${i + 1}</span><span class="pp-info"><b>${perk.name}</b><small>${perk.desc}</small></span>${right}</div>`;
+      return `<div class="philo-perk ${cls}${t4 ? ' perk-t4' : ''}"><span class="pp-tier">T${i + 1}</span><span class="pp-info"><b>${perk.name}${t4Tag}</b><small>${perk.desc}</small></span>${right}</div>`;
     }).join('');
   const unlockBtn = perksEl.querySelector('.pp-unlock');
   if (unlockBtn) unlockBtn.addEventListener('click', () => { if (unlockNextPerk()) { Club.save(); renderPhiloModal(); renderHub(); } });

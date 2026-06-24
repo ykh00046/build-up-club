@@ -1,13 +1,34 @@
-import json, sys
+import contextlib, json, os, sys, threading
+from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
 from playwright.sync_api import sync_playwright
 
 sys.stdout.reconfigure(encoding='utf-8')
-with sync_playwright() as p:
+ROOT = Path(__file__).resolve().parents[1]
+
+
+class _Q(SimpleHTTPRequestHandler):
+    def log_message(self, *a): pass
+
+
+@contextlib.contextmanager
+def _server():
+    """자체 HTTP 서버 기동 — 4173 포트 의존 제거 (roadmap P5)."""
+    prev = os.getcwd(); os.chdir(ROOT)
+    h = ThreadingHTTPServer(('127.0.0.1', 0), _Q)
+    t = threading.Thread(target=h.serve_forever, daemon=True); t.start()
+    try:
+        yield h.server_address[1]
+    finally:
+        h.shutdown(); os.chdir(prev)
+
+
+with _server() as port, sync_playwright() as p:
     browser = p.chromium.launch(headless=True)
     page = browser.new_page(viewport={"width": 390, "height": 844})
     console = []
     page.on('console', lambda msg: console.append(f'{msg.type}: {msg.text}'))
-    page.goto('http://127.0.0.1:4173/index.html', wait_until='networkidle')
+    page.goto(f'http://127.0.0.1:{port}/index.html', wait_until='networkidle')
     page.locator('#btn-kickoff').click()
     page.wait_for_timeout(100)
     hub = page.evaluate("""() => ({

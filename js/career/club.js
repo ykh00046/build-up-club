@@ -27,6 +27,7 @@ export const DIVISIONS = [
 ];
 
 const SAVE_KEY = 'buc-save-v1';
+const SAVE_VERSION = 5;
 const COST_GROWTH = 1.18;
 const STADIUM_BASE = 120;
 const STADIUM_GROWTH = 2.2;
@@ -41,6 +42,7 @@ const LEGACY_DISCOUNT_FLOOR = 0.5;
 
 function freshState() {
   return {
+    saveVersion: SAVE_VERSION,
     cash: 120,
     fans: 50,
     stadiumLvl: 1,
@@ -71,10 +73,59 @@ function freshState() {
     perks: {},              // 해금된 퍼크 { perkId: true }
     philoPoints: 0,         // 철학 포인트(승격/우승/프레스티지로 획득)
     identityXp: { positional: 0, direct: 0, wing: 0, pressproof: 0 },
+    trainingEffects: [],
+    // ── 시즌 목표 추적 (season-goals.js) ──
+    identityStreak: { id: null, count: 0 },   // 연속 우세 정체성 { id, count }
+    scenarioWins: {},                          // 시나리오 셀별 승 수 { cell: n }
+    seasonGoalsDone: {},                       // 시즌 목표 달성 여부 { goalId: true }
+    careerHistory: [],                         // 매치 종료 시 {matchday,points,identityXp} 스냅샷 (최근 50)
+    firstPlay: true,                           // 첫 매치 전 튜토리얼 표시 여부
   };
 }
 
 export const club = freshState();
+
+function finiteOr(value, fallback) {
+  return Number.isFinite(Number(value)) ? Number(value) : fallback;
+}
+
+export function normalizeState(raw = {}) {
+  const base = freshState();
+  const src = raw && typeof raw === 'object' ? raw : {};
+  const next = { ...base, ...src };
+  next.saveVersion = SAVE_VERSION;
+  next.levels = { ...base.levels, ...(src.levels || {}) };
+  next.record = { ...base.record, ...(src.record || {}) };
+  next.perks = { ...base.perks, ...(src.perks || {}) };
+  next.missionsDone = { ...base.missionsDone, ...(src.missionsDone || {}) };
+  next.identityXp = { ...base.identityXp, ...(src.identityXp || {}) };
+  for (const key of Object.keys(next.identityXp)) next.identityXp[key] = Math.max(0, finiteOr(next.identityXp[key], 0));
+  for (const pos of POSITIONS) next.levels[pos.key] = Math.max(0, finiteOr(next.levels[pos.key], base.levels[pos.key]));
+  for (const key of ['cash', 'fans', 'stadiumLvl', 'divIdx', 'points', 'matchday', 'legacy', 'champions', 'totalEarned', 'runEarned', 'boostUntil', 'lastSeen', 'lastMatchIncome', 'streakW', 'philoPoints']) {
+    next[key] = finiteOr(next[key], base[key]);
+  }
+  for (const key of ['w', 'd', 'l']) next.record[key] = Math.max(0, finiteOr(next.record[key], 0));
+  next.divIdx = Math.max(0, Math.min(DIVISIONS.length - 1, Math.floor(next.divIdx)));
+  next.effects = Array.isArray(src.effects) ? src.effects.filter(Boolean) : [];
+  // 레거시 철학 id 보정 — counter→direct, gegen→pressproof (Sprint 4 id 정합).
+  const LEGACY_PHILO = { counter: 'direct', gegen: 'pressproof' };
+  if (next.philosophy && LEGACY_PHILO[next.philosophy]) next.philosophy = LEGACY_PHILO[next.philosophy];
+  next.trainingEffects = Array.isArray(src.trainingEffects) ? src.trainingEffects.filter(Boolean) : [];
+  // 시즌 목표 추적 필드 보정 — 구 저장(없음) → 기본값, 부분 누락 → 병합.
+  const srcStreak = src.identityStreak || {};
+  next.identityStreak = {
+    id: typeof srcStreak.id === 'string' ? srcStreak.id : null,
+    count: Math.max(0, finiteOr(srcStreak.count, 0)),
+  };
+  next.scenarioWins = { ...(src.scenarioWins || {}) };
+  next.seasonGoalsDone = { ...(src.seasonGoalsDone || {}) };
+  next.careerHistory = Array.isArray(src.careerHistory) ? src.careerHistory.slice(-50) : [];
+  next.firstPlay = src.firstPlay === undefined ? true : Boolean(src.firstPlay);
+  next.recentIncomes = Array.isArray(src.recentIncomes)
+    ? src.recentIncomes.map((n) => finiteOr(n, 0)).filter((n) => n > 0).slice(-RECENT_INCOMES)
+    : [];
+  return next;
+}
 
 export function division() { return DIVISIONS[club.divIdx]; }
 
@@ -129,10 +180,16 @@ export function teamOVR() { return attackOVR() + defenseOVR(); }
 
 // 효과 추가/만료/영구 보강 (events.js·main.js가 사용).
 export function addEffect(e) { club.effects.push(e); }
+export function addTrainingEffect(e) { club.trainingEffects.push(e); }
 export function tickEffects() {
   club.effects = club.effects.filter((e) => e.until == null || club.matchday < e.until);
+  club.trainingEffects = club.trainingEffects.filter((e) => e.until == null || club.matchday < e.until);
 }
 export function grantLevels(key, n = 1) { if (club.levels[key] != null) club.levels[key] += n; }
+
+export function activeTrainingEffects() {
+  return club.trainingEffects.filter((e) => e && (e.until == null || club.matchday < e.until));
+}
 
 export function upgradeCost(key) {
   const p = POSITIONS.find((x) => x.key === key);
@@ -182,6 +239,17 @@ export function settleMatch(result, cleanSheet = false) {
   else club.streakW = 0;
   tickEffects();   // 부상/컨디션/폼 만료 처리
   return income;
+}
+
+// 커리어 히스토리 스냅샷 기록 — settleMatch + addPoints 완료 후 호출 (차트용, 최근 50).
+export function recordCareerSnapshot() {
+  club.careerHistory = Array.isArray(club.careerHistory) ? club.careerHistory : [];
+  club.careerHistory.push({
+    matchday: club.matchday,
+    points: club.points,
+    identityXp: { ...(club.identityXp || {}) },
+  });
+  if (club.careerHistory.length > 50) club.careerHistory.shift();
 }
 
 // 승점 반영. 반환: null | 'promote' | 'reach-top' | 'champion'
@@ -238,6 +306,7 @@ export function save() {
   const vitals = [club.cash, club.fans, club.legacy, club.totalEarned,
     club.runEarned, club.points, club.stadiumLvl, ...Object.values(club.levels)];
   if (!vitals.every(Number.isFinite)) return;
+  Object.assign(club, normalizeState(club));
   club.lastSeen = Date.now();
   try { localStorage.setItem(SAVE_KEY, JSON.stringify(club)); } catch (e) { /* private mode */ }
 }
@@ -247,7 +316,7 @@ export function load() {
   let raw = null;
   try { raw = localStorage.getItem(SAVE_KEY); } catch (e) { return 0; }
   if (!raw) return 0;
-  try { Object.assign(club, freshState(), JSON.parse(raw)); } catch (e) { return 0; }
+  try { Object.assign(club, normalizeState(JSON.parse(raw))); } catch (e) { return 0; }
   return awayGain(Date.now() - club.lastSeen);
 }
 

@@ -12,6 +12,8 @@ import { t, getLang, toggleLang } from './i18n.js';
 import { currentMission, effectsSummary } from './events.js';
 import { currentPhilosophy } from './philosophy.js';
 import { identitySummary } from './identity.js';
+import { activeSeasonGoals } from './season-goals.js';
+import { identityLevel } from './identity.js';
 
 
 const $ = (id) => document.getElementById(id);
@@ -118,12 +120,41 @@ function renderIdentity() {
   const el = $('hub-identity');
   if (!el) return;
   const id = identitySummary();
+  const lv = identityLevel(id.value);
   el.style.setProperty('--idc', id.color);
   el.innerHTML = `
     <span class="hi-k">클럽 정체성</span>
     <strong>${id.label}</strong>
     <span class="hi-desc">${id.desc}</span>
-    <span class="hi-xp">${Math.round(id.value)} XP</span>`;
+    <span class="hi-xp">Lv ${lv} · ${Math.round(id.value)} XP</span>`;
+}
+
+// 커리어 히스토리 차트 — 승점 흐름을 SVG polyline 으로 (roadmap 고도화).
+// 데이터 2개 미만이면 숨김. points 가 0 이면 평탄한 선.
+function renderCareerChart() {
+  const el = $('hub-chart');
+  if (!el) return;
+  const hist = Array.isArray(club.careerHistory) ? club.careerHistory : [];
+  if (hist.length < 2) { el.hidden = true; return; }
+  el.hidden = false;
+  const pts = hist.map((h) => h.points ?? 0);
+  const max = Math.max(...pts, 1);
+  const min = Math.min(...pts, 0);
+  const range = max - min || 1;
+  const n = pts.length;
+  const coords = pts.map((v, i) => {
+    const x = (i / (n - 1)) * 100;
+    const y = 30 - ((v - min) / range) * 26 - 2;
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(' ');
+  const lastPts = pts[n - 1];
+  const lastMd = hist[n - 1].matchday;
+  el.innerHTML = `
+    <div class="hub-chart-title">승점 흐름 · ${n}경기</div>
+    <svg viewBox="0 0 100 30" preserveAspectRatio="none">
+      <polyline points="${coords}" fill="none" stroke="#5dd6c5" stroke-width="1.4" vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round"/>
+    </svg>
+    <div style="font-size:10.5px;color:var(--text-muted);margin-top:3px">MD ${lastMd} · ${lastPts} 승점</div>`;
 }
 
 function renderCareerVariety() {
@@ -137,12 +168,34 @@ function renderCareerVariety() {
       <span><span class="hm-title">${mission.title}</span><br><span class="hm-desc">${mission.desc}</span></span>
       <span class="hm-reward">${mission.done ? '완료' : '+' + formatNum(mission.reward)}</span>`;
   }
+  // 시즌 목표 카드 — roadmap P3.
+  const goalsEl = $('hub-season-goals');
+  if (goalsEl) {
+    goalsEl.innerHTML = activeSeasonGoals().map((g) => {
+      const cur = Math.min(g.current(), g.target);
+      const pct = g.target > 0 ? Math.min(100, (cur / g.target) * 100) : 0;
+      return `
+      <div class="sg-card ${g.done ? 'done' : ''}">
+        <div class="sg-head">
+          <span class="sg-title">${g.done ? '✓ ' : ''}${g.title}</span>
+          <span class="sg-reward">${g.done ? '완료' : '+' + formatNum(g.reward)}</span>
+        </div>
+        <div class="sg-desc">${g.desc}</div>
+        <div class="sg-progress">
+          <div class="sg-bar"><div class="sg-bar-fill" style="width:${pct}%"></div></div>
+          <span class="sg-count">${cur}/${g.target}</span>
+        </div>
+      </div>`;
+    }).join('');
+  }
   const effectsEl = $('hub-effects');
   if (effectsEl) effectsEl.innerHTML = effectsSummary().map((effect) => `
-    <span class="eff-chip ${effect.tone === 'bad' ? 'bad' : 'good'}">
+    <span class="eff-chip chip-in ${effect.tone === 'bad' ? 'bad' : 'good'}">
       ${effect.tone === 'bad' ? '⚠' : '◆'} ${effect.label}
+      ${effect.nextEffect ? `<span class="eff-next">${effect.nextEffect}</span>` : ''}
       ${effect.left == null ? '' : `<span class="eff-left">${effect.left}경기</span>`}
     </span>`).join('');
+  renderCareerChart();
 }
 
 // Position-specific accent colors for squad card left borders.

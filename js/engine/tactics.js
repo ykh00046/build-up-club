@@ -31,6 +31,10 @@ export function tacticalFactors(state, actionId) {
   if (AGGRESSIVE.has(actionId)) addFactor(factors, 'fatigue', `공격 피로 ${Math.round(state.fatigue)}%`, 1 + (state.fatigue / 100) * 0.25);
   addFactor(factors, 'momentum', `모멘텀 ${Math.round(state.momentum)}`, 1 - ((state.momentum - 50) / 100) * 0.18);
 
+  for (const effect of state.trainingEffects || []) {
+    if (effect.actions?.includes(actionId)) addFactor(factors, `training_${effect.id}`, `${effect.label} 효과`, effect.multiplier || 0.88);
+  }
+
   const li = state.lineIntents;
   if (li.front === 'drop' && actionId === 'bounce') addFactor(factors, 'front_drop', '전방 내려와 연결', 0.85);
   if (li.front === 'drop' && actionId === 'into_space') addFactor(factors, 'front_drop_cost', '박스 침투 인원 부족', 1.10);
@@ -45,6 +49,12 @@ export function tacticalFactors(state, actionId) {
   if (scheme === 'gegen' && (actionId === 'hold' || actionId === 'carry')) addFactor(factors, 'opp_gegen_swarm', '게겐프레스의 즉시 압박', 1.14);
   if (scheme === 'gegen' && (actionId === 'bounce' || actionId === 'third_man')) addFactor(factors, 'opp_gegen_bypass', '첫 파도 우회', 0.88);
   if (scheme === 'hybrid' && actionId === 'third_man') addFactor(factors, 'opp_hybrid_shadow', '하이브리드 압박의 커버 섀도우 우회', 0.93);
+  // 정체성 레벨 보정 — roadmap P4. Lv3+ 에서 주 정체성 관련 액션 위험도 소폭 안정화(0.97).
+  // state.identityLevel 은 applyClubBoost 가 club.philosophy/identityXp 기반으로 주입.
+  const il = state.identityLevel;
+  if (il && il.level >= 3 && Array.isArray(il.actions) && il.actions.includes(actionId)) {
+    addFactor(factors, `identity_lv${il.level}`, `정체성 ${il.level}숙련 — 관련 액션 안정`, 0.97);
+  }
   for (const situation of state.situations?.active ?? []) {
     const multiplier = situation.modifiers?.[actionId];
     if (multiplier) addFactor(factors, situation.id, situation.factorLabel, multiplier);

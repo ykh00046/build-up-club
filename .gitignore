@@ -12,3 +12,12 @@ Thumbs.db
 
 # 빌드/임시
 dist/
+
+# 런타임 산출물 — 커밋에 섞이지 않도록 (roadmap P0)
+.bkit/runtime/
+.bkit/audit/
+.bkit/snapshots/
+.bkit/state/
+.verify/audit-*.json
+.verify/*.png
+.verify/__pycache__/

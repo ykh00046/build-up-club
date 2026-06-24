@@ -1,0 +1,52 @@
+// 상대 스카우팅 메타데이터 — design-direction.md §5.2/§5.3.
+// 각 scheme의 추천/주의 actionId는 js/engine/tactics.js 의 scheme factor와
+// 일치해야 한다 (scouting-consistency-test.mjs 가 이를 검증).
+//
+// - recommendActions: 엔진이 해당 scheme에서 유리(위험도 ≤ 1.0)하게 만드는 행동
+// - cautionActions:   엔진이 불리(위험도 ≥ 1.0)하게 만드는 행동.
+//                     hybrid는 엔진에 페널티 factor가 없으므로 빈 배열 —
+//                     서술형 caution 문구로만 주의를 전달한다.
+// - recommendLine:    플레이어에게 보여줄 추천 라인 의도(서술형, advisory).
+
+export const SCOUTING = {
+  man: {
+    label: '대인 압박',
+    style: '따라붙는 대인 압박. 마크가 빠르게 따라붙습니다.',
+    weakness: '원투/써드맨으로 첫 압박을 벗기면 라인이 흔들립니다.',
+    caution: '발밑 패스를 반복하면 추적당합니다.',
+    recommendActions: ['bounce', 'third_man'],
+    cautionActions: ['to_feet'],
+    recommendLine: '전방 내려와 연결 + 중원 라인 사이',
+  },
+  zonal: {
+    label: '지역 블록',
+    style: '공간을 닫는 지역 블록. 중앙은 좁지만 반대 전환에 약합니다.',
+    weakness: '빠른 측면 전환으로 블록을 가로로 움직이면 반대편 하프스페이스가 열립니다.',
+    caution: '무리한 중앙 침투는 밀집 수비에 막힙니다.',
+    recommendActions: ['switch'],
+    cautionActions: ['into_space'],
+    recommendLine: '풀백 후방 안정 + 빠른 전환',
+  },
+  gegen: {
+    label: '게겐프레스',
+    style: '즉시 달려드는 게겐프레스. 오래 끌면 위험합니다.',
+    weakness: '첫 압박 파도를 원터치 조합으로 넘기면 등 뒤가 비어 있습니다.',
+    caution: '기다리기·운반으로 시간을 끌면 즉시 압살당합니다.',
+    recommendActions: ['bounce', 'third_man'],
+    cautionActions: ['hold', 'carry'],
+    recommendLine: '전방 내려 1터치 콤비 + 중원 지원',
+  },
+  hybrid: {
+    label: '하이브리드 압박',
+    style: '선택적으로 덫을 놓는 하이브리드 압박. 점프 시점을 읽어야 합니다.',
+    weakness: '커버 섀도우 바깥의 써드맨 움직임으로 압박을 빗나가게 합니다.',
+    caution: '정직하게 전진하면 점프 타이밍에 걸립니다.',
+    recommendActions: ['third_man'],
+    cautionActions: [],
+    recommendLine: '중원 지원 + 써드맨 우회',
+  },
+};
+
+export function getScouting(scheme) {
+  return SCOUTING[scheme] || null;
+}

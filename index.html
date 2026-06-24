@@ -133,6 +133,11 @@
     aside .row .k { color: var(--text-muted); flex-shrink: 0; }
     aside .row .v { color: var(--text); font-weight: 500; text-align: right; }
     .briefing { color: var(--text); line-height: 1.5; }
+    .tactic-factors-row { display: flex; gap: 8px; align-items: baseline; font-size: 11.5px; line-height: 1.45; }
+    .tactic-factors-row .v { text-align: left; display: flex; flex-wrap: wrap; gap: 4px; }
+    .tf-tag { display: inline-block; padding: 1px 7px; border-radius: 9px; font-size: 10.5px; font-weight: 600; }
+    .tf-tag.up { background: rgba(93,214,197,0.12); color: var(--accent); }
+    .tf-tag.down { background: rgba(245,166,35,0.12); color: var(--warn); }
     .opp-plan { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--line); color: var(--text-muted); line-height: 1.45; }
     .opp-plan-k { color: var(--danger); font-weight: 700; margin-right: 6px; }
     .intent-row { display: flex; align-items: center; gap: 5px; padding: 3px 0; }
@@ -284,6 +289,32 @@
     .tactics-target-line strong { color: var(--warn); }
     .tactics-edge-line { font-size: 11.5px; color: var(--text-muted); margin-top: 6px; }
     .tactics-edge-line strong { color: var(--accent); }
+    .tactics-scout {
+      margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--line);
+      display: flex; flex-direction: column; gap: 5px;
+    }
+    .tactics-scout-label {
+      font-size: 10px; color: var(--text-muted); letter-spacing: 0.8px;
+      text-transform: uppercase; margin-bottom: 2px; font-weight: 700;
+    }
+    .tactics-scout-style, .tactics-scout-weak, .tactics-scout-caution,
+    .tactics-scout-rec, .tactics-scout-train {
+      display: flex; gap: 7px; font-size: 11.5px; line-height: 1.5;
+    }
+    .tactics-scout .ts-k {
+      flex-shrink: 0; width: 42px; color: var(--text-muted);
+      font-size: 10.5px; font-weight: 700;
+    }
+    .tactics-scout-style span:last-child { color: var(--text); }
+    .tactics-scout-weak span:last-child { color: var(--accent); }
+    .tactics-scout-caution span:last-child { color: var(--warn); }
+    .tactics-scout-rec span:last-child { color: var(--text); }
+    .tactics-scout-train .tactics-scout-train-list { color: var(--text-muted); }
+    .tactics-scout-train-list .ts-chip {
+      display: inline-block; background: rgba(93,214,197,.10);
+      border: 1px solid rgba(93,214,197,.28); color: var(--accent);
+      padding: 1px 6px; border-radius: 9px; font-size: 10.5px; margin: 0 3px 3px 0;
+    }
     .tactics-difficulty { background: var(--panel-2); border-radius: 6px; padding: 12px; }
     .tactics-diff-btns { display: flex; gap: 6px; margin-bottom: 7px; }
     .diff-btn {
@@ -336,6 +367,10 @@
       }
       .tactics-hint-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
       #btn-tactics-kickoff { text-align: center; }
+      .tactics-scout { gap: 4px; margin-top: 8px; padding-top: 8px; }
+      .tactics-scout-style, .tactics-scout-weak, .tactics-scout-caution,
+      .tactics-scout-rec, .tactics-scout-train { font-size: 11px; line-height: 1.42; }
+      .tactics-scout .ts-k { width: 38px; font-size: 10px; }
     }
 
     /* 모바일 드로어 컨트롤 — 데스크톱에선 숨김 */
@@ -479,6 +514,10 @@
     @keyframes card-appear { from { opacity: 0; transform: translateY(24px) scale(0.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
     @keyframes score-pop { 0% { transform: scale(0.6); opacity: 0; } 60% { transform: scale(1.06); } 100% { transform: scale(1); opacity: 1; } }
     @keyframes banner-shimmer { 0% { background-position: -200% center; } 100% { background-position: 200% center; } }
+    @keyframes xp-pop { 0% { transform: scale(0.7); opacity: 0; } 55% { transform: scale(1.18); } 100% { transform: scale(1); opacity: 1; } }
+    @keyframes chip-in { from { opacity: 0; transform: translateY(6px) scale(0.92); } to { opacity: 1; transform: translateY(0) scale(1); } }
+    .xp-pop { animation: xp-pop 0.45s cubic-bezier(0.16, 1, 0.3, 1); }
+    .eff-chip.chip-in { animation: chip-in 0.35s ease-out; }
     #career-result { position: fixed; inset: 0; z-index: 82; background: rgba(5,8,12,0.8); display: flex; align-items: center; justify-content: center; opacity: 0; visibility: hidden; pointer-events: none; transition: opacity 0.4s ease, visibility 0.4s; }
     #career-result.visible { opacity: 1; visibility: visible; pointer-events: auto; }
     .cr-card { width: min(440px, calc(100% - 36px)); background: var(--panel); border: 1px solid var(--line); border-radius: 13px; padding: 26px 28px; display: flex; flex-direction: column; gap: 14px; text-align: center; transform: translateY(20px); transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
@@ -512,6 +551,12 @@
     .ct-choice.picked { border-color: var(--accent); box-shadow: 0 0 0 1px rgba(93,214,197,.35) inset; }
     .ct-choice:disabled:not(.picked) { opacity: .38; cursor: default; }
     .ct-choice span { color: var(--text-muted); font-size: 11px; line-height: 1.35; }
+    .ct-choice .ct-next { font-style: normal; font-size: 10.5px; font-weight: 700; color: var(--accent); background: rgba(93,214,197,.10); border: 1px solid rgba(93,214,197,.28); border-radius: 5px; padding: 3px 6px; margin-top: 2px; line-height: 1.35; }
+    @media (max-width: 560px) {
+      .ct-list { grid-template-columns: 1fr; }
+      .ct-choice .ct-next { font-size: 10px; }
+      .eff-chip .eff-next { font-size: 10px; }
+    }
     #cr-continue { background: var(--accent); color: #06201b; border: none; border-radius: 8px; padding: 13px; font-size: 14px; font-weight: 800; cursor: pointer; transition: transform 0.2s, filter 0.2s; }
     #cr-continue:hover { filter: brightness(1.1); transform: scale(1.01); }
     .cr-notes { font-size: 12px; line-height: 1.5; color: var(--text-muted); }
@@ -541,6 +586,22 @@
     .hub-mission .hm-reward { margin-left: auto; color: var(--accent); font-weight: 700; white-space: nowrap; }
     .hub-mission.done { background: rgba(93,214,197,0.08); border-color: rgba(93,214,197,0.35); }
     .hub-mission.done .hm-title { color: var(--accent); }
+    .hub-season-goals { display: flex; flex-direction: column; gap: 6px; }
+    .hub-season-goals:empty { display: none; }
+    .sg-card { display: flex; flex-direction: column; gap: 4px; background: rgba(196,160,232,0.06); border: 1px solid rgba(196,160,232,0.30); border-radius: 9px; padding: 9px 12px; font-size: 12px; }
+    .sg-card.done { background: rgba(93,214,197,0.08); border-color: rgba(93,214,197,0.35); }
+    .sg-head { display: flex; align-items: baseline; gap: 8px; }
+    .sg-title { font-weight: 800; color: #c8a0e8; }
+    .sg-card.done .sg-title { color: var(--accent); }
+    .sg-reward { margin-left: auto; color: var(--accent); font-weight: 700; font-size: 11.5px; white-space: nowrap; }
+    .sg-card.done .sg-reward { color: var(--text-muted); }
+    .sg-desc { color: var(--text-muted); font-size: 11px; line-height: 1.4; }
+    .sg-progress { display: flex; align-items: center; gap: 7px; margin-top: 2px; }
+    .sg-bar { flex: 1; height: 4px; background: var(--panel-2); border-radius: 2px; overflow: hidden; }
+    .sg-bar-fill { height: 100%; background: #c8a0e8; border-radius: 2px; transition: width .3s; }
+    .sg-card.done .sg-bar-fill { background: var(--accent); }
+    .sg-count { font-size: 10.5px; color: var(--text-muted); font-weight: 700; white-space: nowrap; }
+    @media (max-width: 560px) { .sg-desc { font-size: 10.5px; } }
     .hub-effects { display: flex; flex-wrap: wrap; gap: 6px; }
     .hub-effects:empty { display: none; }
     .hub-identity { display: grid; grid-template-columns: auto 1fr auto; gap: 6px 10px; align-items: center; border: 1px solid color-mix(in srgb, var(--idc, #5dd6c5) 38%, var(--line)); background: color-mix(in srgb, var(--idc, #5dd6c5) 7%, transparent); border-radius: 9px; padding: 9px 12px; font-size: 12px; }
@@ -548,10 +609,15 @@
     .hub-identity strong { color: var(--idc, var(--accent)); }
     .hub-identity .hi-desc { color: var(--text-muted); }
     .hub-identity .hi-xp { grid-row: span 2; color: var(--text); font-weight: 800; }
+    .hub-chart { border: 1px solid var(--line); background: var(--panel-2); border-radius: 9px; padding: 10px 12px; }
+    .hub-chart[hidden] { display: none; }
+    .hub-chart-title { font-size: 10px; color: var(--text-muted); font-weight: 800; letter-spacing: .8px; text-transform: uppercase; margin-bottom: 6px; }
+    .hub-chart svg { width: 100%; height: 48px; display: block; }
     .eff-chip { display: inline-flex; align-items: center; gap: 5px; border-radius: 20px; padding: 4px 10px; font-size: 11px; font-weight: 600; border: 1px solid var(--line); background: var(--panel-2); }
     .eff-chip.good { color: var(--accent); border-color: rgba(93,214,197,0.4); }
     .eff-chip.bad { color: var(--danger); border-color: rgba(227,93,93,0.4); }
     .eff-chip .eff-left { color: var(--text-muted); font-weight: 400; }
+    .eff-chip .eff-next { color: var(--accent); font-weight: 700; }
 
     /* ─── 3D 디자인 요소 ────────────────────────────────────────────────────── */
     /* 타이틀 축구공 — 전술 보드 팔레트의 패널과 봉제선을 사용한다. */
@@ -600,6 +666,7 @@
     .moment-card { transform-style: preserve-3d; }
     @media (prefers-reduced-motion: reduce) {
       .hub-badge, .hub-card-btn, .event-choice { transition: none; }
+      .xp-pop, .eff-chip.chip-in { animation: none; }
     }
 
     /* ─── 메뉴·HUD 폴리시 ───────────────────────────────────────────────────── */
@@ -625,6 +692,20 @@
     .hub-philo.alert .cb-v { color: var(--warn); }
     #philo-overlay { position: fixed; inset: 0; z-index: 84; background: rgba(5,8,12,0.82); display: none; align-items: center; justify-content: center; }
     #philo-overlay.visible { display: flex; }
+    /* ─── tutorial overlay (onboarding) ─────────────────────────────────── */
+    #tutorial-overlay { position: fixed; inset: 0; z-index: 90; background: rgba(5,8,12,0.88); display: none; align-items: center; justify-content: center; }
+    #tutorial-overlay.visible { display: flex; }
+    .tut-wrap { width: min(420px, calc(100% - 36px)); background: var(--panel-1); border: 1px solid var(--line); border-radius: 14px; padding: 28px 26px 22px; text-align: center; animation: card-appear 0.4s cubic-bezier(0.16,1,0.3,1); }
+    .tut-step-tag { display: inline-block; font-size: 10px; font-weight: 800; letter-spacing: .8px; color: var(--accent); background: rgba(93,214,197,0.10); border: 1px solid rgba(93,214,197,0.28); border-radius: 9px; padding: 3px 10px; margin-bottom: 14px; }
+    .tut-title { font-size: 19px; font-weight: 800; color: var(--text); margin-bottom: 10px; }
+    .tut-body { font-size: 13px; line-height: 1.6; color: var(--text-muted); margin-bottom: 18px; }
+    .tut-dots { display: flex; gap: 6px; justify-content: center; margin-bottom: 18px; }
+    .tut-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--panel-2); border: 1px solid var(--line); transition: all .2s; }
+    .tut-dot.on { background: var(--accent); border-color: var(--accent); width: 18px; border-radius: 4px; }
+    .tut-actions { display: flex; gap: 10px; justify-content: center; }
+    .tut-actions button { font-size: 13px; font-weight: 700; padding: 9px 18px; border-radius: 9px; border: 1px solid var(--line); background: transparent; color: var(--text-muted); cursor: pointer; transition: all .15s; }
+    .tut-actions .tut-next { background: var(--accent); color: #05161a; border-color: var(--accent); }
+    .tut-actions button:hover { transform: translateY(-1px); }
     .philo-wrap { width: min(620px, calc(100% - 32px)); max-height: 90vh; overflow-y: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 13px; padding: 20px 22px; }
     .philo-head { display: flex; align-items: center; gap: 12px; margin-bottom: 6px; }
     .philo-head h2 { font-size: 17px; font-weight: 800; }
@@ -652,6 +733,9 @@
     .philo-perk.on .pp-state { color: var(--accent); }
     .pp-unlock { background: var(--accent); color: #06201b; border: none; border-radius: 6px; padding: 7px 12px; font-size: 12px; font-weight: 800; cursor: pointer; white-space: nowrap; }
     .pp-unlock:disabled { opacity: 0.4; cursor: default; }
+    .philo-perk.perk-t4 { border-style: dashed; background: rgba(196,160,232,0.06); }
+    .philo-perk.perk-t4.on { border-color: rgba(196,160,232,0.5); }
+    .pp-unique { display: inline-block; font-size: 9px; font-weight: 800; color: #c8a0e8; border: 1px solid rgba(196,160,232,0.4); border-radius: 3px; padding: 0 4px; margin-left: 5px; vertical-align: middle; letter-spacing: 0.4px; }
     .philo-empty { color: var(--text-muted); font-size: 12px; text-align: center; padding: 16px; }
     @media (max-width: 560px) { .philo-list { grid-template-columns: 1fr; } }
 
@@ -750,6 +834,10 @@
         <div class="briefing" id="scn-title" style="font-weight:700; margin-bottom:6px;">—</div>
         <div class="row"><span class="k">상대 상태</span><span class="v" id="opp-adapt">기본 압박</span></div>
         <div class="row"><span class="k">추천 마무리</span><span class="v" id="scn-target">—</span></div>
+        <div class="row tactic-factors-row" id="tactic-factors-row" hidden>
+          <span class="k">위험 요소</span>
+          <span class="v" id="tactic-factors">—</span>
+        </div>
       </div>
       <div class="section">
         <h3>우리 전략 <small style="text-transform:none;letter-spacing:0;">경기 중 변경 가능</small></h3>
@@ -830,6 +918,20 @@
     </div>
   </div>
 
+  <!-- ─── Onboarding: Tutorial ──────────────────────────────────────────── -->
+  <div id="tutorial-overlay" class="overlay" role="dialog" aria-modal="true" aria-labelledby="tutorial-title" aria-hidden="true" data-dismissible="false" tabindex="-1">
+    <div class="tut-wrap">
+      <div class="tut-step-tag" id="tutorial-step-tag">1 / 4</div>
+      <h2 class="tut-title" id="tutorial-title">환영합니다</h2>
+      <p class="tut-body" id="tutorial-body">—</p>
+      <div class="tut-dots" id="tutorial-dots"></div>
+      <div class="tut-actions">
+        <button type="button" id="tutorial-skip">건너뛰기</button>
+        <button type="button" id="tutorial-next" class="tut-next">다음 →</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ─── Career: Club Hub ─────────────────────────────────────────────── -->
   <div id="hub-overlay" role="dialog" aria-modal="true" aria-label="Club Hub" aria-hidden="true">
     <div class="hub-wrap">
@@ -855,8 +957,10 @@
       </div>
 
       <div class="hub-mission" id="hub-mission"></div>
+      <div class="hub-season-goals" id="hub-season-goals"></div>
       <div class="hub-effects" id="hub-effects"></div>
       <div class="hub-identity" id="hub-identity"></div>
+      <div class="hub-chart" id="hub-chart" hidden></div>
 
       <section class="hub-squad" id="hub-squad"></section>
 
@@ -961,6 +1065,17 @@
             <div class="tactics-opp-plan-text" id="tactics-opp-plan-text">—</div>
             <div class="tactics-edge-line">우리가 만들 우위: <strong id="tactics-edge-text">—</strong></div>
             <div class="tactics-target-line">추천 마무리: <strong id="tactics-target-shot">—</strong></div>
+            <div class="tactics-scout" id="tactics-scout">
+              <div class="tactics-scout-label">상대 스카우팅</div>
+              <div class="tactics-scout-style"><span class="ts-k">성향</span><span id="tactics-scout-style">—</span></div>
+              <div class="tactics-scout-weak"><span class="ts-k">약점</span><span id="tactics-scout-weak">—</span></div>
+              <div class="tactics-scout-caution"><span class="ts-k">주의</span><span id="tactics-scout-caution">—</span></div>
+              <div class="tactics-scout-rec"><span class="ts-k">추천</span><span id="tactics-scout-rec">—</span></div>
+              <div class="tactics-scout-train" id="tactics-scout-train" hidden>
+                <span class="ts-k">활성 훈련</span>
+                <span class="tactics-scout-train-list" id="tactics-scout-train-list">—</span>
+              </div>
+            </div>
           </div>
           <div class="tactics-difficulty">
             <div class="tactics-section-label">난이도</div>

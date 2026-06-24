@@ -9,11 +9,16 @@ import { SCENARIOS } from '../data/scenarios.js';
 // 5부: 느슨한 지역/미드블록 → 1부: 대인·게겐 고강도까지.
 const DIV_POOLS = [
   ['D2', 'C1', 'D1'],              // 5부 — 로우블록/지역, 입문
-  ['C1', 'D1', 'A1'],              // 4부 — 지역 + 하이브리드 입문
-  ['A1', 'A2', 'D1'],             // 3부 — 하이브리드 전방 압박
-  ['A2', 'B1', 'C2'],             // 2부 — 대인 + 게겐 등장
-  ['B1', 'B2', 'C2'],             // 1부 — 대인·게겐 고강도
+  ['C1', 'D1', 'A1', 'E2'],       // 4부 — 지역 + 하이브리드 입문 + E2 하이브리드
+  ['A1', 'A2', 'D1', 'E2'],       // 3부 — 하이브리드 전방 압박 + E2 하이브리드
+  ['A2', 'B1', 'C2', 'E1'],       // 2부 — 대인 + 게겐 등장 + E1 게겐 거울매치
+  ['B1', 'B2', 'C2', 'E1'],       // 1부 — 대인·게겐 고강도 + E1 게겐 거울매치
 ];
+
+// 디비전 풀(셀 배열) 반환 — season-goals 가 타겟 셀을 정할 때 사용.
+export function divisionPool(divIdx) {
+  return DIV_POOLS[Math.min(divIdx, DIV_POOLS.length - 1)];
+}
 
 export function scenarioCellForMatchday(divIdx, matchday) {
   const pool = DIV_POOLS[Math.min(divIdx, DIV_POOLS.length - 1)];

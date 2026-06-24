@@ -8,8 +8,9 @@
 // 그래서 업그레이드는 숫자놀음이 아니라 "패스가 덜 끊기고 슛이 더 들어가는"
 // 체감으로 돌아온다. 수비 레벨은 경기 후 실점 시뮬(simConcede)로 작동한다.
 
-import { attackOVR, defenseOVR, teamOVR, oppBaseOVR, POSITIONS } from './club.js';
+import { activeTrainingEffects, attackOVR, defenseOVR, teamOVR, oppBaseOVR, POSITIONS } from './club.js';
 import { philoMods } from './philosophy.js';
+import { activeIdentityLevel } from './identity.js';
 
 function clamp(v, lo, hi) { return v < lo ? lo : v > hi ? hi : v; }
 
@@ -60,17 +61,29 @@ export function matchSetup(oppOVR) {
   // 공격 레벨 → 패스/슈팅 트레잇(boostsFor) + 철학 패스 보너스 가산.
   const b = boostsFor(atk, def);
   const passBoost = clamp(b.passBoost + pm.passBoostAdd, 0, 0.32);
+  const trainingEffects = activeTrainingEffects();
+  const trainingScore = trainingEffects.reduce((acc, effect) => {
+    const score = effect.score || {};
+    acc.execAdd += Number(score.execAdd || 0);
+    acc.xgMul *= Number(score.xgMul || 1);
+    acc.concedeMul *= Number(score.concedeMul || 1);
+    return acc;
+  }, { execAdd: 0, xgMul: 1, concedeMul: 1 });
 
   return {
     intensity, passBoost, shotBoost: b.shotBoost, gkBoost: b.gkBoost,
     xgMul: pm.xgMul,                 // 철학 마무리 배율 (applyClubBoost·스코어 공유)
     oppOVR, teamOVR: team, atk, def,
+    trainingEffects,
+    trainingScore,
     odds: oddsFromRatio(team, oppOVR),
   };
 }
 
 // 엔진 생성 직후 호출 — 'us' 선수 traits를 셋업만큼 끌어올린다.
 export function applyClubBoost(engine, setup) {
+  engine.state.trainingEffects = setup.trainingEffects || [];
+  engine.state.identityLevel = activeIdentityLevel();
   for (const p of engine.state.players) {
     if (p.side !== 'us') continue;
     const t = { ...(p.traits || {}) };
@@ -101,8 +114,9 @@ export function resolveScoreline(perf, setup, rngNext, pmods = philoMods()) {
   const execRaw = (P.baits || 0) * 0.05 + (P.linesBroken || 0) * 0.12 + (P.switches || 0) * 0.08
                 + (P.runs || 0) * 0.05 + (P.windowsUsed || 0) * 0.10
                 + (P.situationsResolved || 0) * 0.09 + (P.decisionsMade || 0) * 0.04;
-  const exec = clamp(execRaw * (pmods.execMul || 1), 0, 0.8);
-  const xg = clamp((P.xg || 0) * (pmods.xgMul || 1), 0, 1);
+  const trainingScore = setup.trainingScore || {};
+  const exec = clamp(execRaw * (pmods.execMul || 1) + (trainingScore.execAdd || 0), 0, 0.8);
+  const xg = clamp((P.xg || 0) * (pmods.xgMul || 1) * (trainingScore.xgMul || 1), 0, 1);
   const edge = clamp((setup.atk - 8) / 40, 0, 0.5);          // 공격 전력 우위
   const dominance = clamp(exec + xg * 0.35 + edge * 0.4, 0, 1);
 
@@ -122,6 +136,7 @@ export function resolveScoreline(perf, setup, rngNext, pmods = philoMods()) {
   const oppAtk = setup.oppOVR * 0.5;
   let concedeP = clamp(oppAtk / (oppAtk + setup.def * 1.5), 0.05, 0.85);
   concedeP *= (pmods.concedeMul || 1);
+  concedeP *= (trainingScore.concedeMul || 1);
   concedeP *= (1 - dominance * 0.35);
   if (tone === 'fail') concedeP += 0.18 * (1 - (pmods.failConcedeRelief || 0));
   concedeP = clamp(concedeP, 0.02, 0.92);

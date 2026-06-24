@@ -1,10 +1,36 @@
+import contextlib
 import json
+import os
 import sys
+import threading
+from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from playwright.sync_api import sync_playwright
 
 sys.stdout.reconfigure(encoding="utf-8")
-OUT = Path(r"C:\X\game\build-up-club\.verify")
+ROOT = Path(__file__).resolve().parents[1]
+OUT = ROOT / ".verify"
+
+
+class _QuietHandler(SimpleHTTPRequestHandler):
+    def log_message(self, *_):
+        pass
+
+
+@contextlib.contextmanager
+def _server():
+    """자체 HTTP 서버 기동 — 외부 미리보기 서버(4173) 의존 제거 (roadmap P5)."""
+    previous = os.getcwd()
+    os.chdir(ROOT)
+    httpd = ThreadingHTTPServer(("127.0.0.1", 0), _QuietHandler)
+    thread = threading.Thread(target=httpd.serve_forever, daemon=True)
+    thread.start()
+    try:
+        yield httpd.server_address[1]
+    finally:
+        httpd.shutdown()
+        thread.join(timeout=2)
+        os.chdir(previous)
 
 def visible_controls(page):
     return page.locator("button:visible, input:visible, select:visible, summary:visible, [tabindex]:visible").evaluate_all(
@@ -17,7 +43,7 @@ def safe_screenshot(page, path, errors):
     except Exception as exc:
         errors.append(f"screenshot skipped: {Path(path).name}: {exc.__class__.__name__}")
 
-def audit(p, viewport, suffix):
+def audit(p, port, viewport, suffix):
         browser = p.chromium.launch(headless=True)
         page = browser.new_page(viewport=viewport, device_scale_factor=1)
         console = []
@@ -26,7 +52,7 @@ def audit(p, viewport, suffix):
         page.route("https://fonts.gstatic.com/**", lambda route: route.abort())
         page.on("console", lambda msg: console.append(f"{msg.type}: {msg.text}"))
         page.on("pageerror", lambda exc: errors.append(str(exc)))
-        page.goto("http://127.0.0.1:4173/index.html", wait_until="commit")
+        page.goto(f"http://127.0.0.1:{port}/index.html", wait_until="commit")
         page.wait_for_timeout(5000)
         if not page.evaluate("Boolean(window.__game && window.__buc)"):
             errors.append("app readiness hook missing after 5s")
@@ -86,6 +112,6 @@ def audit(p, viewport, suffix):
         print(json.dumps(result, ensure_ascii=False, indent=2))
         browser.close()
 
-with sync_playwright() as p:
-    audit(p, {"width":1440,"height":1000}, "desktop")
-    audit(p, {"width":390,"height":844}, "mobile")
+with _server() as port, sync_playwright() as p:
+    audit(p, port, {"width":1440,"height":1000}, "desktop")
+    audit(p, port, {"width":390,"height":844}, "mobile")
