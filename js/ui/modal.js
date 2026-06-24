@@ -43,7 +43,13 @@ export function openModal(overlay, focusTarget = null) {
   applyScrollLock();
   requestAnimationFrame(() => {
     const target = focusTarget ?? focusableElements(overlay)[0] ?? overlay;
-    target.focus();
+    target?.focus();
+    // 방어(접근성): 전환 타이밍 등으로 포커스가 다이얼로그 밖(BODY 등)에 떨어지면
+    // 오버레이 자체로 복귀시켜, 키보드·스크린리더 사용자가 항상 다이얼로그 안에서 시작하게 한다.
+    if (!overlay.contains(document.activeElement)) {
+      if (!overlay.hasAttribute('tabindex')) overlay.setAttribute('tabindex', '-1');
+      overlay.focus();
+    }
   });
 }
 

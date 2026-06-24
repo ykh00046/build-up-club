@@ -892,13 +892,22 @@ function showTutorial() {
   renderTutorialStep();
   tutorialOverlay.classList.add('visible');
   tutorialOverlay.setAttribute('aria-hidden', 'false');
+  // 접근성: 튜토리얼이 허브 위에 뜨므로 뒤 허브를 inert 처리(탭 누수 방지) +
+  // 포커스를 튜토리얼 버튼으로 이동(키보드·스크린리더 사용자를 다이얼로그에 배치).
+  hubOverlay.inert = true;
+  requestAnimationFrame(() => document.getElementById('tutorial-next')?.focus());
 }
 
 function closeTutorial() {
   tutorialOverlay.classList.remove('visible');
   tutorialOverlay.setAttribute('aria-hidden', 'true');
+  hubOverlay.inert = false;
   Club.club.firstPlay = false;
   Club.save();
+  // 포커스를 허브로 복귀.
+  requestAnimationFrame(() => {
+    hubOverlay.querySelector('button:not([disabled]), [tabindex]:not([tabindex="-1"])')?.focus();
+  });
 }
 
 document.getElementById('tutorial-next').addEventListener('click', () => {
@@ -906,6 +915,18 @@ document.getElementById('tutorial-next').addEventListener('click', () => {
   else closeTutorial();
 });
 document.getElementById('tutorial-skip').addEventListener('click', closeTutorial);
+
+// 튜토리얼은 managed modal이 아니므로(허브를 가린 채 떠 있음) Tab 트랩을 직접 건다.
+// 캡처 단계로 modal.js(허브 기준) 핸들러보다 먼저 처리해 포커스를 튜토리얼 안에 가둔다.
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Tab' || !tutorialOverlay.classList.contains('visible')) return;
+  const items = [...tutorialOverlay.querySelectorAll('button:not([disabled])')].filter((el) => el.offsetParent !== null);
+  if (!items.length) return;
+  const first = items[0], last = items[items.length - 1], a = document.activeElement;
+  if (!tutorialOverlay.contains(a)) { e.preventDefault(); first.focus(); }
+  else if (e.shiftKey && a === first) { e.preventDefault(); last.focus(); }
+  else if (!e.shiftKey && a === last) { e.preventDefault(); first.focus(); }
+}, true);
 
 // 허브의 "다음 경기" → 이번 매치데이의 시나리오/상대/셋업을 잡고 전술 매치로.
 function startMatch() {
@@ -1409,7 +1430,7 @@ function loop(ts) {
   // (재스케줄은 loop() 진입부에서 처리 — 여기서 다시 호출하면 프레임당 이중 예약됨)
 }
 
-window.addEventListener('resize', resize);
+// (resize 리스너는 initRenderer가 등록 — 중복 바인딩 제거)
 requestAnimationFrame(loop);
 
 // Console test hook for headless playtesting.
