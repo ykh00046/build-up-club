@@ -21,7 +21,7 @@ import { initAudio, unlockAudio, setSoundEnabled, soundEnabled, setPressureLevel
 import { openModal, closeModal } from './ui/modal.js';
 // ─── Career layer (idle-football-club 메타 + 통합 글루) ───────────────────────
 import * as Club from './career/club.js';
-import { applyClubBoost, resolveScoreline } from './career/mods.js';
+import { applyClubBoost, resolveScoreline, BUILD_SHAPES, applyShape } from './career/mods.js';
 import { initHub, renderHub, nextMatchInfo } from './career/hub.js';
 import { t } from './career/i18n.js';
 import {
@@ -63,7 +63,15 @@ let hover = null;
 let kbTargetId = null;   // 키보드로 선택한 동료(없으면 null)
 let outcomeShown = false;
 let chosenDifficulty = 'high'; // set by tactics overlay, persists across retries
+let chosenShape = 'balanced';  // 빌드업 셰이프 (E6) — 브리핑에서 선택, 리트라이/다음경기 유지
 const tacticsIntents = { front: 'pin', mid: 'between', back: 'hold' };
+
+// 선택한 셰이프의 빌더로 buildOurs를 덮어쓴 시나리오(공유 SCENARIOS는 변형하지 않음).
+// builder=null(균형)이면 시나리오 고유 셰이프 그대로.
+function shapedScenario() {
+  const b = BUILD_SHAPES[chosenShape]?.builder;
+  return b ? { ...scenario, buildOurs: b } : scenario;
+}
 
 // ─── Career state ────────────────────────────────────────────────────────────
 // 한 경기 = 한 번의 전술 빌드업 모먼트. 그 결과로 클럽이 자란다.
@@ -136,7 +144,7 @@ function switchScenario(cell) {
 
 function newAttempt() {
   hideOutcome();
-  engine = createEngine(scenario, undefined, { intensityOverride: chosenDifficulty });
+  engine = createEngine(shapedScenario(), undefined, { intensityOverride: chosenDifficulty });
   // 통합 글루: 클럽 업그레이드를 'us' 선수 traits로 반영 → 강해질수록 전술이 쉬워짐.
   if (currentSetup) applyClubBoost(engine, currentSetup);
   outcomeShown = false;
@@ -197,7 +205,7 @@ function populateTacticsOverlay(scn) {
   const el = (id) => document.getElementById(id);
   el('tactics-cell').textContent = scn.cell;
   el('tactics-scenario-title').textContent = scn.title;
-  el('tactics-formation').innerHTML = buildFormationSvg(scn, { ...tacticsIntents });
+  el('tactics-formation').innerHTML = buildFormationSvg(shapedScenario(), { ...tacticsIntents });
   el('tactics-our-shape').textContent = scn.ourShapeName;
   el('tactics-opp-shape').textContent = scn.oppShapeName;
   el('tactics-scheme-line').textContent = SCHEME_LABELS[scn.scheme] ?? scn.scheme;
@@ -207,6 +215,7 @@ function populateTacticsOverlay(scn) {
   populateScoutingCard(scn);
   el('tactics-hint').textContent = `힌트: ${scn.hint ?? ''}`;
   updateDifficultyUI();
+  updateShapeUI();
   updateTacticsIntentUI();
 }
 
@@ -317,6 +326,17 @@ function updateDifficultyUI() {
   if (desc) desc.textContent = DIFF_DESC[chosenDifficulty] ?? '';
 }
 
+// 빌드업 셰이프 UI 동기화 (E6) — active 버튼 + 설명 + 미니맵 셰이프 반영.
+function updateShapeUI() {
+  for (const btn of document.querySelectorAll('.shape-btn')) {
+    const on = btn.dataset.shape === chosenShape;
+    btn.classList.toggle('active', on);
+    btn.setAttribute('aria-pressed', String(on));
+  }
+  const desc = document.getElementById('tactics-shape-desc');
+  if (desc) desc.textContent = BUILD_SHAPES[chosenShape]?.desc ?? '';
+}
+
 function updateTacticsIntentUI() {
   for (const row of document.querySelectorAll('.tactics-intent-row')) {
     const group = row.dataset.tgroup;
@@ -334,6 +354,15 @@ for (const btn of document.querySelectorAll('.diff-btn')) {
     updateDifficultyUI();
   });
 }
+for (const btn of document.querySelectorAll('.shape-btn')) {
+  btn.addEventListener('click', () => {
+    chosenShape = btn.dataset.shape;
+    updateShapeUI();
+    // 셰이프 선택 즉시 미니맵을 교체된 대형으로 갱신.
+    const fEl = document.getElementById('tactics-formation');
+    if (fEl) fEl.innerHTML = buildFormationSvg(shapedScenario(), { ...tacticsIntents });
+  });
+}
 for (const row of document.querySelectorAll('.tactics-intent-row')) {
   const group = row.dataset.tgroup;
   for (const btn of row.querySelectorAll('button')) {
@@ -349,6 +378,8 @@ for (const row of document.querySelectorAll('.tactics-intent-row')) {
 
 document.getElementById('btn-tactics-kickoff')?.addEventListener('click', () => {
   Object.assign(chosenIntents, tacticsIntents);
+  // 빌드업 셰이프 트레이드오프를 이번 경기 셋업에 반영(커리어 정산·엔진 부스트 공유).
+  if (currentSetup) applyShape(currentSetup, chosenShape);
   closeModal(tacticsOverlay);
   newAttempt();
   updateGuide();

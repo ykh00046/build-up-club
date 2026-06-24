@@ -329,13 +329,13 @@
     }
     .tactics-difficulty { background: var(--panel-2); border-radius: 6px; padding: 12px; }
     .tactics-diff-btns { display: flex; gap: 6px; margin-bottom: 7px; }
-    .diff-btn {
+    .diff-btn, .shape-btn {
       flex: 1; background: var(--panel); border: 1px solid var(--line);
       color: var(--text-muted); padding: 7px 8px; border-radius: 5px;
       font-size: 12.5px; cursor: pointer; transition: border-color .15s, color .15s, box-shadow .15s, background .15s;
     }
-    .diff-btn:hover { border-color: var(--accent); color: var(--text); }
-    .diff-btn.active {
+    .diff-btn:hover, .shape-btn:hover { border-color: var(--accent); color: var(--text); }
+    .diff-btn.active, .shape-btn.active {
       border-color: var(--accent); color: var(--accent);
       background: rgba(93, 214, 197, .08); font-weight: 700;
       box-shadow: 0 0 10px rgba(93, 214, 197, 0.08);
@@ -1133,6 +1133,15 @@
               <button class="diff-btn" data-difficulty="vhigh">어려움</button>
             </div>
             <div class="tactics-diff-desc" id="tactics-diff-desc">전방 압박 — 빠른 판단이 필요합니다</div>
+          </div>
+          <div class="tactics-difficulty">
+            <div class="tactics-section-label">빌드업 셰이프</div>
+            <div class="tactics-diff-btns">
+              <button class="shape-btn active" data-shape="balanced" title="살리다 3-2 — 안정적 첫 줄 빌드업">균형</button>
+              <button class="shape-btn" data-shape="control" title="인버티드 풀백 — 중앙 통제·역습 차단">통제</button>
+              <button class="shape-btn" data-shape="attack" title="3-2-5 전진 — 전방 위협·배후 노출">공격</button>
+            </div>
+            <div class="tactics-diff-desc" id="tactics-shape-desc">안정적 첫 줄 빌드업 — 보정 중립</div>
           </div>
           <div class="tactics-intents">
             <div class="tactics-section-label">시작 대형 <small style="text-transform:none;font-weight:400;letter-spacing:0;color:var(--text-muted);">— 경기 중 변경 가능</small></div>

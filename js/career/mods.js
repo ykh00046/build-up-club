@@ -11,8 +11,33 @@
 import { activeTrainingEffects, attackOVR, defenseOVR, teamOVR, oppBaseOVR, POSITIONS } from './club.js';
 import { philoMods } from './philosophy.js';
 import { activeIdentityLevel } from './identity.js';
+import { buildSalida32, buildDoublePivot23, build433Ours } from '../data/formations.js';
 
 function clamp(v, lo, hi) { return v < lo ? lo : v > hi ? hi : v; }
+
+// 빌드업 셰이프 (enhancement-plan E6, research §2.4). 경기 전 선택으로 구조와
+// 트레이드오프를 바꾼다. builder=null이면 시나리오 고유 셰이프를 유지(기본).
+//  - balanced : 살리다 3-2 — 첫 줄 안정, 보정 중립(기본)
+//  - control  : 인버티드 풀백/더블피벗 — 중앙 통제·레스트 디펜스(실점↓), 마무리 살짝↓
+//  - attack   : 3-2-5 전진 — 전방 위협(마무리·xG↑), 배후 노출로 실점↑
+export const BUILD_SHAPES = {
+  balanced: { key: 'balanced', label: '균형', sub: '살리다 3-2', desc: '안정적 첫 줄 빌드업 — 보정 중립', builder: null, mods: {} },
+  control: { key: 'control', label: '통제', sub: '인버티드 풀백', desc: '중앙 통제·역습 차단(실점↓), 마무리 살짝↓', builder: buildDoublePivot23, mods: { passAdd: 0.02, shotMul: 0.95, concedeMul: 0.93 } },
+  attack: { key: 'attack', label: '공격', sub: '3-2-5 전진', desc: '전방 위협·xG↑, 배후 노출로 실점↑', builder: build433Ours, mods: { shotAdd: 0.05, xgMul: 1.05, concedeMul: 1.10 } },
+};
+
+// 선택한 셰이프의 트레이드오프를 setup에 반영(킥오프 직전 호출). setup을 직접 수정.
+export function applyShape(setup, key) {
+  const shape = BUILD_SHAPES[key];
+  if (!setup || !shape) return setup;
+  const m = shape.mods;
+  setup.passBoost = clamp(setup.passBoost + (m.passAdd || 0), 0, 0.32);
+  setup.shotBoost = clamp((setup.shotBoost + (m.shotAdd || 0)) * (m.shotMul || 1), 0, 0.6);
+  setup.xgMul = (setup.xgMul || 1) * (m.xgMul || 1);
+  setup.shapeConcedeMul = m.concedeMul || 1;
+  setup.shape = key;
+  return setup;
+}
 
 // 공격/수비 OVR → 트레잇 부스트. matchSetup과 upgradePreview가 공유하는 단일 진실원
 // (둘이 따로 계산하면 미리보기와 실제 경기가 어긋난다).
@@ -140,6 +165,7 @@ export function resolveScoreline(perf, setup, rngNext, pmods = philoMods()) {
   let concedeP = clamp(oppAtk / (oppAtk + setup.def * 1.5), 0.05, 0.85);
   concedeP *= (pmods.concedeMul || 1);
   concedeP *= (trainingScore.concedeMul || 1);
+  concedeP *= (setup.shapeConcedeMul || 1);   // 빌드업 셰이프 트레이드오프 (E6)
   concedeP *= (1 - dominance * 0.35);
   if (tone === 'fail') concedeP += 0.18 * (1 - (pmods.failConcedeRelief || 0));
   concedeP = clamp(concedeP, 0.02, 0.92);
