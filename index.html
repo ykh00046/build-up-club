@@ -413,8 +413,12 @@
 
       /* 하단 고정 액션바 — 전술 판단 중 항상 손에 닿게 */
       .actionbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; flex-shrink: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; overflow: visible; background: var(--panel); border-top: 1px solid var(--line); box-shadow: 0 -6px 16px rgba(0,0,0,0.34); padding-bottom: max(10px, env(safe-area-inset-bottom)); }
-      .actionbar .btn { min-height: 42px; width: 100%; padding-inline: 5px; }
+      .actionbar .btn { min-height: 44px; width: 100%; padding-inline: 5px; }
       .actionbar .hint { display: block; grid-column: 1 / -1; grid-row: 1; margin: 0 0 3px; max-width: none; min-height: 24px; }
+      /* 터치 타깃 ≥44px (WCAG 2.5.5) — 브리핑·허브에서 매 경기 누르는 버튼들 */
+      .diff-btn, .shape-btn, .sp-btn, .tactics-intent-btn, .role-btn,
+      .situation-actions button { min-height: 44px; }
+      .tactics-intent-btn { padding: 7px 10px; }
 
       /* 상단 드로어 토글 */
       .drawer-toggle { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; background: var(--panel-2); border: 1px solid var(--accent); color: var(--accent); border-radius: 6px; padding: 4px 10px; font-size: 12px; font-weight: 700; cursor: pointer; }
