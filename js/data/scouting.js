@@ -17,6 +17,7 @@ export const SCOUTING = {
     recommendActions: ['bounce', 'third_man'],
     cautionActions: ['to_feet'],
     recommendLine: '전방 내려와 연결 + 중원 라인 사이',
+    trap: '백패스 덫 — 마크를 떼려 뒤로 빼면 즉시 달려듭니다. 원터치 써드맨으로 마커를 등지고 벗기세요.',
   },
   zonal: {
     label: '지역 블록',
@@ -26,6 +27,7 @@ export const SCOUTING = {
     recommendActions: ['switch'],
     cautionActions: ['into_space'],
     recommendLine: '풀백 후방 안정 + 빠른 전환',
+    trap: '중앙 미끼 덫 — 중앙을 열어두고 들어오면 협공합니다. 빠른 전환으로 블록을 가로로 흔든 뒤 약측을 치세요.',
   },
   gegen: {
     label: '게겐프레스',
@@ -35,6 +37,7 @@ export const SCOUTING = {
     recommendActions: ['bounce', 'third_man'],
     cautionActions: ['hold', 'carry'],
     recommendLine: '전방 내려 1터치 콤비 + 중원 지원',
+    trap: '즉시 스웜 — 공을 받는 순간 떼로 달려듭니다. 받기 전에 다음 그림을 정하고 1터치로 첫 파도를 넘기세요.',
   },
   hybrid: {
     label: '하이브리드 압박',
@@ -44,6 +47,7 @@ export const SCOUTING = {
     recommendActions: ['third_man'],
     cautionActions: [],
     recommendLine: '중원 지원 + 써드맨 우회',
+    trap: '하프스페이스 채널 덫 — 커버 섀도우 바깥으로 유인한 뒤 점프합니다. 써드맨으로 점프를 빗나가게 해 등 뒤를 치세요.',
   },
 };
 

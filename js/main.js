@@ -237,6 +237,7 @@ function populateScoutingCard(scn) {
   el('tactics-scout-style').textContent = scout.style;
   el('tactics-scout-weak').textContent = scout.weakness;
   el('tactics-scout-caution').textContent = scout.caution;
+  el('tactics-scout-trap').textContent = scout.trap ?? '—';   // 압박 덫 유형 + 회피법 (E9)
   el('tactics-scout-rec').textContent =
     `${actionLabels(scout.recommendActions)}${scout.recommendLine ? ` · ${scout.recommendLine}` : ''}`;
 

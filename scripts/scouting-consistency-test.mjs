@@ -62,6 +62,11 @@ const lookupSchemes = ['man', 'zonal', 'gegen', 'hybrid', 'unknown'];
 ok(getScouting('unknown') === null, '알 수 없는 scheme 은 null 반환');
 ok(lookupSchemes.filter((s) => SCOUTING[s]).length === 4, 'SCOUTING 은 4종 scheme 만 포함');
 
+// ── E9: 모든 scheme 에 압박 덫(trap) 서술이 채워짐 ──
+for (const s of ['man', 'zonal', 'gegen', 'hybrid']) {
+  ok(typeof SCOUTING[s].trap === 'string' && SCOUTING[s].trap.length > 10, `E9: ${s} 압박 덫 서술 존재`);
+}
+
 // ── 모든 시나리오 셀의 scheme 이 SCOUTING 키와 일치 (E1/E2 포함) ──
 const cells = Object.keys(SCENARIOS);
 ok(cells.includes('E1') && cells.includes('E2'), `신규 셀 E1, E2 정의됨 (현재 ${cells.length}개 셀)`);
