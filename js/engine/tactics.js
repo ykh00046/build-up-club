@@ -49,6 +49,13 @@ export function tacticalFactors(state, actionId) {
   if (scheme === 'gegen' && (actionId === 'hold' || actionId === 'carry')) addFactor(factors, 'opp_gegen_swarm', '게겐프레스의 즉시 압박', 1.14);
   if (scheme === 'gegen' && (actionId === 'bounce' || actionId === 'third_man')) addFactor(factors, 'opp_gegen_bypass', '첫 파도 우회', 0.88);
   if (scheme === 'hybrid' && actionId === 'third_man') addFactor(factors, 'opp_hybrid_shadow', '하이브리드 압박의 커버 섀도우 우회', 0.93);
+  // 미드블록(E10): 앞 공간으로 운반은 유리, 압축된 중앙으로의 침투는 불리.
+  if (scheme === 'midblock' && actionId === 'carry') addFactor(factors, 'opp_midblock_space', '미드블록 앞 공간으로 운반', 0.92);
+  if (scheme === 'midblock' && actionId === 'into_space') addFactor(factors, 'opp_midblock_compact', '미드블록 중앙 압축', 1.10);
+  // 로우블록(E10): 좌우 전환·앞 공간 운반은 유리, 배후 공간이 없어 침투는 불리.
+  if (scheme === 'lowblock' && actionId === 'switch') addFactor(factors, 'opp_lowblock_shift', '깊은 블록을 좌우로 흔듦', 0.90);
+  if (scheme === 'lowblock' && actionId === 'carry') addFactor(factors, 'opp_lowblock_front', '로우블록 앞 넓은 공간', 0.93);
+  if (scheme === 'lowblock' && actionId === 'into_space') addFactor(factors, 'opp_lowblock_nodepth', '깊은 블록 뒤 공간 없음', 1.12);
   // 정체성 레벨 보정 — roadmap P4. Lv3+ 에서 주 정체성 관련 액션 위험도 소폭 안정화(0.97).
   // state.identityLevel 은 applyClubBoost 가 club.philosophy/identityXp 기반으로 주입.
   const il = state.identityLevel;

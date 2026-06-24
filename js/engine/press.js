@@ -7,7 +7,9 @@ import { clamp, dist, PITCH_W, PITCH_H } from '../data/pitch.js';
 import { nearestDefender, evaluateLane } from './space.js';
 import { findSuperiorityZones } from './superiority.js';
 
-const SCHEME_BASE = { hybrid: 0.50, man: 0.58, zonal: 0.36, gegen: 0.62 };
+// midblock/lowblock(E10): 지역 방어 계열 — 사람보다 공간을 지키고 드롭오프가 잦다
+// (마킹 분기는 man/hybrid가 아니라 zonal-like로 폴백). 블록일수록 base commit↓.
+const SCHEME_BASE = { hybrid: 0.50, man: 0.58, zonal: 0.36, gegen: 0.62, midblock: 0.40, lowblock: 0.30 };
 const INTENSITY_MUL = { low: 0.75, mid: 1.0, high: 1.18, vhigh: 1.45 };
 const COMPACT = {
   tight:  { sideShift: 0.50, windowR: 6.0, lineGap: -0.25 },
@@ -27,7 +29,7 @@ const TRIGGER_WEIGHT = {
 // How many turns each scheme needs to recognise a shape change (§6.4).
 // During the delay the press operates on its PREVIOUS reading — that lag is
 // the shape advantage window the player exploits.
-const RECOG_DELAY = { hybrid: 2, man: 3, zonal: 3, gegen: 4 };
+const RECOG_DELAY = { hybrid: 2, man: 3, zonal: 3, gegen: 4, midblock: 3, lowblock: 4 };
 
 export function createPress(config) {
   const { scheme, compactness, intensityOverride } = config;

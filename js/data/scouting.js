@@ -49,6 +49,26 @@ export const SCOUTING = {
     recommendLine: '중원 지원 + 써드맨 우회',
     trap: '하프스페이스 채널 덫 — 커버 섀도우 바깥으로 유인한 뒤 점프합니다. 써드맨으로 점프를 빗나가게 해 등 뒤를 치세요.',
   },
+  midblock: {
+    label: '미드블록',
+    style: '중앙 3선에 컴팩트하게 서서 기다리는 미드블록. 함부로 나오지 않습니다.',
+    weakness: '블록 앞 공간이 넓습니다. 운반으로 끌어낸 뒤 라인 사이를 노리세요.',
+    caution: '압축된 중앙으로 무리하게 침투하면 막힙니다.',
+    recommendActions: ['carry'],
+    cautionActions: ['into_space'],
+    recommendLine: '후방 안정 + 운반으로 유인',
+    trap: '인내 덫 — 미끼를 물지 않고 버팁니다. 앞 공간을 운반으로 잠식해 점프를 강제한 뒤 등 뒤를 치세요.',
+  },
+  lowblock: {
+    label: '로우블록',
+    style: '박스 앞에 깊게 내려앉는 로우블록. 영역을 내주고 골문을 지킵니다.',
+    weakness: '좌우 전환으로 블록을 흔들면 약측이 열립니다. 앞 공간도 넓습니다.',
+    caution: '깊은 라인 뒤로는 공간이 없어 침투 패스가 죽습니다.',
+    recommendActions: ['switch', 'carry'],
+    cautionActions: ['into_space'],
+    recommendLine: '풀백 전진 + 빠른 좌우 전환',
+    trap: '밀집 덫 — 박스 앞을 인원으로 채웁니다. 빠른 전환으로 블록을 좌우로 끌고 다니며 약측 하프스페이스를 여세요.',
+  },
 };
 
 export function getScouting(scheme) {

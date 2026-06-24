@@ -38,7 +38,7 @@ console.log('=== 상대 스카우팅 ↔ 엔진 일관성 ===\n');
 const baseRisk = tacticalRiskMultiplier(cleanState('man'), 'to_feet');
 ok(Math.abs(baseRisk - 1) < 0.001, `격리 상태 기준 위험도 = 1.0 (실제 ${baseRisk.toFixed(3)})`);
 
-const schemes = ['man', 'zonal', 'gegen', 'hybrid'];
+const schemes = ['man', 'zonal', 'gegen', 'hybrid', 'midblock', 'lowblock'];
 for (const scheme of schemes) {
   const meta = getScouting(scheme);
   ok(meta !== null, `${scheme}: 스카우팅 메타데이터 존재`);
@@ -58,12 +58,12 @@ for (const scheme of schemes) {
   }
 }
 
-const lookupSchemes = ['man', 'zonal', 'gegen', 'hybrid', 'unknown'];
+const lookupSchemes = ['man', 'zonal', 'gegen', 'hybrid', 'midblock', 'lowblock', 'unknown'];
 ok(getScouting('unknown') === null, '알 수 없는 scheme 은 null 반환');
-ok(lookupSchemes.filter((s) => SCOUTING[s]).length === 4, 'SCOUTING 은 4종 scheme 만 포함');
+ok(lookupSchemes.filter((s) => SCOUTING[s]).length === 6, 'SCOUTING 은 6종 scheme 포함(미드블록·로우블록 추가)');
 
 // ── E9: 모든 scheme 에 압박 덫(trap) 서술이 채워짐 ──
-for (const s of ['man', 'zonal', 'gegen', 'hybrid']) {
+for (const s of ['man', 'zonal', 'gegen', 'hybrid', 'midblock', 'lowblock']) {
   ok(typeof SCOUTING[s].trap === 'string' && SCOUTING[s].trap.length > 10, `E9: ${s} 압박 덫 서술 존재`);
 }
 
