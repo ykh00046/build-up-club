@@ -63,6 +63,15 @@ export function activeIdentityLevel() {
   return { id, level, actions: IDENTITY_ACTIONS[id] || [] };
 }
 
+// 스캐닝(E7, research §3.7): 수신 전 지각. 읽기 계열 정체성(점유 조립·압박 회피)의
+// 누적이 클럽의 사전 스캔 능력을 키운다 → 전진 패스·수신이 안정. 0~1, 60XP에서 최대.
+// 별도 저장 필드 없이 기존 identityXp에서 파생(마이그레이션 불필요).
+export function scanFactor() {
+  const xp = club.identityXp || {};
+  const reading = (xp.positional || 0) + (xp.pressproof || 0);
+  return Math.min(1, reading / 60);
+}
+
 export const IDENTITIES = {
   positional: { label: '점유 조립형', desc: '원투·써드맨으로 라인 사이 전개', color: '#5dd6c5' },
   direct: { label: '직선 전진형', desc: '공간 패스·침투·빠른 마무리', color: '#f5a623' },

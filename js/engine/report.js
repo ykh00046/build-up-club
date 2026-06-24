@@ -25,6 +25,7 @@ function pickWorked(state) {
   if (f.situationsResolved > 0) return `상황 대응 ${f.situationsResolved}회로 상대 변화를 다시 흔들었습니다.`;
   if (f.windowsUsed > 0) return `열린 공간을 ${f.windowsUsed}회 활용해 압박 뒤를 공략했습니다.`;
   if (f.linesBroken > 0) return `라인 ${f.linesBroken}개를 통과하며 전진 구조는 만들었습니다.`;
+  if ((state.scanFactor || 0) >= 0.5) return '스캔으로 압박을 미리 읽어 전진이 안정적이었습니다.'; // E7
   if (helpful[0]) return helpful[0].label;
   return joinIntents(state.lineIntents) || '전술 구조를 유지했습니다.';
 }

@@ -10,7 +10,7 @@
 
 import { activeTrainingEffects, attackOVR, defenseOVR, teamOVR, oppBaseOVR, POSITIONS } from './club.js';
 import { philoMods } from './philosophy.js';
-import { activeIdentityLevel } from './identity.js';
+import { activeIdentityLevel, scanFactor } from './identity.js';
 import { buildSalida32, buildDoublePivot23, build433Ours } from '../data/formations.js';
 
 function clamp(v, lo, hi) { return v < lo ? lo : v > hi ? hi : v; }
@@ -101,6 +101,7 @@ export function matchSetup(oppOVR) {
     oppOVR, teamOVR: team, atk, def,
     trainingEffects,
     trainingScore,
+    scan: scanFactor(),              // 스캐닝(E7) — applyClubBoost·UI 공유
     odds: oddsFromRatio(team, oppOVR),
   };
 }
@@ -109,12 +110,15 @@ export function matchSetup(oppOVR) {
 export function applyClubBoost(engine, setup) {
   engine.state.trainingEffects = setup.trainingEffects || [];
   engine.state.identityLevel = activeIdentityLevel();
+  // 스캐닝(E7): 수신 전 지각 — 전진 패스·압박 저항을 소폭 안정화(닫힌 몸 위험 완화).
+  const scan = setup.scan ?? scanFactor();
+  engine.state.scanFactor = scan;
   for (const p of engine.state.players) {
     if (p.side !== 'us') continue;
     const t = { ...(p.traits || {}) };
     t.pass = clamp((t.pass ?? 0.7) + setup.passBoost, 0, 0.98);
-    t.pressResistance = clamp((t.pressResistance ?? 0.7) + setup.passBoost, 0, 0.98);
-    t.longPass = clamp((t.longPass ?? 0.5) + setup.passBoost * 0.7, 0, 0.98);
+    t.pressResistance = clamp((t.pressResistance ?? 0.7) + setup.passBoost + scan * 0.06, 0, 0.98);
+    t.longPass = clamp((t.longPass ?? 0.5) + setup.passBoost * 0.7 + scan * 0.04, 0, 0.98);
     if (t.carry != null) t.carry = clamp(t.carry + setup.passBoost * 0.6, 0, 0.98);
     if (p.role === 'GK') t.keeping = clamp((t.keeping ?? 0.75) + setup.gkBoost, 0, 0.98);
     // 마무리: 보유한 슛 존 affinity를 일괄 스케일 (강화 + 철학 xgMul)
