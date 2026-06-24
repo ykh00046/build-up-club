@@ -10,7 +10,7 @@ export const ROLES = {
   },
   fw: {
     none: { key: 'none', label: '기본', desc: '표준 전방 — 보정 없음', mods: {} },
-    target: { key: 'target', label: '타깃맨', desc: '홀드업·헤더 — 세트피스↑, 발밑 약간↓', mods: { setPieceAdd: 0.06, passAdd: -0.01 } },
+    target: { key: 'target', label: '타깃맨', desc: '홀드업·헤더 — 세트피스↑, 발밑 약간↓', mods: { setPieceAdd: 0.035, passAdd: -0.01 } },
     inside: { key: 'inside', label: '인사이드 포워드', desc: '안쪽 침투 마무리 — xG↑, 세트피스 약간↓', mods: { shotAdd: 0.04, xgMul: 1.04, setPieceAdd: -0.02 } },
   },
 };

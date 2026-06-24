@@ -203,7 +203,9 @@ export function resolveScoreline(perf, setup, rngNext, pmods = philoMods()) {
   if (setup.delivery) {
     const coach = clamp(setup.setPieceCoach || 0, 0, 3);
     const spEdge = clamp((setup.atk - 8) / 40, 0, 0.3);
-    const spP = clamp(0.06 + coach * 0.05 + (setup.deliveryBonus || 0) * 0.06 + spEdge * 0.12 + (setup.roleSetPieceAdd || 0), 0, 0.4);  // + 롤(타깃맨)
+    // 보조 득점원으로 조정(밸런스 튜닝): 코치 없이 ~9%, 풀투자 ~21% 상한.
+    // 오픈플레이 빌드업이 주(主), 세트피스는 보(補).
+    const spP = clamp(0.025 + coach * 0.03 + (setup.deliveryBonus || 0) * 0.04 + spEdge * 0.08 + (setup.roleSetPieceAdd || 0), 0, 0.22);  // + 롤(타깃맨)
     if (rngNext() < spP) { ourGoals += 1; setPieceGoal = true; }
   }
 
