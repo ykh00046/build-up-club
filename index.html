@@ -484,6 +484,15 @@
     .hub-locked .lk-icon { display: block; font-size: 20px; margin-bottom: 6px; opacity: 0.7; }
 
     .hub-squad { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+    /* 선수 롤 (E8) */
+    .hub-roles { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+    .hub-role-line { background: var(--panel-2); border-radius: 6px; padding: 8px 10px; }
+    .hub-role-line .rl-k { display: block; font-size: 11px; color: var(--text-muted); font-weight: 700; margin-bottom: 5px; }
+    .hub-role-btns { display: flex; gap: 5px; }
+    .role-btn { flex: 1; background: var(--panel); border: 1px solid var(--line); color: var(--text-muted); padding: 6px 4px; border-radius: 5px; font-size: 11px; cursor: pointer; transition: border-color .15s, color .15s; }
+    .role-btn:hover { border-color: var(--accent); color: var(--text); }
+    .role-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(93,214,197,.08); font-weight: 700; }
+    .hub-role-desc { font-size: 10.5px; color: var(--text-muted); margin-top: 5px; line-height: 1.4; }
     .sq-card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; transition: transform 0.15s ease, border-color 0.15s, box-shadow 0.15s; }
     .sq-card:hover { transform: translateY(-3px); border-color: var(--accent); box-shadow: 0 8px 24px rgba(93, 214, 197, 0.08); }
     .sq-top { display: flex; justify-content: space-between; align-items: baseline; }
@@ -1010,6 +1019,7 @@
             <button class="hub-card-btn" id="hub-setpiece"></button>
             <button class="hub-card-btn" id="hub-boost"></button>
           </section>
+          <section class="hub-roles" id="hub-roles"></section>
         </section>
 
         <!-- 클럽: 장기 시스템, 진행도에 따라 순차 해금 -->

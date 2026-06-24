@@ -13,6 +13,7 @@ import { philoMods } from './philosophy.js';
 import { activeIdentityLevel, scanFactor } from './identity.js';
 import { buildSalida32, buildDoublePivot23, build433Ours } from '../data/formations.js';
 import { deliveryBonus } from '../data/setpieces.js';
+import { roleMods } from '../data/roles.js';
 
 function clamp(v, lo, hi) { return v < lo ? lo : v > hi ? hi : v; }
 
@@ -84,9 +85,18 @@ export function matchSetup(oppOVR) {
   else if (rel < 1.18) intensity = 'high';
   else intensity = 'vhigh';
 
-  // 공격 레벨 → 패스/슈팅 트레잇(boostsFor) + 철학 패스 보너스 가산.
+  // 선수 롤(E8): 중원/전방 롤의 트레이드오프를 합산.
+  const rmMf = roleMods('mf', club.roles?.mf), rmFw = roleMods('fw', club.roles?.fw);
+  const rolePassAdd = (rmMf.passAdd || 0) + (rmFw.passAdd || 0);
+  const roleShotAdd = (rmFw.shotAdd || 0);
+  const roleXgMul = (rmFw.xgMul || 1);
+  const roleConcedeMul = (rmMf.concedeMul || 1) * (rmFw.concedeMul || 1);
+  const roleSecondGoalAdd = (rmMf.secondGoalAdd || 0) + (rmFw.secondGoalAdd || 0);
+  const roleSetPieceAdd = (rmMf.setPieceAdd || 0) + (rmFw.setPieceAdd || 0);
+
+  // 공격 레벨 → 패스/슈팅 트레잇(boostsFor) + 철학 패스 보너스 가산 + 롤.
   const b = boostsFor(atk, def);
-  const passBoost = clamp(b.passBoost + pm.passBoostAdd, 0, 0.32);
+  const passBoost = clamp(b.passBoost + pm.passBoostAdd + rolePassAdd, 0, 0.32);
   const trainingEffects = activeTrainingEffects();
   const trainingScore = trainingEffects.reduce((acc, effect) => {
     const score = effect.score || {};
@@ -97,13 +107,16 @@ export function matchSetup(oppOVR) {
   }, { execAdd: 0, xgMul: 1, concedeMul: 1 });
 
   return {
-    intensity, passBoost, shotBoost: b.shotBoost, gkBoost: b.gkBoost,
-    xgMul: pm.xgMul,                 // 철학 마무리 배율 (applyClubBoost·스코어 공유)
+    intensity, passBoost,
+    shotBoost: clamp(b.shotBoost + roleShotAdd, 0, 0.6),   // + 롤(인사이드 포워드)
+    gkBoost: b.gkBoost,
+    xgMul: pm.xgMul * roleXgMul,     // 철학 마무리 배율 × 롤 (applyClubBoost·스코어 공유)
     oppOVR, teamOVR: team, atk, def,
     trainingEffects,
     trainingScore,
     scan: scanFactor(),              // 스캐닝(E7) — applyClubBoost·UI 공유
     setPieceCoach: club.setPieceCoach || 0,   // 세트피스 코치 레벨(E5)
+    roleConcedeMul, roleSecondGoalAdd, roleSetPieceAdd,   // 선수 롤(E8)
     odds: oddsFromRatio(team, oppOVR),
   };
 }
@@ -173,7 +186,7 @@ export function resolveScoreline(perf, setup, rngNext, pmods = philoMods()) {
     ourGoals = 1;
     // 다득점은 '수행(dominance)'이 주도, 퍽은 보조(×0.55) — 퍽 누적만으로 보장되지 않게.
     // 배율 스택을 막기 위해 2골 상한도 0.72로 제한(상위 디비전 스윙 완화). 모멘텀이 추가 변조.
-    const p2 = clamp((dominance * 0.50 + (pmods.secondGoalBonus || 0) * 0.55) * momFac, 0, 0.72);
+    const p2 = clamp((dominance * 0.50 + (pmods.secondGoalBonus || 0) * 0.55 + (setup.roleSecondGoalAdd || 0)) * momFac, 0, 0.72);  // + 롤(메짤라)
     if (rngNext() < p2) {
       ourGoals = 2;
       // 3골은 진짜 압도적일 때만 — dominance 0.6 초과분에 비례(최대 ~24%).
@@ -190,7 +203,7 @@ export function resolveScoreline(perf, setup, rngNext, pmods = philoMods()) {
   if (setup.delivery) {
     const coach = clamp(setup.setPieceCoach || 0, 0, 3);
     const spEdge = clamp((setup.atk - 8) / 40, 0, 0.3);
-    const spP = clamp(0.06 + coach * 0.05 + (setup.deliveryBonus || 0) * 0.06 + spEdge * 0.12, 0, 0.4);
+    const spP = clamp(0.06 + coach * 0.05 + (setup.deliveryBonus || 0) * 0.06 + spEdge * 0.12 + (setup.roleSetPieceAdd || 0), 0, 0.4);  // + 롤(타깃맨)
     if (rngNext() < spP) { ourGoals += 1; setPieceGoal = true; }
   }
 
@@ -200,6 +213,7 @@ export function resolveScoreline(perf, setup, rngNext, pmods = philoMods()) {
   concedeP *= (pmods.concedeMul || 1);
   concedeP *= (trainingScore.concedeMul || 1);
   concedeP *= (setup.shapeConcedeMul || 1);   // 빌드업 셰이프 트레이드오프 (E6)
+  concedeP *= (setup.roleConcedeMul || 1);     // 선수 롤 트레이드오프 (E8, 레지스타)
   concedeP *= (1 - dominance * 0.35);
   // 수비 전환(E1, §3.1): 볼 상실 시 역습 노출. 단, 지배력이 높았다면 레스트 디펜스가
   // 갖춰져 카운터프레스로 회복 — 통제된 상실일수록 역습 페널티가 줄어든다.

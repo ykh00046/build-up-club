@@ -49,6 +49,7 @@ function freshState() {
     fans: 50,
     stadiumLvl: 1,
     setPieceCoach: 0,       // 세트피스 코치 레벨 0~3 (E5) — 세트피스 득점 확률↑(저분산)
+    roles: { mf: 'none', fw: 'none' },   // 선수 롤 (E8) — 중원/전방 책임 변조
     levels: { gk: 1, df: 1, mf: 1, fw: 1 },
     divIdx: 0,
     points: 0,
@@ -109,6 +110,11 @@ export function normalizeState(raw = {}) {
   }
   // 세트피스 코치(E5): 0~SETPIECE_COACH_MAX 정수로 보정(손상/구버전 세이브 방어).
   next.setPieceCoach = Math.max(0, Math.min(SETPIECE_COACH_MAX, Math.floor(finiteOr(next.setPieceCoach, 0))));
+  // 선수 롤(E8): 문자열 보장, 누락 시 'none'(구버전 세이브 호환). 유효성은 roleMods가 폴백.
+  next.roles = {
+    mf: typeof src.roles?.mf === 'string' ? src.roles.mf : 'none',
+    fw: typeof src.roles?.fw === 'string' ? src.roles.fw : 'none',
+  };
   for (const key of ['w', 'd', 'l']) next.record[key] = Math.max(0, finiteOr(next.record[key], 0));
   next.divIdx = Math.max(0, Math.min(DIVISIONS.length - 1, Math.floor(next.divIdx)));
   // 챔피언/프레스티지 플래그는 최상위 디비전에서만 유효. 하위 디비전과 불일치하는
@@ -234,6 +240,14 @@ export function buySetPieceCoach() {
   if (cost == null || club.cash < cost) return false;
   club.cash -= cost;
   club.setPieceCoach += 1;
+  save();
+  return true;
+}
+
+// 선수 롤 설정(E8) — mf/fw 라인의 롤 선택(무료 토글). 저장.
+export function setRole(line, key) {
+  if (line !== 'mf' && line !== 'fw') return false;
+  club.roles[line] = key;
   save();
   return true;
 }

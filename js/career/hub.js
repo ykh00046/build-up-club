@@ -4,9 +4,10 @@
 import {
   club, division, DIVISIONS, POSITIONS, teamOVR, attackOVR, defenseOVR,
   upgradeCost, buyUpgrade, stadiumCost, buyStadium, oppBaseOVR,
-  setPieceCoachCost, buySetPieceCoach,
+  setPieceCoachCost, buySetPieceCoach, setRole,
   prestige, prestigeGain, boostActive, boostRemainSec, startBoost, formatNum, save,
 } from './club.js';
+import { ROLES } from '../data/roles.js';
 import { matchSetup, upgradePreview } from './mods.js';
 import { opponentName, scenarioForMatchday } from './season.js';
 import { t, getLang, toggleLang } from './i18n.js';
@@ -117,6 +118,23 @@ function pulse(el) {
   setTimeout(() => { el.style.transform = ''; }, 110);
 }
 
+// 선수 롤 선택 UI (E8) — 중원/전방 롤 버튼 + 설명. 무료 토글, 즉시 저장.
+function renderRoles() {
+  const el = $('hub-roles');
+  if (!el) return;
+  const LINES = [['mf', '중원'], ['fw', '전방']];
+  el.innerHTML = LINES.map(([line, label]) => {
+    const cur = club.roles?.[line] || 'none';
+    const desc = ROLES[line][cur]?.desc || '';
+    const btns = Object.values(ROLES[line]).map((r) =>
+      `<button type="button" class="role-btn ${r.key === cur ? 'active' : ''}" data-line="${line}" data-role="${r.key}">${r.label}</button>`).join('');
+    return `<div class="hub-role-line"><span class="rl-k">${label} 롤</span><div class="hub-role-btns">${btns}</div><div class="hub-role-desc">${desc}</div></div>`;
+  }).join('');
+  for (const btn of el.querySelectorAll('.role-btn')) {
+    btn.addEventListener('click', () => { setRole(btn.dataset.line, btn.dataset.role); renderHub(); });
+  }
+}
+
 export function renderHub() {
   // 헤더
   setText('hub-name', clubLabel());
@@ -160,6 +178,7 @@ export function renderHub() {
   const spCost = setPieceCoachCost();
   setHtml('hub-setpiece', `<span class="cb-k">세트피스 코치 · Lv ${club.setPieceCoach}</span><span class="cb-v">${spCost == null ? 'MAX' : formatNum(spCost)}</span>`);
   toggleAfford('hub-setpiece', spCost != null && club.cash >= spCost);
+  renderRoles();
   const boostBtn = $('hub-boost');
   if (boostBtn) {
     boostBtn.innerHTML = boostActive()
