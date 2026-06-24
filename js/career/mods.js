@@ -8,10 +8,11 @@
 // 그래서 업그레이드는 숫자놀음이 아니라 "패스가 덜 끊기고 슛이 더 들어가는"
 // 체감으로 돌아온다. 수비 레벨은 경기 후 실점 시뮬(simConcede)로 작동한다.
 
-import { activeTrainingEffects, attackOVR, defenseOVR, teamOVR, oppBaseOVR, POSITIONS } from './club.js';
+import { activeTrainingEffects, attackOVR, defenseOVR, teamOVR, oppBaseOVR, POSITIONS, club } from './club.js';
 import { philoMods } from './philosophy.js';
 import { activeIdentityLevel, scanFactor } from './identity.js';
 import { buildSalida32, buildDoublePivot23, build433Ours } from '../data/formations.js';
+import { deliveryBonus } from '../data/setpieces.js';
 
 function clamp(v, lo, hi) { return v < lo ? lo : v > hi ? hi : v; }
 
@@ -102,8 +103,17 @@ export function matchSetup(oppOVR) {
     trainingEffects,
     trainingScore,
     scan: scanFactor(),              // 스캐닝(E7) — applyClubBoost·UI 공유
+    setPieceCoach: club.setPieceCoach || 0,   // 세트피스 코치 레벨(E5)
     odds: oddsFromRatio(team, oppOVR),
   };
+}
+
+// 선택한 세트피스 딜리버리를 setup에 반영(킥오프 직전, applyShape와 같은 패턴). E5.
+export function applySetPiece(setup, delivery, scheme) {
+  if (!setup) return setup;
+  setup.delivery = delivery || null;
+  setup.deliveryBonus = delivery ? deliveryBonus(delivery, scheme) : 0;
+  return setup;
 }
 
 // 엔진 생성 직후 호출 — 'us' 선수 traits를 셋업만큼 끌어올린다.
@@ -173,6 +183,17 @@ export function resolveScoreline(perf, setup, rngNext, pmods = philoMods()) {
     if (rngNext() < clamp(exec + xg * 0.4 - 0.15, 0, 0.4)) ourGoals = 1; // 리바운드/세컨볼
   } // fail → 0
 
+  // 세트피스 채널 (E5, §3.3): 저분산 득점원. 실제 경기엔 항상 delivery가 있고
+  // (브리핑 선택), career-sim 회귀엔 없어 rng 미소비 → 시퀀스 불변. 코치 레벨·
+  // 마킹 상성·공격 전력이 전환 확률을 끌어올린다.
+  let setPieceGoal = false;
+  if (setup.delivery) {
+    const coach = clamp(setup.setPieceCoach || 0, 0, 3);
+    const spEdge = clamp((setup.atk - 8) / 40, 0, 0.3);
+    const spP = clamp(0.06 + coach * 0.05 + (setup.deliveryBonus || 0) * 0.06 + spEdge * 0.12, 0, 0.4);
+    if (rngNext() < spP) { ourGoals += 1; setPieceGoal = true; }
+  }
+
   // 실점: 상대 공격 vs 수비, 지배력만큼 감소, 철학 concedeMul, fail이면 가산(역습 relief 반영).
   const oppAtk = setup.oppOVR * 0.5;
   let concedeP = clamp(oppAtk / (oppAtk + setup.def * 1.5), 0.05, 0.85);
@@ -194,7 +215,7 @@ export function resolveScoreline(perf, setup, rngNext, pmods = philoMods()) {
 
   const result = ourGoals > oppGoals ? 'w' : ourGoals < oppGoals ? 'l' : 'd';
   return {
-    ourGoals, oppGoals, result, cleanSheet: oppGoals === 0,
+    ourGoals, oppGoals, result, cleanSheet: oppGoals === 0, setPieceGoal,
     dominance: +dominance.toFixed(2), exec: +exec.toFixed(2), xg: +xg.toFixed(2),
   };
 }

@@ -27,8 +27,10 @@ export const DIVISIONS = [
 ];
 
 const SAVE_KEY = 'buc-save-v1';
-const SAVE_VERSION = 5;
+const SAVE_VERSION = 6;                 // v6: setPieceCoach (E5)
 const COST_GROWTH = 1.18;
+const SETPIECE_COACH_MAX = 3;           // 세트피스 코치 최대 레벨 (E5)
+const SETPIECE_COACH_BASE = 3500;       // 1레벨 고용 비용 (이후 레벨마다 ×1.6)
 const STADIUM_BASE = 120;
 const STADIUM_GROWTH = 2.2;
 const BOOST_MS = 30 * 60 * 1000;
@@ -46,6 +48,7 @@ function freshState() {
     cash: 120,
     fans: 50,
     stadiumLvl: 1,
+    setPieceCoach: 0,       // 세트피스 코치 레벨 0~3 (E5) — 세트피스 득점 확률↑(저분산)
     levels: { gk: 1, df: 1, mf: 1, fw: 1 },
     divIdx: 0,
     points: 0,
@@ -104,6 +107,8 @@ export function normalizeState(raw = {}) {
   for (const key of ['cash', 'fans', 'stadiumLvl', 'divIdx', 'points', 'matchday', 'legacy', 'champions', 'totalEarned', 'runEarned', 'boostUntil', 'lastSeen', 'lastMatchIncome', 'streakW', 'philoPoints']) {
     next[key] = finiteOr(next[key], base[key]);
   }
+  // 세트피스 코치(E5): 0~SETPIECE_COACH_MAX 정수로 보정(손상/구버전 세이브 방어).
+  next.setPieceCoach = Math.max(0, Math.min(SETPIECE_COACH_MAX, Math.floor(finiteOr(next.setPieceCoach, 0))));
   for (const key of ['w', 'd', 'l']) next.record[key] = Math.max(0, finiteOr(next.record[key], 0));
   next.divIdx = Math.max(0, Math.min(DIVISIONS.length - 1, Math.floor(next.divIdx)));
   // 챔피언/프레스티지 플래그는 최상위 디비전에서만 유효. 하위 디비전과 불일치하는
@@ -215,6 +220,20 @@ export function buyStadium() {
   if (club.cash < cost) return false;
   club.cash -= cost;
   club.stadiumLvl += 1;
+  save();
+  return true;
+}
+
+// 세트피스 코치 고용(E5) — 자금 소모형 업그레이드. 최대 레벨에서 null 비용.
+export function setPieceCoachCost() {
+  if (club.setPieceCoach >= SETPIECE_COACH_MAX) return null;
+  return SETPIECE_COACH_BASE * Math.pow(1.6, club.setPieceCoach) * legacyDiscount();
+}
+export function buySetPieceCoach() {
+  const cost = setPieceCoachCost();
+  if (cost == null || club.cash < cost) return false;
+  club.cash -= cost;
+  club.setPieceCoach += 1;
   save();
   return true;
 }

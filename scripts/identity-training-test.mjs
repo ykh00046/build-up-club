@@ -115,7 +115,7 @@ club.identityXp.positional = 50;
 ok(club.careerHistory[2].identityXp.positional === 10, '이후 XP 변화가 이전 스냅샷에 영향 없음 (불변 사본)');
 // 마이그레이션: saveVersion 3 → 4, careerHistory 보정
 const migHist = normalizeState({ saveVersion: 3, levels: { fw: 3 } });
-ok(migHist.saveVersion === 5, '구 저장(saveVersion 3) → 5 갱신');
+ok(migHist.saveVersion === 6, "구 저장(saveVersion 3) → 6 갱신");
 ok(Array.isArray(migHist.careerHistory) && migHist.careerHistory.length === 0, '마이그레이션: careerHistory 빈 배열 보정');
 // 부분 마이그레이션: 기존 히스토리 보존 (최근 50)
 const migHist2 = normalizeState({ careerHistory: [{ matchday: 1, points: 3 }, { matchday: 2, points: 4 }] });
@@ -130,7 +130,7 @@ ok(migFirst.firstPlay === false, 'firstPlay=false 보존');
 // 구 저장(firstPlay 없음) → true 보정
 const migFirstOld = normalizeState({ saveVersion: 4, levels: { fw: 3 } });
 ok(migFirstOld.firstPlay === true, '구 저장(firstPlay 누락) → true 보정');
-ok(migFirstOld.saveVersion === 5, '구 저장(saveVersion 4) → 5 갱신');
+ok(migFirstOld.saveVersion === 6, "구 저장(saveVersion 4) → 6 갱신");
 // 명시적 falsy 값 처리
 ok(normalizeState({ firstPlay: 0 }).firstPlay === false, 'firstPlay=0 → false (falsy 변환)');
 ok(normalizeState({ firstPlay: 1 }).firstPlay === true, 'firstPlay=1 → true');
@@ -165,7 +165,7 @@ ok(!club.scenarioWins.A1, 'scenarioWins 미호출 셀은 미존재');
 
 // 마이그레이션: saveVersion 3 + 누락 필드 보정
 const migrated2 = normalizeState({ saveVersion: 2, levels: { fw: 3 }, identityXp: { wing: 5 } });
-ok(migrated2.saveVersion === 5, '구 저장(saveVersion 2) → 5 로 갱신');
+ok(migrated2.saveVersion === 6, "구 저장(saveVersion 2) → 6 로 갱신");
 ok(migrated2.identityStreak && migrated2.identityStreak.id === null && migrated2.identityStreak.count === 0, '마이그레이션: identityStreak 기본값 보정');
 ok(migrated2.scenarioWins && typeof migrated2.scenarioWins === 'object' && Object.keys(migrated2.scenarioWins).length === 0, '마이그레이션: scenarioWins 빈 객체 보정');
 ok(migrated2.seasonGoalsDone && Object.keys(migrated2.seasonGoalsDone).length === 0, '마이그레이션: seasonGoalsDone 빈 객체 보정');
