@@ -16,8 +16,8 @@ function resolveScoreline(perf, setup, rng, pmods = NEUTRAL) {
   let ourGoals = 0;
   if (tone === 'goal') {
     ourGoals = 1;
-    const p2 = clamp(dominance*0.55 + (pmods.secondGoalBonus||0), 0, 0.85);
-    if (rng() < p2) { ourGoals = 2; if (rng() < dominance*0.30) ourGoals = 3; }
+    const p2 = clamp(dominance*0.50 + (pmods.secondGoalBonus||0)*0.55, 0, 0.72);
+    if (rng() < p2) { ourGoals = 2; if (dominance > 0.6 && rng() < (dominance - 0.6)*0.6) ourGoals = 3; }
   } else if (tone === 'near') {
     if (rng() < clamp(exec + xg*0.4 - 0.15, 0, 0.4)) ourGoals = 1;
   }

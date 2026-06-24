@@ -119,14 +119,29 @@ export function renderHub() {
 function renderIdentity() {
   const el = $('hub-identity');
   if (!el) return;
-  const id = identitySummary();
-  const lv = identityLevel(id.value);
-  el.style.setProperty('--idc', id.color);
-  el.innerHTML = `
-    <span class="hi-k">클럽 정체성</span>
-    <strong>${id.label}</strong>
-    <span class="hi-desc">${id.desc}</span>
-    <span class="hi-xp">Lv ${lv} · ${Math.round(id.value)} XP</span>`;
+  // 표시 기준 = 선택한 정체성(club.philosophy) — 퍽·Lv4 게이트·액션 안정화와 일치.
+  // 플레이 성향(XP 최고)이 선택과 다르면 보조로 안내. 미선택이면 성향을 제안.
+  const chosen = currentPhilosophy();
+  const dominant = identitySummary();
+  if (chosen) {
+    const xp = club.identityXp?.[chosen.id] ?? 0;
+    const lv = identityLevel(xp);
+    const tendency = (dominant.id !== chosen.id && dominant.value > 0) ? ` · 성향 ${dominant.label}` : '';
+    el.style.setProperty('--idc', chosen.color);
+    el.innerHTML = `
+      <span class="hi-k">클럽 정체성</span>
+      <strong>${chosen.name}</strong>
+      <span class="hi-desc">${chosen.kicker}</span>
+      <span class="hi-xp">Lv ${lv} · ${Math.round(xp)} XP${tendency}</span>`;
+  } else {
+    const lv = identityLevel(dominant.value);
+    el.style.setProperty('--idc', dominant.color);
+    el.innerHTML = `
+      <span class="hi-k">클럽 정체성 · 미선택</span>
+      <strong>${dominant.label} 성향</strong>
+      <span class="hi-desc">${dominant.desc} — 철학에서 정체성을 선택하세요</span>
+      <span class="hi-xp">Lv ${lv} · ${Math.round(dominant.value)} XP</span>`;
+  }
 }
 
 // 커리어 히스토리 차트 — 승점 흐름을 SVG polyline 으로 (roadmap 고도화).

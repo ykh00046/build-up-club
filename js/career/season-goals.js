@@ -29,13 +29,13 @@ export const SEASON_GOALS = {
     desc: '이번 디비전의 주요 압박 상대에게 2승을 거두세요.',
     reward: 300,
     target: 2,
-    targetCell: () => divisionPool(club.divIdx)[0],
-    current: () => {
-      const cell = divisionPool(club.divIdx)[0];
+    targetCell: (ctx = {}) => divisionPool(ctx.divIdx ?? club.divIdx)[0],
+    current: (ctx = {}) => {
+      const cell = divisionPool(ctx.divIdx ?? club.divIdx)[0];
       return club.scenarioWins?.[cell] ?? 0;
     },
-    check: () => {
-      const cell = divisionPool(club.divIdx)[0];
+    check: (ctx = {}) => {
+      const cell = divisionPool(ctx.divIdx ?? club.divIdx)[0];
       return (club.scenarioWins?.[cell] ?? 0) >= 2;
     },
   },
@@ -55,14 +55,14 @@ export function activeSeasonGoals() {
 // 단일 목표 달성 판정 + 1회성 보상 지급.
 // 이미 달성했으면 null. 달성 조건 미충족이면 null.
 // 달성 시 seasonGoalsDone[id]=true, cash 보상, { ...goal, done:true } 반환.
-export function checkSeasonGoal(goalId) {
+export function checkSeasonGoal(goalId, ctx = {}) {
   const goal = SEASON_GOALS[goalId];
   if (!goal) return null;
   if (club.seasonGoalsDone?.[goalId]) return null;
-  if (!goal.check()) return null;
+  if (!goal.check(ctx)) return null;
   club.seasonGoalsDone = { ...(club.seasonGoalsDone || {}), [goalId]: true };
   club.cash += goal.reward;
   club.totalEarned += goal.reward;
   club.runEarned += goal.reward;
-  return { ...goal, done: true };
+  return { ...goal, done: true, context: ctx };
 }

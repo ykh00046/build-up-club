@@ -852,6 +852,7 @@ function settleCareerMatch() {
   const tone = out?.tone ?? 'fail';   // goal | near | fail
   const setup = currentSetup || lastMatch?.setup;
   if (!setup) { showOutcome(engine, newAttempt, () => enterHub()); return; }
+  const seasonGoalCtx = { divIdx: Club.club.divIdx };
   // 수행 품질(압박 유인·라인통과·전환·침투·열린공간 활용 + 슛 xG)을 스코어로.
   const perf = {
     tone,
@@ -871,12 +872,12 @@ function settleCareerMatch() {
   // 시즌 목표 추적 갱신 — 우세 정체성 streak + 시나리오 승(승일 때만).
   updateIdentityStreak(dominantIdentityFromGains(gains));
   if (score.result === 'w') addScenarioWin(scenario.cell);
-  const seasonGoals = ['identity_streak', 'scenario_win'].map(checkSeasonGoal).filter(Boolean);
+  const seasonGoals = ['identity_streak', 'scenario_win'].map((id) => checkSeasonGoal(id, seasonGoalCtx)).filter(Boolean);
   pendingTrainingOptions = trainingOptionsFromReport(out?.report, engine.state).slice(0, 2);
   trainingTaken = false;
   pendingCareerEvent = maybeCareerEvent(careerRng);
   Club.save();
-  showCareerResult({ tone, score, income, prog, oppName: lastMatch?.oppName ?? '', mission, cond, report: out?.report, identity, training: pendingTrainingOptions });
+  showCareerResult({ tone, score, income, prog, oppName: lastMatch?.oppName ?? '', mission, seasonGoals, cond, report: out?.report, identity, training: pendingTrainingOptions });
 }
 
 // 색종이 파티클 — Web Animations API로 자체 낙하/회전(추가 CSS 불필요).
@@ -900,7 +901,7 @@ function spawnConfetti(host, n = 42) {
   }
 }
 
-function showCareerResult({ tone, score, income, prog, oppName, mission, cond, report, identity, training = [] }) {
+function showCareerResult({ tone, score, income, prog, oppName, mission, seasonGoals = [], cond, report, identity, training = [] }) {
   const r = score.result;
   careerResult.dataset.tone = r;
   setText('cr-result', r === 'w' ? t('res.win') : r === 'd' ? t('res.draw') : t('res.loss'));
@@ -920,6 +921,11 @@ function showCareerResult({ tone, score, income, prog, oppName, mission, cond, r
   else if (r === 'w' && Club.club.streakW >= 2) bannerText = `🔥 ${Club.club.streakW} ${t('res.streak')}`;
   else if (score.cleanSheet && r !== 'l') bannerText = '🛡 ' + t('res.cleanSheet');
   if (banner) { banner.hidden = !bannerText; banner.textContent = bannerText; }
+  if (banner && !bannerText && seasonGoals.length) {
+    bannerText = `시즌 목표 달성 · ${seasonGoals[0].title} +${Club.formatNum(seasonGoals[0].reward)}`;
+    banner.hidden = false;
+    banner.textContent = bannerText;
+  }
 
   const reportEl = document.getElementById('cr-report');
   if (reportEl) {
@@ -972,6 +978,9 @@ function showCareerResult({ tone, score, income, prog, oppName, mission, cond, r
     else if (tone === 'fail') parts.push('↩ 볼 로스트 — 역습 위험에 노출');
     if (mission && !bannerText.includes(mission.title)) parts.push(`🎯 ${mission.title} +${Club.formatNum(mission.reward)}`);
     if (cond) parts.push((cond.tone === 'bad' ? '⚠ ' : '✨ ') + cond.text);
+    for (const goal of seasonGoals) {
+      if (!bannerText.includes(goal.title)) parts.push(`시즌 목표 달성 · ${goal.title} +${Club.formatNum(goal.reward)}`);
+    }
     notes.hidden = parts.length === 0;
     notes.innerHTML = parts.join('<br>');
   }

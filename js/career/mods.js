@@ -123,10 +123,13 @@ export function resolveScoreline(perf, setup, rngNext, pmods = philoMods()) {
   let ourGoals = 0;
   if (tone === 'goal') {
     ourGoals = 1;
-    const p2 = clamp(dominance * 0.55 + (pmods.secondGoalBonus || 0), 0, 0.85);
+    // 다득점은 '수행(dominance)'이 주도, 퍽은 보조(×0.55) — 퍽 누적만으로 보장되지 않게.
+    // 배율 스택을 막기 위해 2골 상한도 0.72로 제한(상위 디비전 스윙 완화).
+    const p2 = clamp(dominance * 0.50 + (pmods.secondGoalBonus || 0) * 0.55, 0, 0.72);
     if (rngNext() < p2) {
       ourGoals = 2;
-      if (rngNext() < dominance * 0.30) ourGoals = 3;         // 압도적일 때만 3골
+      // 3골은 진짜 압도적일 때만 — dominance 0.6 초과분에 비례(최대 ~24%).
+      if (dominance > 0.6 && rngNext() < (dominance - 0.6) * 0.6) ourGoals = 3;
     }
   } else if (tone === 'near') {
     if (rngNext() < clamp(exec + xg * 0.4 - 0.15, 0, 0.4)) ourGoals = 1; // 리바운드/세컨볼
