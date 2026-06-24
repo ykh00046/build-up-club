@@ -16,7 +16,7 @@ export function bindScenarioPanels(scenario) {
   setText('scn-target', scenario.targetShot);
   setText('scn-briefing', scenario.briefing);
   setText('scn-opp-plan', scenario.oppPlan ?? '—');
-  document.title = `Beat the Block · ${scenario.cell}`;
+  document.title = `빌드업 클럽 · ${scenario.cell}`;
   const sel = document.getElementById('scenario-selector');
   if (sel) sel.value = scenario.cell;
 }
