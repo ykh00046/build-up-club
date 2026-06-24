@@ -79,6 +79,17 @@ function classifySuperiority(f = {}) {
   return '뚜렷한 우위는 만들지 못했습니다';
 }
 
+// 수비 전환 노출 읽기 (E1, research §3.1). 볼을 잃었을 때 역습 위험을, 통제 신호
+// (상황 해결·라인 통과·후방 안정)로 가늠한다. 마무리 국면 도달은 전환 안정.
+function classifyTransition(state, outcome) {
+  const f = state.facts || {};
+  const tone = outcome?.tone;
+  if (tone === 'goal' || tone === 'near') return '전환 안정 — 마무리 국면까지 도달, 레스트 어택 확보';
+  const controlled = (f.situationsResolved || 0) >= 1 || (f.linesBroken || 0) >= 2 || state.lineIntents?.back === 'hold';
+  if (controlled) return '전환 노출 중간 — 통제된 상실, 카운터프레스 5초 안에 회복 가능';
+  return '전환 노출 높음 — 무리한 전개 후 역습 위험. 다음엔 후방 안정으로 레스트 디펜스를 먼저 갖추세요';
+}
+
 function pickNext(state, outcome) {
   const active = state.situations?.active || [];
   if (active.some((s) => s.id === 'pressure_surge')) return '압박 강화가 보이면 기다리기보다 원투/써드맨으로 첫 압박선을 바로 벗기세요.';
@@ -98,5 +109,6 @@ export function buildTacticalReport(state, outcome) {
     next: pickNext(state, outcome),
     metrics: buildMetrics(state, outcome),
     superiority: classifySuperiority(state.facts),
+    transition: classifyTransition(state, outcome),
   };
 }

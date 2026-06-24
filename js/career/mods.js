@@ -176,7 +176,9 @@ export function resolveScoreline(perf, setup, rngNext, pmods = philoMods()) {
   concedeP *= (trainingScore.concedeMul || 1);
   concedeP *= (setup.shapeConcedeMul || 1);   // 빌드업 셰이프 트레이드오프 (E6)
   concedeP *= (1 - dominance * 0.35);
-  if (tone === 'fail') concedeP += 0.18 * (1 - (pmods.failConcedeRelief || 0));
+  // 수비 전환(E1, §3.1): 볼 상실 시 역습 노출. 단, 지배력이 높았다면 레스트 디펜스가
+  // 갖춰져 카운터프레스로 회복 — 통제된 상실일수록 역습 페널티가 줄어든다.
+  if (tone === 'fail') concedeP += 0.18 * (1 - dominance * 0.40) * (1 - (pmods.failConcedeRelief || 0));
   concedeP = clamp(concedeP, 0.02, 0.92);
 
   let oppGoals = 0;

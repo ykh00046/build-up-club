@@ -113,7 +113,8 @@ function renderReport(report) {
   ];
   const body = rows.map(([k, v]) => `<div class="tr-row"><span>${escapeHtml(k)}</span><b>${escapeHtml(v || '—')}</b></div>`).join('');
   const sup = report.superiority ? `<div class="tr-sup">만든 우위 · <b>${escapeHtml(report.superiority)}</b></div>` : '';
-  return renderMetrics(report.metrics) + sup + body;
+  const trans = report.transition ? `<div class="tr-sup tr-trans">수비 전환 · <b>${escapeHtml(report.transition)}</b></div>` : '';
+  return renderMetrics(report.metrics) + sup + trans + body;
 }
 
 // 실제 축구 지표로 결과를 설명 (E2). 데이터는 report.js가 facts·xG로 산출.

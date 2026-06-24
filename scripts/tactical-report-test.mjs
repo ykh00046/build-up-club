@@ -73,5 +73,26 @@ const withIso = ourGoals({ tone: 'goal', xg: 0.3, baits: 2, switches: 1 });
 const noIso = ourGoals({ tone: 'goal', xg: 0.3, baits: 1, switches: 0 });
 ok(withIso > noIso, `E3: 오버로드→전환 고립이 득점 기여 증가 (${noIso.toFixed(3)}→${withIso.toFixed(3)})`);
 
+// ── E1: 수비 전환 노출 읽기 + 카운터프레스 회복 ──
+const tGoal = buildTacticalReport(makeState(), { tone: 'goal', xg: 0.4 }).transition;
+ok(tGoal.includes('안정'), 'E1: 마무리 도달 → 전환 안정');
+const tCtrl = buildTacticalReport(makeState({ facts: { situationsResolved: 1, linesBroken: 2 } }), { tone: 'fail' }).transition;
+ok(tCtrl.includes('중간'), 'E1: 통제된 상실 → 전환 노출 중간(회복 가능)');
+const tExpo = buildTacticalReport(makeState({ facts: { situationsResolved: 0, linesBroken: 0 }, lineIntents: { back: 'overlap' } }), { tone: 'fail' }).transition;
+ok(tExpo.includes('높음'), 'E1: 무리한 전개 + 상실 → 전환 노출 높음');
+// 카운터프레스 회복: 같은 실패라도 지배력↑이면 실점↓ (통제된 상실)
+function conc(dominanceHigh) {
+  let g = 0, seed = 5;
+  const rng = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
+  // linesBroken/situations로 dominance를 끌어올려 통제된 상실을 모사
+  const perf = dominanceHigh
+    ? { tone: 'fail', linesBroken: 4, situationsResolved: 2, windowsUsed: 2 }
+    : { tone: 'fail', linesBroken: 0 };
+  const setup = { atk: 60, def: 100, oppOVR: 260, trainingScore: {} };
+  for (let i = 0; i < 8000; i++) g += resolveScoreline(perf, setup, rng, NM).oppGoals;
+  return g / 8000;
+}
+ok(conc(true) < conc(false), `E1: 통제된 상실(지배력↑)이 역습 실점↓ (${conc(true).toFixed(3)} < ${conc(false).toFixed(3)})`);
+
 console.log(fail === 0 ? '\n✅ 전술 리포트 전 항목 통과' : `\n❌ ${fail}건 실패`);
 process.exit(fail === 0 ? 0 : 1);
