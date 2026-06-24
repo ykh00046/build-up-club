@@ -84,6 +84,7 @@ function classifySuperiority(f = {}) {
 function classifyTransition(state, outcome) {
   const f = state.facts || {};
   const tone = outcome?.tone;
+  if ((f.counterpressWins || 0) > 0) return `카운터프레스 ${f.counterpressWins}회 성공 — 5초 안에 되찾아 재공격`;
   if (tone === 'goal' || tone === 'near') return '전환 안정 — 마무리 국면까지 도달, 레스트 어택 확보';
   const controlled = (f.situationsResolved || 0) >= 1 || (f.linesBroken || 0) >= 2 || state.lineIntents?.back === 'hold';
   if (controlled) return '전환 노출 중간 — 통제된 상실, 카운터프레스 5초 안에 회복 가능';

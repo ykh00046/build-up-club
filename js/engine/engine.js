@@ -47,10 +47,13 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
     facts: {
       baits: 0, linesBroken: 0, switches: 0, windowsUsed: 0, runs: 0,
       situationsTriggered: 0, situationsResolved: 0, decisionsMade: 0,
+      counterpressWins: 0,
     },
     log: [],
     status: 'live',          // live | over
     outcome: null,
+    transition: null,        // 카운터프레스 5초 창 (E1): { kind, detail, loss, msLeft, regainP }
+    transitionUsed: false,
     lastPassFromByline: false,
     lastPassLofted: false,
     lastPassCross: false,   // 측면발 → 박스 중앙 공중볼만 헤더 컨텍스트 (Major 3)
@@ -146,10 +149,73 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
     return v > 0 ? clamp(risk * (1 - Math.min(v, 3) * 0.09), 0.02, 0.97) : risk;
   }
 
-  function endAttempt(kind, detail) {
+  function finishAttempt(kind, detail) {
     state.status = 'over';
     state.outcome = buildOutcome(kind, state, detail);
     logLine(state.outcome.headline, state.outcome.tone === 'goal' ? 'success' : 'error');
+  }
+
+  // ─── 카운터프레스 5초 전환 창 (E1, research §3.1) ──────────────────────────────
+  // 오픈 플레이에서 볼을 잃으면 즉시 끝내지 않고 한 번의 되찾기 기회를 준다.
+  // 회복 확률은 레스트 디펜스(상실 지점 주변의 우리 인원 = 컴팩트)에 달렸다.
+  // 성공하면 높은 곳에서 되찾아 공격을 잇고, 실패/후퇴하면 원래 상실로 종료된다.
+  function counterpressProb(loss, near) {
+    const control = clamp((state.facts.linesBroken || 0) * 0.03 + (state.facts.situationsResolved || 0) * 0.05, 0, 0.2);
+    return clamp(0.12 + near.length * 0.11 + control, 0.1, 0.7);
+  }
+
+  function maybeOpenTransition(kind, detail) {
+    if (state.transitionUsed) return false;                       // 공격당 1회
+    if (kind !== 'intercepted' && kind !== 'tackled') return false; // collapsed/슛은 제외
+    if (state.phase === 'SHOT') return false;
+    const h = holder();
+    const loss = detail?.interceptor
+      ? { x: detail.interceptor.x, y: detail.interceptor.y }
+      : (h ? { x: h.x, y: h.y } : null);
+    if (!loss) return false;
+    const near = ours().filter((p) => p.role !== 'GK' && dist(p, loss) < 18);
+    if (near.length === 0) return false;                          // 되찾을 인원 없음 → 종료
+    const regainP = counterpressProb(loss, near);
+    state.transitionUsed = true;
+    state.transition = { kind, detail, loss, msLeft: 5000, regainP };
+    state.matchDecision = {
+      id: 'transition',
+      title: '⚡ 카운터프레스 (5초)',
+      detail: `볼 상실 — 즉시 압박해 되찾거나(${Math.round(regainP * 100)}%) 후퇴하세요.`,
+      choices: [
+        { id: 'cp_press', label: '카운터프레스', desc: '즉시 압박해 되찾기 — 실패 시 역습 노출' },
+        { id: 'cp_retreat', label: '후퇴', desc: '블록으로 복귀해 안전하게 종료' },
+      ],
+    };
+    logLine('볼 상실 — 카운터프레스 기회! 5초 안에 결정하세요.', 'warn');
+    return true;
+  }
+
+  function resolveTransition(choiceId) {
+    const tr = state.transition;
+    if (!tr) return { ok: false, rejected: true };
+    state.transition = null;
+    state.matchDecision = null;
+    state.facts.decisionsMade++;
+    if (choiceId === 'cp_press' && rng.next() < tr.regainP) {
+      const rec = ours().filter((p) => p.role !== 'GK')
+        .sort((a, b) => dist(a, tr.loss) - dist(b, tr.loss))[0];
+      if (rec) { state.holderId = rec.id; rec.orientation = 'FACING'; }
+      state.facts.counterpressWins++;
+      state.consecutiveHolds = 0;
+      addPressure(-8);
+      logLine('카운터프레스 성공! 높은 곳에서 되찾아 즉시 재공격합니다.', 'success');
+      return { ok: true, recovered: true };
+    }
+    logLine(choiceId === 'cp_press' ? '카운터프레스 실패 — 역습에 노출됩니다.' : '후퇴 — 블록으로 복귀합니다.',
+      choiceId === 'cp_press' ? 'error' : 'info');
+    finishAttempt(tr.kind, tr.detail);
+    return { ok: true, recovered: false };
+  }
+
+  function endAttempt(kind, detail) {
+    if (maybeOpenTransition(kind, detail)) return;
+    finishAttempt(kind, detail);
   }
 
   // ─── line intents (§3.6/§7.6 MVP) ─────────────────────────────────────────
@@ -1007,6 +1073,8 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
         this.update(anim.duration + 1000);
       }
       if (state.status !== 'live' || anim) return { ok: false, rejected: true };
+      // 전환 국면 동안은 일반 액션을 막는다 — 카운터프레스/후퇴만 가능(E1).
+      if (state.transition) return { ok: false, rejected: true, message: '전환 국면 — 카운터프레스/후퇴를 선택하세요.' };
       const fn = actions[actionId];
       if (!fn) return { ok: false, rejected: true };
       // Snapshot render positions as animation start, and default every
@@ -1160,6 +1228,11 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
 
     // Advance animations. Returns true while animating.
     update(dtMs) {
+      // 카운터프레스 5초 카운트다운 (E1): 시간 초과 시 자동 후퇴.
+      if (state.transition && state.status === 'live') {
+        state.transition.msLeft -= dtMs;
+        if (state.transition.msLeft <= 0) resolveTransition('cp_retreat');
+      }
       if (!anim) return false;
       anim.t += dtMs;
       const t = clamp(anim.t / anim.duration, 0, 1);
@@ -1316,6 +1389,11 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
     },
 
     chooseSituationOption(choiceId) {
+      // 카운터프레스 전환 창의 선택은 별도 경로로 처리(E1).
+      if (state.transition) {
+        if (choiceId === 'cp_press' || choiceId === 'cp_retreat') return resolveTransition(choiceId);
+        return { ok: false, rejected: true };
+      }
       if (state.status !== 'live') return { ok: false, rejected: true };
       const result = applyMatchDecision(state, choiceId);
       if (!result) return { ok: false, rejected: true };
