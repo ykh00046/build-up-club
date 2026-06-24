@@ -3,6 +3,7 @@
 // replacement — a history of setups and outcomes, no numbers, no grades.
 
 import { openModal, closeModal } from './modal.js';
+import { prefersReducedMotion } from '../util/motion.js';
 
 const ARCHIVE_KEY = 'beat-the-block:archive:v2';
 
@@ -48,7 +49,13 @@ export function renderHudState(engine) {
     const percent = Math.round(level * 100);
     fill.style.width = `${percent}%`;
     fill.className = level >= 0.78 ? 'danger' : level >= 0.55 ? 'warn' : '';
-    document.getElementById('pressure-gauge')?.setAttribute('aria-valuenow', String(percent));
+    // 접근성: 스크린리더가 맥락 있는 값을 읽도록 valuetext 제공(숫자만 X).
+    const word = level >= 0.78 ? '위험' : level >= 0.55 ? '주의' : '안정';
+    const gauge = document.getElementById('pressure-gauge');
+    if (gauge) {
+      gauge.setAttribute('aria-valuenow', String(percent));
+      gauge.setAttribute('aria-valuetext', `압박 ${percent}% · ${word}`);
+    }
   }
 }
 
@@ -131,6 +138,7 @@ function renderMetrics(m) {
 }
 
 function spawnConfetti(container) {
+  if (prefersReducedMotion()) return;   // 접근성: 모션 최소화 시 색종이 생략
   const CONFETTI_COLORS = ['#5dd6c5', '#f5a623', '#ffffff', '#8df0e2', '#ffd28a'];
   const COUNT = 35;
   const confettiEls = [];

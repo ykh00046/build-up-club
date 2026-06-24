@@ -5,6 +5,7 @@ import {
   PITCH_W, PITCH_H, CHANNEL_BOUNDS_Y, THIRD_BOUNDS_X, CHANNEL_LABELS, THIRD_LABELS,
   COLORS, TOKEN_R_M, PHASE_LINES, clamp,
 } from '../data/pitch.js';
+import { prefersReducedMotion } from '../util/motion.js';
 
 let canvas, ctx, dpr = 1, viewW = 0, viewH = 0, scale = 1, offsetX = 0, offsetY = 0;
 let pulse = 0;
@@ -56,7 +57,9 @@ export function toPitch(clientX, clientY) {
 
 export function render(view, dtMs) {
   if (!ctx) return;
-  pulse += dtMs / 1000;
+  // 접근성: reduced-motion이면 시간 누적자(pulse)를 멈춰 숨쉬는 윈도우·링 펄스·
+  // 행진 점선·GK 흔들림 등 idle 캔버스 애니메이션을 정지(static)시킨다.
+  if (!prefersReducedMotion()) pulse += dtMs / 1000;
   usColor = view.usColor || null;
 
   ctx.fillStyle = COLORS.bg;

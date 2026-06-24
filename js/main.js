@@ -19,6 +19,7 @@ import {
 import { dist, clamp, PITCH_W, PITCH_H } from './data/pitch.js';
 import { initAudio, unlockAudio, setSoundEnabled, soundEnabled, setPressureLevel, sfx } from './ui/audio.js';
 import { openModal, closeModal } from './ui/modal.js';
+import { prefersReducedMotion } from './util/motion.js';
 // ─── Career layer (idle-football-club 메타 + 통합 글루) ───────────────────────
 import * as Club from './career/club.js';
 import { applyClubBoost, resolveScoreline, BUILD_SHAPES, applyShape, applySetPiece } from './career/mods.js';
@@ -960,7 +961,7 @@ function settleCareerMatch() {
 
 // 색종이 파티클 — Web Animations API로 자체 낙하/회전(추가 CSS 불필요).
 function spawnConfetti(host, n = 42) {
-  if (!host) return;
+  if (!host || prefersReducedMotion()) return;   // 접근성: 모션 최소화 시 색종이 생략
   const colors = ['#5dd6c5', '#f5a623', '#e35d5d', '#5aa9f0', '#c8a0e8', '#ffffff'];
   const h = host.clientHeight || 600;
   for (let i = 0; i < n; i++) {
@@ -1068,8 +1069,8 @@ function showCareerResult({ tone, score, income, prog, oppName, mission, seasonG
   if (prog === 'promote' || prog === 'reach-top' || prog === 'champion') sfx.chime();
   openModal(careerResult);
 
-  // Win: brief green flash overlay.
-  if (r === 'w') {
+  // Win: brief green flash overlay. (접근성: 모션 최소화 시 생략)
+  if (r === 'w' && !prefersReducedMotion()) {
     const flash = document.createElement('div');
     flash.style.cssText = 'position:absolute;inset:0;background:rgba(93,214,197,0.18);pointer-events:none;z-index:999;transition:opacity 0.6s ease-out;';
     // (careerResult는 CSS상 position:fixed라 absolute 플래시가 그대로 덮는다.
@@ -1085,9 +1086,11 @@ function showCareerResult({ tone, score, income, prog, oppName, mission, seasonG
     spawnConfetti(careerResult, big ? 84 : 42);
   }
 
-  // Animate score count-up.
+  // Animate score count-up. (접근성: 모션 최소화 시 최종 스코어 즉시 표시)
   const scoreEl = document.getElementById('cr-score');
-  if (scoreEl) {
+  if (scoreEl && prefersReducedMotion()) {
+    scoreEl.textContent = `${score.ourGoals} : ${score.oppGoals}`;
+  } else if (scoreEl) {
     const finalOur = score.ourGoals, finalOpp = score.oppGoals;
     const duration = 800;
     const startTime = performance.now();
