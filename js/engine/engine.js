@@ -663,6 +663,80 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
       return { ok: true };
     },
 
+    // 공간 지향 패스(Inc.2): 임의 지점으로 패스 → 정확도만큼 산포된 착지점에서
+    // 가장 가까운 us가 받음(또는 실패 시 착지 경합). 전환(롱·측면)도 이 하나로
+    // 흡수 — 멀면 자동 로빙. 발밑(to_feet)은 선수 선택으로 별도 유지.
+    pass_space(_t, point) {
+      const from = holder();
+      if (!point) return fail('패스할 공간을 클릭하세요.');
+      const aim = { x: clamp(point.x, 2, PITCH_W - 2), y: clamp(point.y, 2, PITCH_H - 2) };
+      const d = dist(from, aim);
+      if (d < 4) return fail('너무 가깝습니다 — 운반을 쓰세요.');
+      const lofted = d > 28;
+      if (lofted && (from.traits?.longPass ?? 0) < LONG_PASS_GATE) {
+        return fail(`${from.label}의 롱패스 정확도로는 닿지 않는 거리입니다.`);
+      }
+      // 정확도 산포 — 거리·패스 능력치·몸 방향(등질수록 부정확). 능력치가 해결.
+      const pass = from.traits?.pass ?? 0.7;
+      const orient = from.orientation === 'BACK' ? 1.5 : from.orientation === 'HALF' ? 1.15 : 1;
+      const spread = clamp((d / 30) * (1.25 - pass) * orient, 0, 1) * 6; // 최대 ~6m
+      const ang = rng.next() * Math.PI * 2;
+      const mag = spread * rng.next();
+      const landing = {
+        x: clamp(aim.x + Math.cos(ang) * mag, 2, PITCH_W - 2),
+        y: clamp(aim.y + Math.sin(ang) * mag, 2, PITCH_H - 2),
+      };
+      // 누가 받나 — 착지점 최근접 us(GK·홀더 제외)가 AI로 받는다.
+      let nu = null, du = Infinity;
+      for (const p of ours()) {
+        if (p.role === 'GK' || p.id === state.holderId) continue;
+        const dd = dist(p, landing);
+        if (dd < du) { du = dd; nu = p; }
+      }
+      if (!nu) return fail('받을 동료가 근처에 없습니다.');
+      const ev = evaluateLane(from, landing, opps(), { lofted, rewardWindow: activeWindow() });
+      const reachPenalty = clamp((du - 6) / 16, 0, 0.4); // 동료가 착지점에서 멀면 위험↑
+      const risk = clamp((ev.risk + reachPenalty) * (1.1 - pass * 0.25) * tacRiskMul(state.currentAction), 0.02, 0.97);
+
+      const fromPos = { x: from.x, y: from.y };
+      let loose = false;
+      if (rollFail(risk)) {
+        const c = resolveLanding(landing, nu);
+        if (c.result !== 'loose') {
+          const interceptor = c.winner ?? ev.interceptor ?? nearestDefender(landing, opps()).defender;
+          pressReact({ type: 'pass', trigger: 'pass' });
+          startAnim({ from: fromPos, to: landing, lofted }, lofted ? 950 : 700, () => {
+            endAttempt('intercepted', { interceptor, reason: 'contest', risk });
+          });
+          return { ok: false };
+        }
+        loose = true;
+      }
+      state.facts.linesBroken += linesBroken(fromPos, landing, opps());
+      nu.tx = landing.x; nu.ty = landing.y; nu.x = landing.x; nu.y = landing.y;
+      state.holderId = nu.id;
+      state.consecutiveHolds = 0;
+      nu.orientation = computeOrientation(nu, opps(), { moving: true });
+      state.lastPassLofted = lofted;
+      state.lastPassFromByline = false;
+      state.lastPassCross = lofted && Math.abs(fromPos.y - PITCH_H / 2) > 16 && Math.abs(landing.y - PITCH_H / 2) < 12 && landing.x > 78;
+      windowUseCheck(landing);
+      if (loose) { addPressure(10); state.facts.secondBalls = (state.facts.secondBalls || 0) + 1; }
+      else { addPressure(-5); }
+      const trigger = passTriggerFor(fromPos, landing, nu);
+      pressReact({ type: 'pass', trigger });
+      maybeAdvancePhase();
+      const trapped = receiverTrapCheck(nu);
+      startAnim({ from: fromPos, to: landing, lofted }, lofted ? 950 : 700, () => {
+        if (trapped) endAttempt('trapped', { holder: nu });
+      });
+      logLine(loose
+        ? `세컨볼 경합 — ${josa(nu.label, '이', '가')} 압박 속에 따냈습니다.`
+        : `${josa(nu.label, '이', '가')} 공간에서 받았습니다.`,
+        loose ? 'warn' : 'success');
+      return { ok: true };
+    },
+
     hold() {
       state.consecutiveHolds++;
       state.facts.baits++;
