@@ -16,7 +16,7 @@ import {
   showOutcome, hideOutcome, recordAttempt, renderArchive, initArchiveControls,
   renderTacticalReport,
 } from './ui/hud.js';
-import { dist, clamp, PITCH_W, PITCH_H } from './data/pitch.js';
+import { dist, clamp, PITCH_W, PITCH_H, carryRange } from './data/pitch.js';
 import { initAudio, unlockAudio, setSoundEnabled, soundEnabled, setPressureLevel, sfx } from './ui/audio.js';
 import { openModal, closeModal } from './ui/modal.js';
 import { prefersReducedMotion } from './util/motion.js';
@@ -871,7 +871,7 @@ function distPointSeg(pt, a, b) {
 function buildCarryHover(point) {
   const h = engine.holder();
   const d = dist(h, point);
-  const maxCarry = 11;
+  const maxCarry = carryRange(h.traits);   // 엔진 carry와 동일한 물리(공 보유 시 느림)
   const to = d > maxCarry
     ? { x: h.x + (point.x - h.x) / d * maxCarry, y: h.y + (point.y - h.y) / d * maxCarry }
     : { x: point.x, y: point.y };

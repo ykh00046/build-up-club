@@ -5,7 +5,7 @@
 // Phases: BUILDUP → PROGRESSION → FINAL_THIRD → SHOT(goal). The goal — not
 // "zone reached" — is the success signal. There are no grades anywhere.
 
-import { PHASE_LINES, PITCH_W, PITCH_H, clamp, dist, lerp } from '../data/pitch.js';
+import { PHASE_LINES, PITCH_W, PITCH_H, clamp, dist, lerp, carryRange } from '../data/pitch.js';
 import { josa } from '../util/josa.js';
 import {
   evaluateLane, evaluateLanding, landingZoneFor, linesBroken, offsideLine,
@@ -669,7 +669,7 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
     carry(_targetId, point) {
       const h = holder();
       if (!point) return fail('운반할 지점을 클릭하세요.');
-      const maxCarry = 11;
+      const maxCarry = carryRange(h.traits);   // 공을 달면 느리다 — pace·볼 컨트롤로 5~10m
       const d = dist(h, point);
       const to = d > maxCarry
         ? { x: h.x + (point.x - h.x) / d * maxCarry, y: h.y + (point.y - h.y) / d * maxCarry }

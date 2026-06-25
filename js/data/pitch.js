@@ -55,6 +55,15 @@ export function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
 export function dist(a, b) { return Math.hypot(a.x - b.x, a.y - b.y); }
 export function lerp(a, b, t) { return a + (b - a) * t; }
 
+// 공을 달고 달리면 자유 주행보다 느리다(물리). 페이스·볼 컨트롤로 운반 가능 거리를
+// 산출(5~10m) — 오프볼 런(~12-14m)·구조 이동(10m)보다 짧아 볼 보유자가 가장 느린
+// 이동을 한다. 엔진 carry와 main.js 운반 프리뷰가 이 단일 규칙을 공유한다.
+export function carryRange(traits = {}) {
+  const pace = traits.pace ?? 0.6;
+  const ctrl = traits.carry ?? traits.pressResistance ?? 0.6;
+  return clamp(5 + pace * 4 + ctrl * 1.5, 5, 10);
+}
+
 // Distance from point p to segment a-b, plus the projection parameter t.
 export function distToSegment(p, a, b) {
   const dx = b.x - a.x, dy = b.y - a.y;
