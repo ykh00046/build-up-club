@@ -250,8 +250,16 @@ const TUTORIAL_STEPS = [
 
 function showTacticsOverlay() {
   populateTacticsOverlay(scenario);
+  // 커리어에선 "← 모먼트"로 모먼트 선택으로 돌아갈 수 있다.
+  const back = document.getElementById('btn-tactics-back');
+  if (back) back.hidden = !careerActive;
   openModal(tacticsOverlay, document.getElementById('btn-tactics-kickoff'));
 }
+
+document.getElementById('btn-tactics-back')?.addEventListener('click', () => {
+  closeModal(tacticsOverlay, false);
+  openMomentSelect();
+});
 
 function populateTacticsOverlay(scn) {
   const el = (id) => document.getElementById(id);

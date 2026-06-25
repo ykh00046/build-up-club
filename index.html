@@ -313,7 +313,11 @@
       border: 1px solid rgba(77, 139, 255, .32); white-space: nowrap;
     }
     .tactics-head h2 { font-family: 'Saira Condensed', sans-serif; font-size: 14px; font-weight: 700; }
-    .tactics-scenario-title { color: var(--text-muted); font-size: 12px; margin-left: auto; text-align: right; }
+    .tactics-prematch { background: var(--danger); color: #fff; font-family: 'Saira Condensed', sans-serif; font-weight: 800; font-size: 11px; letter-spacing: 2px; padding: 3px 10px; transform: skewX(-12deg); white-space: nowrap; }
+    .tactics-prematch span { display: inline-block; transform: skewX(12deg); }
+    .tactics-back { margin-left: auto; background: var(--panel-2); border: 1px solid var(--line); color: var(--text-muted); border-radius: 6px; padding: 6px 12px; font-size: 12px; cursor: pointer; white-space: nowrap; }
+    .tactics-back:hover { border-color: var(--accent); color: var(--accent); }
+    .tactics-scenario-title { color: var(--text-muted); font-size: 12px; text-align: right; }
     .tactics-body { display: grid; grid-template-columns: 320px 1fr; gap: 20px; }
     .tactics-section-label {
       font-size: 10px; color: var(--text-muted); letter-spacing: 0.8px;
@@ -1154,9 +1158,11 @@
   <div id="tactics-overlay" role="dialog" aria-modal="true" aria-labelledby="tactics-heading" aria-hidden="true" tabindex="-1">
     <div class="tactics-wrap">
       <div class="tactics-head">
+        <span class="tactics-prematch"><span>PRE-MATCH</span></span>
         <span class="tactics-cell" id="tactics-cell">A1</span>
         <h2 id="tactics-heading">전술 브리핑</h2>
         <span class="tactics-scenario-title" id="tactics-scenario-title">—</span>
+        <button type="button" id="btn-tactics-back" class="tactics-back" hidden>← 모먼트</button>
       </div>
       <div class="tactics-body">
         <div class="tactics-left">
@@ -1237,7 +1243,7 @@
       </div>
       <div class="tactics-footer">
         <span class="tactics-hint-text" id="tactics-hint">—</span>
-        <button id="btn-tactics-kickoff">킥오프 시작 →</button>
+        <button id="btn-tactics-kickoff">킥오프 ▸</button>
       </div>
     </div>
   </div>
