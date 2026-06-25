@@ -126,7 +126,9 @@ export function createPress(config) {
     const shiftXFor = (d) => {
       const beaten = d.line === 'front' && ball.x > d.x + 5;
       const factor = beaten ? 0.55 : (retreat[d.line] ?? 0.3);
-      return clamp((ball.x - 22) * factor, -6, beaten ? 42 : 30) + baseShift;
+      // 자유 패스 모델 — 블록이 공 진행에 더 적극적으로 따라 올라온다(캡 30→34).
+      // 높은 라인은 배후 공간을 내주므로 공간 패스(로빙)와 트레이드오프가 된다.
+      return clamp((ball.x - 22) * factor, -6, beaten ? 42 : 34) + baseShift;
     };
     const byId = new Map(state.players.map((p) => [p.id, p]));
 

@@ -297,7 +297,7 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
       const push = clamp((ballX - 18) * pushCfg.k, 0, pushCfg.cap);
       // 90 cap: off-ball players hold the box edge — camping the goalmouth
       // ratchets the opp line backward via separation. (P1a)
-      const want = clamp(Math.min(p.homeX + push + cfg.off, line - cfg.gap, 90), 4, PITCH_W - 3);
+      const want = clamp(Math.min(p.homeX + push + cfg.off, line - cfg.gap, 95), 4, PITCH_W - 3);
       const dx = want - p.x;
       if (Math.abs(dx) > 0.3) {
         p.x = clamp(p.x + Math.sign(dx) * Math.min(10 * dt, Math.abs(dx)), 2, PITCH_W - 2);
