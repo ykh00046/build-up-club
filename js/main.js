@@ -25,6 +25,7 @@ import * as Club from './career/club.js';
 import { applyClubBoost, resolveScoreline, BUILD_SHAPES, applyShape, applySetPiece } from './career/mods.js';
 import { DELIVERIES, DEFAULT_DELIVERY, bestDeliveryFor, deliveryBonus } from './data/setpieces.js';
 import { initHub, renderHub, nextMatchInfo } from './career/hub.js';
+import { divisionPool } from './career/season.js';
 import { t } from './career/i18n.js';
 import {
   checkMission, maybeCareerEvent, applyEventChoice, rollPostMatchCondition,
@@ -89,14 +90,18 @@ bindScenarioPanels(scenario);
 const selectOverlay = document.getElementById('select-overlay');
 const selectGrid = document.getElementById('select-grid');
 
-// 시나리오 선택 카드 — 방송 디자인 + buc-moment 전술 아트(셀 index%6 매핑).
-function buildSelectGrid() {
-  selectGrid.innerHTML = Object.values(SCENARIOS).map((s, i) => {
+// 시나리오 선택 카드 — 방송 디자인 + buc-moment 전술 아트(셀별 안정 매핑).
+const ALL_CELLS = Object.keys(SCENARIOS);
+const momentImg = (cell) => `assets/buc-moment${((ALL_CELLS.indexOf(cell) % 6) + 6) % 6}.png`;
+let selectingForCareer = false;
+
+function buildSelectGrid(cells = Object.values(SCENARIOS)) {
+  selectGrid.innerHTML = cells.map((s) => {
     const isCur = s.cell === scenario.cell;
     return `
     <button type="button" class="moment-card ${isCur ? 'current' : ''}" data-cell="${s.cell}"
          aria-label="${s.cell}, ${s.title}, 추천 마무리 ${s.targetShot}"
-         style="background-image: url('assets/buc-moment${i % 6}.png')">
+         style="background-image: url('${momentImg(s.cell)}')">
       <span class="mc-cell">${s.cell}</span>
       ${isCur ? '<span class="mc-sel">● 선택됨</span>' : ''}
       <div class="mc-info">
@@ -109,20 +114,46 @@ function buildSelectGrid() {
   }).join('');
   for (const card of selectGrid.querySelectorAll('.moment-card')) {
     card.addEventListener('click', () => {
-      switchScenario(card.dataset.cell);
-      closeModal(selectOverlay);
+      if (selectingForCareer) pickMomentCareer(card.dataset.cell);
+      else { switchScenario(card.dataset.cell); closeModal(selectOverlay); }
     });
   }
 }
 
+// 커리어 플로우: 허브 "다음 경기" → 디비전 시나리오 풀에서 오늘의 모먼트를 고른다.
+function openMomentSelect() {
+  selectingForCareer = true;
+  const cells = [...new Set(divisionPool(Club.club.divIdx))].map((c) => getScenario(c));
+  buildSelectGrid(cells);
+  openModal(selectOverlay, selectGrid.querySelector('.current') || selectGrid.querySelector('.moment-card'));
+}
+
+// 모먼트 선택 → 그 시나리오로 전술 브리핑.
+function pickMomentCareer(cell) {
+  selectingForCareer = false;
+  scenario = getScenario(cell);
+  bindScenarioPanels(scenario);
+  const cc = document.getElementById('current-cell');
+  if (cc) cc.textContent = scenario.cell;
+  closeModal(selectOverlay, false);
+  showTacticsOverlay();
+}
+
+// 모먼트 선택 취소 → 허브로 복귀(커리어), 단판이면 단순 닫기.
+function cancelSelect() {
+  const wasCareer = selectingForCareer;
+  selectingForCareer = false;
+  closeModal(selectOverlay, false);
+  if (wasCareer) enterHub();
+}
+
 document.getElementById('btn-select-moment')?.addEventListener('click', () => {
+  selectingForCareer = false;
   buildSelectGrid();
   openModal(selectOverlay, selectGrid.querySelector('.current'));
 });
-document.getElementById('btn-select-close')?.addEventListener('click', () => closeModal(selectOverlay));
-selectOverlay?.addEventListener('click', (e) => {
-  if (e.target === selectOverlay) closeModal(selectOverlay);
-});
+document.getElementById('btn-select-close')?.addEventListener('click', cancelSelect);
+selectOverlay?.addEventListener('click', (e) => { if (e.target === selectOverlay) cancelSelect(); });
 
 function switchScenario(cell) {
   scenario = getScenario(cell);
@@ -927,14 +958,10 @@ function startMatch() {
   const info = nextMatchInfo();           // { oppName, oppOVR, setup, scenario }
   currentSetup = info.setup;
   lastMatch = info;
-  scenario = info.scenario;
   chosenDifficulty = info.setup.intensity; // 압박 강도 = 클럽 vs 상대 전력
   careerActive = true;
-  bindScenarioPanels(scenario);
-  const cc = document.getElementById('current-cell');
-  if (cc) cc.textContent = scenario.cell;
   closeModal(hubOverlay);
-  showTacticsOverlay();                     // 브리핑 → 킥오프 → newAttempt
+  openMomentSelect();                       // 모먼트 선택 → 브리핑 → 킥오프 → newAttempt
 }
 
 // 전술 모먼트 종료 → 스코어라인 시뮬 → 정산 → 결과 카드.
