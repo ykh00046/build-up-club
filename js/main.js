@@ -89,26 +89,20 @@ bindScenarioPanels(scenario);
 const selectOverlay = document.getElementById('select-overlay');
 const selectGrid = document.getElementById('select-grid');
 
-// Only A/B cells have generated artwork; C/D fall back to a tinted gradient so
-// the select screen never shows a broken image or 404s in the console.
-const CARD_IMG = new Set(['A1', 'A2', 'B1', 'B2']);
-const CARD_TINT = { A: '93,214,197', B: '196,75,75', C: '245,166,35', D: '150,110,230' };
-
+// 시나리오 선택 카드 — 방송 디자인 + buc-moment 전술 아트(셀 index%6 매핑).
 function buildSelectGrid() {
-  selectGrid.innerHTML = Object.values(SCENARIOS).map((s) => {
-    const tint = CARD_TINT[s.cell[0]] ?? '93,214,197';
-    const bg = CARD_IMG.has(s.cell)
-      ? `linear-gradient(rgba(7,10,14,0.05), rgba(7,10,14,0.2)), url('assets/card-${s.cell.toLowerCase()}.jpg')`
-      : `linear-gradient(150deg, rgba(${tint},0.20), rgba(7,10,14,0.88))`;
+  selectGrid.innerHTML = Object.values(SCENARIOS).map((s, i) => {
+    const isCur = s.cell === scenario.cell;
     return `
-    <button type="button" class="moment-card ${s.cell === scenario.cell ? 'current' : ''}" data-cell="${s.cell}"
+    <button type="button" class="moment-card ${isCur ? 'current' : ''}" data-cell="${s.cell}"
          aria-label="${s.cell}, ${s.title}, 추천 마무리 ${s.targetShot}"
-         style="background-image: ${bg}">
+         style="background-image: url('assets/buc-moment${i % 6}.png')">
+      <span class="mc-cell">${s.cell}</span>
+      ${isCur ? '<span class="mc-sel">● 선택됨</span>' : ''}
       <div class="mc-info">
-        <div class="mc-cell">${s.cell}</div>
         <div class="mc-title">${s.title}</div>
         <div class="mc-plan">${s.oppPlan ?? ''}</div>
-        <div class="mc-shot">추천 마무리: ${s.targetShot}</div>
+        <div class="mc-shot">⌖ ${s.targetShot}</div>
       </div>
     </button>
   `;
@@ -1004,7 +998,7 @@ function spawnConfetti(host, n = 42) {
 function showCareerResult({ tone, score, income, prog, oppName, mission, seasonGoals = [], cond, report, identity, training = [] }) {
   const r = score.result;
   careerResult.dataset.tone = r;
-  setText('cr-result', r === 'w' ? t('res.win') : r === 'd' ? t('res.draw') : t('res.loss'));
+  setText('cr-result', 'FULL TIME · ' + (r === 'w' ? t('res.win') : r === 'd' ? t('res.draw') : t('res.loss')));
   setText('cr-opp', `${t('match.vs')} ${oppName}`);
   setText('cr-desc', tone === 'goal' ? t('res.goalDesc') : tone === 'fail' ? t('res.failDesc') : t('res.nearDesc'));
   setText('cr-earn-k', t('res.earn'));

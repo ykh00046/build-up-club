@@ -217,16 +217,18 @@
     .select-head h2 { font-family: 'Saira Condensed', sans-serif; font-size: 16px; letter-spacing: 1px; }
     .select-head button { background: var(--panel-2); border: 1px solid var(--line); color: var(--text-muted); padding: 6px 12px; border-radius: 5px; font-size: 12px; cursor: pointer; }
     .select-head button:hover { border-color: var(--accent); color: var(--accent); }
-    .select-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-    .moment-card { position: relative; width: 100%; color: inherit; text-align: left; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; cursor: pointer; aspect-ratio: 16/9; background-size: cover; background-position: center; display: flex; align-items: flex-end; transition: border-color .15s, transform .15s, box-shadow .25s; }
-    .moment-card:hover, .moment-card:focus-visible { border-color: var(--accent); transform: translateY(-2px); outline: none; box-shadow: 0 8px 30px rgba(77, 139, 255, 0.1); }
-    .moment-card.current { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
-    .moment-card .mc-info { width: 100%; padding: 30px 14px 12px; background: linear-gradient(transparent, rgba(7, 10, 14, 0.94) 55%); }
-    .moment-card .mc-cell { color: var(--accent); font-size: 11px; font-weight: 800; letter-spacing: 2px; }
-    .moment-card .mc-title { color: var(--text); font-weight: 700; font-size: 13.5px; margin: 2px 0 4px; }
-    .moment-card .mc-plan { color: var(--text-muted); font-size: 11px; line-height: 1.45; }
-    .moment-card .mc-shot { color: var(--warn); font-size: 10.5px; margin-top: 4px; }
-    @media (max-width: 700px) { .select-grid { grid-template-columns: 1fr; } }
+    .select-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+    .moment-card { position: relative; width: 100%; color: inherit; text-align: left; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; cursor: pointer; aspect-ratio: 16/10; background-size: cover; background-position: center; padding: 0; transition: border-color .15s, transform .15s, box-shadow .25s; }
+    .moment-card:hover, .moment-card:focus-visible { border-color: var(--accent); transform: translateY(-2px); outline: none; box-shadow: 0 8px 30px rgba(77, 139, 255, 0.18); }
+    .moment-card.current { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent), 0 8px 30px rgba(77, 139, 255, 0.2); }
+    .moment-card .mc-cell { position: absolute; top: 10px; left: 10px; background: var(--accent); color: #06122b; font-family: 'Saira Condensed', sans-serif; font-weight: 800; font-size: 12px; letter-spacing: 2px; padding: 3px 9px; border-radius: 3px; }
+    .moment-card .mc-sel { position: absolute; top: 10px; right: 10px; background: rgba(10, 14, 20, .7); color: var(--accent); font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 3px; }
+    .moment-card .mc-info { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: flex-end; padding: 14px; background: linear-gradient(transparent 30%, rgba(8, 12, 16, 0.94)); }
+    .moment-card .mc-title { color: var(--text); font-family: 'Saira Condensed', sans-serif; font-weight: 700; font-size: 18px; margin: 0; }
+    .moment-card .mc-plan { color: #9fb0bd; font-size: 11.5px; line-height: 1.4; margin-top: 3px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .moment-card .mc-shot { color: var(--warn); font-size: 11px; margin-top: 5px; }
+    @media (max-width: 760px) { .select-grid { grid-template-columns: 1fr 1fr; } }
+    @media (max-width: 460px) { .select-grid { grid-template-columns: 1fr; } }
 
     /* title screen */
     @keyframes title-bg-breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.03); } }
@@ -584,8 +586,8 @@
     #career-result[data-tone="w"] .cr-result { color: var(--accent); }
     #career-result[data-tone="d"] .cr-result { color: var(--warn); }
     #career-result[data-tone="l"] .cr-result { color: var(--danger); }
-    .cr-result { font-family: 'Saira Condensed', sans-serif; font-size: 15px; font-weight: 800; letter-spacing: 3px; }
-    .cr-score { font-family: 'Saira Condensed', sans-serif; font-size: 52px; font-weight: 800; letter-spacing: 2px; line-height: 1; font-feature-settings: 'tnum'; }
+    .cr-result { font-family: 'Saira Condensed', sans-serif; font-size: 15px; font-weight: 800; letter-spacing: 4px; }
+    .cr-score { font-family: 'Saira Condensed', sans-serif; font-size: 66px; font-weight: 800; letter-spacing: 3px; line-height: 0.92; font-feature-settings: 'tnum'; }
     #career-result.visible .cr-score { animation: score-pop 0.6s 0.15s cubic-bezier(0.16, 1, 0.3, 1) both; }
     .cr-opp { color: var(--text-muted); font-size: 13px; }
     .cr-desc { color: var(--text); font-size: 13px; line-height: 1.5; background: var(--panel-2); border-radius: 8px; padding: 11px 14px; }
