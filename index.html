@@ -105,6 +105,11 @@
     .actionbar .btn.armed { border-color: var(--accent); color: var(--accent); box-shadow: 0 0 0 1px rgba(77, 139, 255, 0.35) inset; }
     .actionbar .btn:disabled { opacity: 0.35; cursor: default; }
     .actionbar .btn.guide-locked { display: none; }
+    /* 패스 2단 메뉴(발밑/공간) */
+    .pass-group { position: relative; display: inline-flex; }
+    .pass-menu { position: absolute; bottom: calc(100% + 6px); left: 0; display: flex; flex-direction: column; gap: 4px; background: var(--panel); border: 1px solid var(--line); border-radius: 7px; padding: 5px; box-shadow: 0 8px 24px rgba(0,0,0,0.45); z-index: 5; min-width: 132px; }
+    .pass-menu[hidden] { display: none; }
+    .pass-menu .btn { width: 100%; text-align: left; }
     /* 고급 액션 접기 — 기본 4개 + '고급' 토글만 노출, 평면 구조라 모바일 그리드 유지 */
     .actionbar.adv-collapsed .btn.adv { display: none; }
     .actionbar .action-more { color: var(--text-muted); font-weight: 600; }
@@ -898,19 +903,19 @@
         <canvas id="pitch" role="application" aria-label="11대11 전술 보드 — 방향키로 받을 동료 선택, Enter로 패스, 1~9 액션, Space 기다리기" tabindex="0"></canvas>
         <div id="kb-announce" class="sr-only" aria-live="assertive"></div>
       </div>
-      <div class="actionbar adv-collapsed">
-        <button class="btn" data-action="to_feet" aria-keyshortcuts="1" title="동료 발밑으로 정확한 패스">발밑 패스</button>
+      <div class="actionbar">
+        <button class="btn" data-action="carry" aria-keyshortcuts="4" title="공을 운반 — 공을 달면 물리적으로 느려집니다">운반</button>
+        <div class="pass-group">
+          <button class="btn" id="btn-pass" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="pass-menu" title="패스 — 발밑(선수 선택) 또는 공간·로빙(지점 클릭)">패스 ▾</button>
+          <div id="pass-menu" class="pass-menu" role="menu" hidden>
+            <button class="btn" data-action="to_feet" role="menuitem" aria-keyshortcuts="1" title="동료 발밑으로 정확히 — 선수를 선택">발밑</button>
+            <button class="btn" data-action="pass_space" role="menuitem" aria-keyshortcuts="2" title="공간·로빙 — 지점을 클릭하면 가까운 동료가 받습니다. 멀수록 위험">공간·로빙</button>
+          </div>
+        </div>
         <button class="btn" data-action="hold" aria-keyshortcuts="3 Space" title="공을 잡고 압박을 유인 — 상대가 튀어나오면 등 뒤가 열립니다">기다리기</button>
-        <button class="btn" data-action="carry" aria-keyshortcuts="4" title="공을 운반해 각도를 바꾸고 압박수를 끌어냄">운반</button>
         <button class="btn btn-shoot" data-action="shoot" title="현재 슛 존에서 마무리" aria-keyshortcuts="9">슈팅</button>
-        <button class="btn action-more" type="button" id="btn-action-more" aria-expanded="false" aria-controls="action-advanced" title="공간 패스 · 런 지시 · 원투 · 써드맨 · 전환">고급</button>
-        <button class="btn adv" data-action="into_space" aria-keyshortcuts="2" data-guide-tier="advanced" title="러너 앞 공간으로 보내는 패스">공간 패스</button>
-        <button class="btn adv" data-action="run_order" aria-keyshortcuts="5" data-guide-tier="advanced" title="공 없이 동료를 공간으로 침투시킴 — 압박도 그 런을 봅니다">런 지시</button>
-        <button class="btn adv" data-action="bounce" aria-keyshortcuts="6" data-guide-tier="advanced" title="벽 패스로 압박수 한 명을 벗겨내는 원투">원투</button>
-        <button class="btn adv" data-action="third_man" aria-keyshortcuts="7" data-guide-tier="advanced" title="연결 고리를 거쳐 제3의 선수에게 — 커버 섀도우를 우회">써드맨</button>
-        <button class="btn adv" data-action="switch" aria-keyshortcuts="8" data-guide-tier="advanced" title="약측으로 긴 전환 — 블록이 쏠렸을 때">전환</button>
-        <span class="hint">받을 동료를 클릭하세요 — 발밑으로 정확히.</span>
-        <span class="keys" aria-hidden="true">Space 기다리기 · 1–9 액션 · R 다시 · Esc 해제</span>
+        <span class="hint">패스 ▾에서 발밑·공간을 고르세요.</span>
+        <span class="keys" aria-hidden="true">Space 기다리기 · 1 발밑 · 2 공간 · 4 운반 · 9 슛 · R 다시</span>
       </div>
     </div>
 

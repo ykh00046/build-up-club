@@ -526,7 +526,8 @@ titleOverlay?.addEventListener('keydown', (e) => {
 openModal(titleOverlay, kickoffButton);
 
 // ─── action chips ────────────────────────────────────────────────────────────
-const TARGETED = new Set(['to_feet', 'into_space', 'bounce', 'third_man', 'switch', 'run_order']);
+const TARGETED = new Set(['to_feet']);            // 선수 선택(발밑)
+const POINTED = new Set(['carry', 'pass_space']); // 지점 클릭(운반·공간 패스)
 const actionButtons = [...document.querySelectorAll('[data-action]')];
 const GUIDE_KEY = 'beat-the-block:guide:v1';
 const coachCard = document.getElementById('coach-card');
@@ -535,8 +536,7 @@ let renderedGuideKey = null;
 try { guideDismissed = localStorage.getItem(GUIDE_KEY) === 'done'; } catch { /* private mode */ }
 // Short labels for the in-board ring around the holder.
 const RING_LABELS = {
-  hold: '기다리기', carry: '운반', bounce: '원투', third_man: '써드맨',
-  switch: '전환', into_space: '공간', run_order: '런', shoot: '슈팅',
+  hold: '기다리기', carry: '운반', pass_space: '공간', shoot: '슈팅',
 };
 let ringHover = null;
 
@@ -639,8 +639,9 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'r' || e.key === 'R') { newAttempt(); return; }
   if (e.key === 'Escape') { selectAction('to_feet'); return; }
   const n = parseInt(e.key, 10);
-  if (n >= 1 && n <= actionButtons.length) {
-    const btn = actionButtons[n - 1];
+  if (n >= 1 && n <= 9) {
+    // 키→액션은 aria-keyshortcuts로 매핑(1 발밑 · 2 공간 · 3 기다리기 · 4 운반 · 9 슛).
+    const btn = actionButtons.find((b) => (b.getAttribute('aria-keyshortcuts') || '').split(' ').includes(String(n)));
     if (btn && !btn.disabled && !btn.classList.contains('guide-locked')) activateAction(btn.dataset.action);
   }
 });
@@ -653,18 +654,41 @@ function selectAction(id) {
   lastTapTargetId = null;
   pendingCarry = null;
   for (const btn of actionButtons) btn.classList.toggle('armed', btn.dataset.action === id);
+  // 패스 모드(발밑/공간)는 패스 버튼에 반영하고 서브메뉴는 닫는다.
+  const passBtn = document.getElementById('btn-pass');
+  if (passBtn) {
+    const isPass = id === 'to_feet' || id === 'pass_space';
+    passBtn.classList.toggle('armed', isPass);
+    passBtn.textContent = id === 'to_feet' ? '패스: 발밑 ▾' : id === 'pass_space' ? '패스: 공간 ▾' : '패스 ▾';
+  }
+  setPassMenu(false);
   const hints = {
     to_feet: '받을 동료를 클릭하세요 — 발밑으로 정확히.',
-    into_space: '침투시킬 동료를 클릭하세요 — 그 앞 공간으로 보냅니다.',
-    bounce: '벽이 될 동료를 클릭하세요 — 받고 바로 돌려받습니다.',
-    third_man: '연결 고리를 클릭하세요 — 엔진이 제3의 선수를 찾습니다.',
-    switch: '반대 측면의 동료를 클릭하세요 — 긴 전환.',
-    carry: '운반할 지점을 피치에서 클릭하세요 (최대 11m).',
-    run_order: '침투시킬 동료를 클릭하세요 — 공 없이 공간을 공격합니다.',
+    pass_space: '공간을 클릭하세요 — 가까운 동료가 받습니다. 멀수록(진한 색) 위험합니다.',
+    carry: '운반할 지점을 클릭하세요 — 공을 달면 느립니다(범위 표시).',
   };
   setHint(hints[id] || '');
+  // 공간 패스 무장 시 즉시 범위 그라데이션이 보이도록 기본 조준을 잡아둔다.
+  if (id === 'pass_space') {
+    const h = engine.holder();
+    if (h) hover = buildSpaceHover({ x: Math.min(h.x + 22, PITCH_W - 3), y: h.y });
+  }
   updateTacticalFactors(id);
 }
+
+// 패스 서브메뉴(발밑/공간) 토글. getElementById로 조회해 초기화 순서(TDZ) 안전.
+function setPassMenu(open) {
+  const menu = document.getElementById('pass-menu');
+  if (menu) menu.hidden = !open;
+  document.getElementById('btn-pass')?.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+document.getElementById('btn-pass')?.addEventListener('click', () => {
+  setPassMenu(document.getElementById('pass-menu')?.hidden);
+});
+document.addEventListener('click', (e) => {
+  const menu = document.getElementById('pass-menu');
+  if (menu && !menu.hidden && !e.target.closest('.pass-group')) setPassMenu(false);
+});
 
 // 매치 중 factor 툴팁 — roadmap P5. 선택한 action 의 위험도에 영향을 주는
 // 요소(scheme/정체성/적응 등)를 HUD 에 표시. tacticalFactors 라벨을 chip 으로.
@@ -723,8 +747,8 @@ canvas.addEventListener('mousemove', (e) => {
     return;
   }
   const p = toPitch(e.clientX, e.clientY);
-  if (selectedAction === 'carry') {
-    hover = buildCarryHover(p);
+  if (POINTED.has(selectedAction)) {
+    hover = buildPointHover(selectedAction, p);
     return;
   }
   if (!TARGETED.has(selectedAction)) { hover = null; return; }
@@ -746,19 +770,21 @@ canvas.addEventListener('click', (e) => {
     selectAction('to_feet');
     return;
   }
-  if (selectedAction === 'carry') {
-    // U2: on touch, first tap previews the path; a second tap near the same
-    // spot executes — same contract as the teammate two-tap.
+  if (POINTED.has(selectedAction)) {
+    // U2: on touch, first tap previews the path/landing; a second tap near the
+    // same spot executes — same contract as the teammate two-tap.
     if (isTouchSession && (!pendingCarry || dist(pendingCarry, p) > 2.5)) {
       pendingCarry = { x: p.x, y: p.y };
-      hover = buildCarryHover(p);
-      setHint('한 번 더 탭하면 운반합니다 — 경로 판정을 확인하세요.');
+      hover = buildPointHover(selectedAction, p);
+      setHint(selectedAction === 'carry'
+        ? '한 번 더 탭하면 운반합니다 — 경로 판정을 확인하세요.'
+        : '한 번 더 탭하면 공간으로 패스합니다 — 가까운 동료가 받습니다.');
       return;
     }
     const point = pendingCarry ?? p;
     pendingCarry = null;
-    const r = engine.dispatch('carry', null, point);
-    if (r.ok) ACTION_SFX.carry();
+    const r = engine.dispatch(selectedAction, null, point);
+    if (r.ok) (selectedAction === 'carry' ? ACTION_SFX.carry() : ACTION_SFX.to_feet?.());
     afterDispatch();
     return;
   }
@@ -880,6 +906,31 @@ function buildCarryHover(point) {
     .some((d2) => distPointSeg(d2, h, to) < 3.2);
   const boxRush = to.x > 85 && Math.abs(to.y - PITCH_H / 2) < 14;
   return { kind: 'carryPath', to, status: threat || boxRush ? 'risky' : 'safe' };
+}
+
+function buildPointHover(action, point) {
+  return action === 'carry' ? buildCarryHover(point) : buildSpaceHover(point);
+}
+
+// 공간 패스 프리뷰 — 조준 지점, 도달 가능 여부, 가장 가까운 수신자, 거리·능력치
+// 비례 위험(그라데이션 진하기). 엔진 pass_space와 같은 직관(능력치가 위험을 낮춤).
+function buildSpaceHover(point) {
+  const h = engine.holder();
+  const s = engine.state;
+  const aim = { x: clamp(point.x, 2, PITCH_W - 2), y: clamp(point.y, 2, PITCH_H - 2) };
+  const d = dist(h, aim);
+  const lofted = d > 28;
+  const reachable = !(lofted && (h.traits?.longPass ?? 0) < 0.5) && d >= 4;
+  let nu = null, du = Infinity;
+  for (const p of s.players) {
+    if (p.side !== 'us' || p.role === 'GK' || p.id === s.holderId) continue;
+    const dd = dist(p, aim);
+    if (dd < du) { du = dd; nu = p; }
+  }
+  const pass = h.traits?.pass ?? 0.7;
+  const reachPenalty = clamp((du - 6) / 16, 0, 0.4);
+  const risk = clamp((d / 70 + reachPenalty) * (1.15 - pass * 0.3), 0.05, 0.95);
+  return { kind: 'spaceAim', aim, lofted, reachable, receiver: nu ? { x: nu.x, y: nu.y } : null, du, risk };
 }
 
 function afterDispatch() {

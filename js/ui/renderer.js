@@ -449,6 +449,38 @@ function laneLine(from, to, status, dashOffset = 0) {
   ctx.lineDashOffset = 0;
 }
 
+// 공간 패스 — 홀더 기준 범위 그라데이션(멀수록 진한 붉은빛=실패 강조) + 조준점
+// (위험도 색) + 가까운 수신자 강조. 패스 능력치는 위험도(risk)로 반영된다.
+function drawSpaceAim(hover, h) {
+  const cx = mx(h.x), cy = my(h.y);
+  const ax = mx(hover.aim.x), ay = my(hover.aim.y);
+  const reachR = 56 * scale;
+  const grad = ctx.createRadialGradient(cx, cy, 6 * scale, cx, cy, reachR);
+  grad.addColorStop(0, 'rgba(77,139,255,0.05)');
+  grad.addColorStop(0.6, 'rgba(77,139,255,0.04)');
+  grad.addColorStop(0.82, 'rgba(255,194,75,0.10)');
+  grad.addColorStop(1, 'rgba(255,90,110,0.20)');
+  ctx.beginPath(); ctx.arc(cx, cy, reachR, 0, Math.PI * 2); ctx.fillStyle = grad; ctx.fill();
+  const C = !hover.reachable ? '150,160,170' : hover.risk > 0.62 ? '255,90,110' : hover.risk > 0.34 ? '255,194,75' : '52,214,194';
+  ctx.strokeStyle = `rgba(${C},0.95)`; ctx.lineWidth = 2;
+  ctx.setLineDash([6, 5]); ctx.lineDashOffset = -pulse * 22;
+  ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(ax, ay); ctx.stroke();
+  ctx.setLineDash([]); ctx.lineDashOffset = 0;
+  ctx.fillStyle = `rgba(${C},0.18)`;
+  ctx.beginPath(); ctx.arc(ax, ay, 5 * scale, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = `rgba(${C},0.95)`; ctx.lineWidth = 1.6;
+  ctx.beginPath(); ctx.arc(ax, ay, 5 * scale, 0, Math.PI * 2); ctx.stroke();
+  if (hover.receiver) {
+    ctx.strokeStyle = '#ffc24b'; ctx.lineWidth = 2.4;
+    ctx.beginPath(); ctx.arc(mx(hover.receiver.x), my(hover.receiver.y), 2.4 * scale, 0, Math.PI * 2); ctx.stroke();
+  }
+  const word = !hover.reachable ? '닿지 않음' : hover.risk > 0.62 ? '위험' : hover.risk > 0.34 ? '주의' : '안전';
+  ctx.fillStyle = `rgba(${C},1)`;
+  ctx.font = `600 ${Math.max(9.5, scale * 1.05)}px ui-sans-serif, system-ui, sans-serif`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+  ctx.fillText(`공간 패스 · ${word}${hover.lofted ? ' · 로빙' : ''}`, ax, ay - 7 * scale);
+}
+
 function laneTag(text, p, status) {
   ctx.fillStyle = LANE_COLORS[status] ?? COLORS.laneRisky;
   ctx.font = `600 ${Math.max(9.5, scale * 1.05)}px ui-sans-serif, system-ui, sans-serif`;
@@ -552,6 +584,10 @@ function drawHover(hover, holder) {
   if (hover.kind === 'carryPath') {
     laneLine(h, hover.to, hover.status, off);
     laneTag(`운반 (${LANE_KO[hover.status]})`, hover.to, hover.status);
+    return;
+  }
+  if (hover.kind === 'spaceAim') {
+    drawSpaceAim(hover, h);
     return;
   }
   const p = hover.preview;
