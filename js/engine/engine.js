@@ -254,10 +254,13 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
   // Team push (team_shape_advance): the whole team advances WITH the ball —
   // back line to halfway when we attack the final third, never the GK. The
   // attack must not arrive alone (measured: 0.0 support within 15m before).
+  // 팀 전진 — 우리 구조가 공과 함께 올라오는 정도. 상대 압박이 커밋 시 10m/턴으로
+  // 좁혀오는 데 비해 우리 전진이 느리다는 체감(측정: 0.96 vs 1.40m/턴)을 보정 —
+  // k 상향 + 임계 25→18로 빌드업 초반부터 더 일찍·빠르게 따라 올라온다.
   const TEAM_PUSH = {
-    front: { k: 0.25, cap: 20 },
-    mid: { k: 0.45, cap: 30 },
-    back: { k: 0.55, cap: 35 },
+    front: { k: 0.32, cap: 22 },
+    mid: { k: 0.55, cap: 32 },
+    back: { k: 0.62, cap: 36 },
   };
   function pushGroupOf(p) {
     if (p.role === 'CB') return 'back';
@@ -280,13 +283,13 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
       const grp = lineGroupOf(p);
       const cfg = grp ? (INTENT_OFFSET[grp][state.lineIntents[grp]] ?? { off: 0, gap: 0.5 }) : { off: 0, gap: 0.5 };
       const pushCfg = TEAM_PUSH[pushGroupOf(p)] ?? { k: 0, cap: 0 };
-      const push = clamp((ballX - 25) * pushCfg.k, 0, pushCfg.cap);
+      const push = clamp((ballX - 18) * pushCfg.k, 0, pushCfg.cap);
       // 90 cap: off-ball players hold the box edge — camping the goalmouth
       // ratchets the opp line backward via separation. (P1a)
       const want = clamp(Math.min(p.homeX + push + cfg.off, line - cfg.gap, 90), 4, PITCH_W - 3);
       const dx = want - p.x;
       if (Math.abs(dx) > 0.3) {
-        p.x = clamp(p.x + Math.sign(dx) * Math.min(8, Math.abs(dx)), 2, PITCH_W - 2);
+        p.x = clamp(p.x + Math.sign(dx) * Math.min(10, Math.abs(dx)), 2, PITCH_W - 2);
         p.tx = p.x;
       }
 
