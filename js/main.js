@@ -135,8 +135,30 @@ function pickMomentCareer(cell) {
   bindScenarioPanels(scenario);
   const cc = document.getElementById('current-cell');
   if (cc) cc.textContent = scenario.cell;
+  populateScorebug();
   closeModal(selectOverlay, false);
   showTacticsOverlay();
+}
+
+// 매치 스코어버그(방송 매치업 바) — us/opp 방패·이름·킷색·셀.
+function deriveInitials(name, fallback) {
+  if (!name) return fallback;
+  const words = String(name).trim().split(/\s+/);
+  const pick = words.length >= 2 ? words[0][0] + words[1][0] : String(name).replace(/[^A-Za-z0-9가-힣]/g, '').slice(0, 2);
+  return (pick || fallback).toUpperCase();
+}
+function populateScorebug() {
+  const sb = document.getElementById('scorebug');
+  if (!sb) return;
+  const usName = Club.club.clubName || '내 클럽';
+  const oppName = lastMatch?.oppName || '상대';
+  setText('sb-us-name', usName);
+  setText('sb-us-init', deriveInitials(usName, 'BC'));
+  setText('sb-opp-name', oppName);
+  setText('sb-opp-init', deriveInitials(oppName, 'OP'));
+  setText('sb-vs', scenario?.cell ? `VS · ${scenario.cell}` : 'VS');
+  sb.style.setProperty('--us-kit', Club.club.clubColor || '#4d8bff');
+  sb.hidden = false;
 }
 
 // 모먼트 선택 취소 → 허브로 복귀(커리어), 단판이면 단순 닫기.
@@ -888,6 +910,8 @@ let trainingTaken = false;
 
 function enterHub() {
   careerActive = false;
+  const sb = document.getElementById('scorebug');
+  if (sb) sb.hidden = true;   // 매치 스코어버그는 매치에서만 노출
   renderHub();
   openModal(hubOverlay);
   if (!offlineShown && offlineGain > 1) {

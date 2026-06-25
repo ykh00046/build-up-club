@@ -45,6 +45,18 @@
     .phase-chip { background: var(--panel-2); padding: 4px 10px; border-radius: 4px; color: var(--text); letter-spacing: 0.5px; font-weight: 600; font-family: 'Saira Condensed', sans-serif; transition: color 0.3s ease, background 0.3s ease; }
     .phase-chip[data-phase="PROGRESSION"] { color: var(--warn); }
     .phase-chip[data-phase="FINAL_THIRD"], .phase-chip[data-phase="SHOT"] { color: var(--accent); }
+    /* 매치 스코어버그(방송 매치업 바) */
+    .scorebug { display: flex; align-items: center; justify-content: center; gap: 16px; padding: 8px 14px; background: linear-gradient(180deg, var(--panel), var(--panel-2)); border-bottom: 1px solid var(--line); flex-shrink: 0; }
+    .scorebug[hidden] { display: none; }
+    .sb-team { display: flex; align-items: center; gap: 9px; }
+    .sb-name { font-family: 'Saira Condensed', sans-serif; font-weight: 800; font-size: 16px; letter-spacing: 0.5px; }
+    .sb-opp .sb-name { color: #9fb0bd; }
+    .sb-shield { width: 26px; height: 30px; position: relative; flex-shrink: 0; filter: drop-shadow(0 3px 7px rgba(0, 0, 0, 0.5)); }
+    .sb-shield i { position: absolute; inset: 0; clip-path: polygon(8% 0,92% 0,100% 16%,100% 60%,50% 100%,0 60%,0 16%); background: linear-gradient(150deg, var(--us-kit, var(--accent)), #1f4fd0); }
+    .sb-shield-opp i { background: linear-gradient(150deg, var(--danger), #b03048); }
+    .sb-shield b { position: absolute; inset: 2px; clip-path: polygon(8% 0,92% 0,100% 16%,100% 60%,50% 100%,0 60%,0 16%); background: linear-gradient(160deg, #0e1b24, #0a141c); display: grid; place-items: center; font-family: 'Saira Condensed', sans-serif; font-weight: 800; font-size: 10px; color: var(--us-kit, var(--accent)); }
+    .sb-shield-opp b { color: var(--danger); }
+    .sb-vs { font-family: 'Saira Condensed', sans-serif; font-weight: 700; font-size: 13px; letter-spacing: 2px; color: var(--text-muted); }
     .pitch-bar .sep { width: 1px; height: 14px; background: var(--line); }
     .pitch-bar strong { color: var(--text); font-weight: 600; }
     /* View options live behind a gear menu — the status bar stays minimal. */
@@ -829,6 +841,11 @@
 
   <main>
     <div class="pitch-wrap">
+      <div class="scorebug" id="scorebug" hidden>
+        <span class="sb-team sb-us"><span class="sb-shield" id="sb-us-shield"><i></i><b id="sb-us-init">BC</b></span><span class="sb-name" id="sb-us-name">내 클럽</span></span>
+        <span class="sb-vs" id="sb-vs">VS</span>
+        <span class="sb-team sb-opp"><span class="sb-name" id="sb-opp-name">상대</span><span class="sb-shield sb-shield-opp"><i></i><b id="sb-opp-init">OP</b></span></span>
+      </div>
       <div class="pitch-bar">
         <span class="phase-chip" id="phase-chip" data-phase="BUILDUP">BUILDUP</span>
         <span class="sep"></span>
