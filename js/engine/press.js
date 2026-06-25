@@ -282,11 +282,13 @@ export function createPress(config) {
   const MAX_STEP = 7;
   const MAX_STEP_COMMIT = 10;
 
-  function clampSpeed(state) {
+  // dt = 행동 시간(짧은 패스면 작음). 수비 이동 캡을 그만큼 줄여 — 짧은 순간엔
+  // 수비도 조금만 좁힌다. 짧은 패스 연쇄(원투·써드맨)가 자연 발생하는 이유.
+  function clampSpeed(state, dt = 1) {
     const ourPlayers = state.players.filter((p) => p.side === 'us');
     for (const d of defenders(state)) {
       if (d.line === 'gk') continue;
-      const cap = d.committedTurns > 0 ? MAX_STEP_COMMIT : MAX_STEP;
+      const cap = (d.committedTurns > 0 ? MAX_STEP_COMMIT : MAX_STEP) * dt;
       const dx = d.tx - d.x, dy = d.ty - d.y;
       const dd = Math.hypot(dx, dy);
       if (dd > cap) {
@@ -509,7 +511,7 @@ export function createPress(config) {
         resolveOverlaps(state);
       }
 
-      clampSpeed(state);
+      clampSpeed(state, event?.dt ?? 1);
 
       return {
         decision, committerId: committer?.id ?? null, rewardWindow,

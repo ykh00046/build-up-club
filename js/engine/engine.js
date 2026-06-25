@@ -267,7 +267,18 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
     if (p.role === 'DM') return 'mid';
     return lineGroupOf(p); // ST/W → front, 8/10 → mid, FB/IFB → back
   }
-  function ourStructureShift() {
+  // 행동에 걸리는 시간(턴 비율) — 짧은 패스는 짧은 순간이라 양 팀이 조금만,
+  // 긴 패스·운반·기다리기는 긴 순간이라 많이 움직인다. 이 dt가 원투·써드맨 같은
+  // 빠른 콤비네이션을 짧은 패스 연쇄로 자연 발생시킨다(전용 버튼 불필요).
+  function actionTime(type, distance) {
+    if (type === 'hold') return 1.0;          // 한 박자 — 압박이 수렴
+    if (type === 'run') return 0.85;
+    if (type === 'carry') return clamp(0.3 + (distance ?? 7) / 22, 0.3, 0.8);
+    if (distance == null) return 0.7;         // 거리 미제공 패스 → 중간
+    return clamp(0.22 + distance / 34, 0.25, 1.15); // 짧을수록 짧은 시간
+  }
+
+  function ourStructureShift(dt = 1) {
     const line = offsideLine(opps());
     const h = holder();
     const ballX = h?.x ?? 20;
@@ -289,7 +300,7 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
       const want = clamp(Math.min(p.homeX + push + cfg.off, line - cfg.gap, 90), 4, PITCH_W - 3);
       const dx = want - p.x;
       if (Math.abs(dx) > 0.3) {
-        p.x = clamp(p.x + Math.sign(dx) * Math.min(10, Math.abs(dx)), 2, PITCH_W - 2);
+        p.x = clamp(p.x + Math.sign(dx) * Math.min(10 * dt, Math.abs(dx)), 2, PITCH_W - 2);
         p.tx = p.x;
       }
 
@@ -317,7 +328,7 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
 
       const dy = clamp(wantY, 2, PITCH_H - 2) - p.y;
       if (Math.abs(dy) > 0.3) {
-        p.y = clamp(p.y + Math.sign(dy) * Math.min(6, Math.abs(dy)), 2, PITCH_H - 2);
+        p.y = clamp(p.y + Math.sign(dy) * Math.min(6 * dt, Math.abs(dy)), 2, PITCH_H - 2);
         p.ty = p.y;
       }
     }
@@ -326,7 +337,9 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
   // ─── press reaction + post-receive bookkeeping ───────────────────────────
   let shapePendingLogged = false;
   function pressReact(event) {
-    ourStructureShift();
+    const dt = actionTime(event.type, event.dist);
+    event.dt = dt;                 // press.js가 같은 시간으로 수비 이동을 스케일
+    ourStructureShift(dt);
     const reaction = press.react(state, event, rng);
     // §6.4 shape reading: surface the recognition delay so the player can
     // feel (and exploit) the window before the press adjusts.
@@ -573,7 +586,7 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
     if (trigger === 'gkpass') addPressure(8);
     else if (trigger === 'backpass') addPressure(4);
 
-    pressReact({ type: 'pass', trigger });
+    pressReact({ type: 'pass', trigger, dist: dist(from, target) });
     maybeAdvancePhase();
 
     const trapped = receiverTrapCheck(target);
@@ -650,7 +663,7 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
       } else {
         addPressure(-6);
       }
-      pressReact({ type: 'pass', trigger: 'pass' });
+      pressReact({ type: 'pass', trigger: 'pass', dist: dist(fromPos, zone) });
       maybeAdvancePhase();
       const trapped = receiverTrapCheck(target);
       startAnim({ from: fromPos, to: zone, lofted }, lofted ? 950 : 700, () => {
@@ -724,7 +737,7 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
       if (loose) { addPressure(10); state.facts.secondBalls = (state.facts.secondBalls || 0) + 1; }
       else { addPressure(-5); }
       const trigger = passTriggerFor(fromPos, landing, nu);
-      pressReact({ type: 'pass', trigger });
+      pressReact({ type: 'pass', trigger, dist: dist(fromPos, landing) });
       maybeAdvancePhase();
       const trapped = receiverTrapCheck(nu);
       startAnim({ from: fromPos, to: landing, lofted }, lofted ? 950 : 700, () => {
@@ -811,7 +824,7 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
       risk = clamp(risk * tacRiskMul(state.currentAction), 0.02, 0.97);
 
       if (rollFail(risk)) {
-        pressReact({ type: 'carry', trigger: 'carry' });
+        pressReact({ type: 'carry', trigger: 'carry', dist: dist(h, to) });
         startAnim({ from: { x: h.x, y: h.y }, to, lofted: false, withHolder: true }, 650, () => {
           endAttempt('tackled', { interceptor: tackler, risk });
         });
@@ -826,7 +839,7 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
       state.lastPassCross = false;
       addPressure(4);
       state.facts.baits++; // a carry at the block is an invitation
-      pressReact({ type: 'carry', trigger: 'carry' });
+      pressReact({ type: 'carry', trigger: 'carry', dist: dist(h, to) });
       maybeAdvancePhase();
       startAnim({ from: fromPos, to, lofted: false, withHolder: true }, 650, null);
       logLine(`${josa(h.label, '이', '가')} 공을 운반하며 압박을 시험합니다.`, 'info');
