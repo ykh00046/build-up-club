@@ -48,7 +48,7 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
     facts: {
       baits: 0, linesBroken: 0, switches: 0, windowsUsed: 0, runs: 0,
       situationsTriggered: 0, situationsResolved: 0, decisionsMade: 0,
-      counterpressWins: 0,
+      counterpressWins: 0, secondBalls: 0,
     },
     log: [],
     status: 'live',          // live | over
@@ -400,6 +400,24 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
     return best;
   }
 
+  // 공간 지향 패스 — 실패 시 착지 경합(spatial-pass-redesign Inc.1).
+  // 패스가 깨끗이 안 닿았을 때(rollFail), 그게 즉시 턴오버인지 루즈볼인지를
+  // 근접으로 판정: 러너(receiver)가 최근접 수비수와 비등하게 가까우면 세컨볼 경합
+  // (50% us 되찾기, 압박 속에) — "한 턴 뒤면 따낼 수 있는데 실패" 문제 해결.
+  // 수비수가 확실히 장악하면 탈취(→전환 창). us는 깨끗 성공 경로에서 처리.
+  function resolveLanding(landing, receiver) {
+    let no = null, do_ = Infinity;
+    for (const d of opps()) {
+      if (d.line === 'gk') continue;
+      const dd = dist(d, landing);
+      if (dd < do_) { do_ = dd; no = d; }
+    }
+    const du = receiver ? dist(receiver, landing) : Infinity;
+    const contested = du < do_ + 2.5;   // 러너가 충분히 가까움 → 세컨볼 경합
+    if (contested && rng.next() < 0.5) return { result: 'loose', receiver, winner: no };
+    return { result: 'opp', winner: no };
+  }
+
   // Preview-side trap read (QA Major 1): the same surrounded/no-exit test the
   // resolver rolls AFTER arrival, evaluated on current positions so the
   // preview can warn BEFORE the pass. A lane the engine may kill on arrival
@@ -598,13 +616,20 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
       const ev = evaluateLane(from, zone, opps(), { lofted, rewardWindow: activeWindow() });
       const risk = clamp((Math.max(ev.risk, landing.risk) + kickPenalty) * (1.1 - (from.traits?.pass ?? 0.7) * 0.25) * tacRiskMul(state.currentAction), 0.02, 0.97);
 
+      // 깨끗한 성공 vs 실패는 기존 risk로 판정(밸런스 보존). 실패 시 착지 경합으로
+      // 루즈볼(세컨볼·되찾기) vs 탈취 분기 — 가혹한 이진 실패 완화(Inc.1).
+      let loose = false;
       if (rollFail(risk)) {
-        const interceptor = landing.interceptor ?? ev.interceptor ?? nearestDefender(zone, opps()).defender;
-        pressReact({ type: 'pass', trigger: 'pass' });
-        startAnim({ from: { x: from.x, y: from.y }, to: zone, lofted }, lofted ? 950 : 700, () => {
-          endAttempt('intercepted', { interceptor, reason: 'landing', risk });
-        });
-        return { ok: false };
+        const contest = resolveLanding(zone, target);
+        if (contest.result !== 'loose') {
+          const interceptor = contest.winner ?? landing.interceptor ?? ev.interceptor ?? nearestDefender(zone, opps()).defender;
+          pressReact({ type: 'pass', trigger: 'pass' });
+          startAnim({ from: { x: from.x, y: from.y }, to: zone, lofted }, lofted ? 950 : 700, () => {
+            endAttempt('intercepted', { interceptor, reason: 'contest', risk });
+          });
+          return { ok: false };
+        }
+        loose = true;   // 세컨볼 — 압박 속에 따냄(계속)
       }
 
       const fromPos = { x: from.x, y: from.y };
@@ -618,14 +643,23 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
       state.lastPassFromByline = false;
       state.lastPassCross = false;
       windowUseCheck(zone);
-      addPressure(-6);
+      // 루즈볼(세컨볼) = 압박 속에 따냄 — 실패가 아니라 경합 승리. 깨끗하면 압박 완화.
+      if (loose) {
+        addPressure(10);
+        state.facts.secondBalls = (state.facts.secondBalls || 0) + 1;
+      } else {
+        addPressure(-6);
+      }
       pressReact({ type: 'pass', trigger: 'pass' });
       maybeAdvancePhase();
       const trapped = receiverTrapCheck(target);
       startAnim({ from: fromPos, to: zone, lofted }, lofted ? 950 : 700, () => {
         if (trapped) endAttempt('trapped', { holder: target });
       });
-      logLine(`${josa(target.label, '이', '가')} 공간에서 받았습니다.`, 'success');
+      logLine(loose
+        ? `세컨볼 경합 — ${josa(target.label, '이', '가')} 압박 속에 따냈습니다.`
+        : `${josa(target.label, '이', '가')} 공간에서 받았습니다.`,
+        loose ? 'warn' : 'success');
       return { ok: true };
     },
 
