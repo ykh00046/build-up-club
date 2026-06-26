@@ -1458,25 +1458,13 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
           const ev = evaluateLane(h, target, opps(), { rewardWindow: w });
           risk = clamp(ev.risk * (1.15 - (h.traits?.pass ?? 0.7) * 0.3), 0.02, 0.97);
           targetX = target.x;
-        } else if (actionId === 'bounce') {
-          if (dist(h, target) > 20) return null;
-          const ev = evaluateLane(h, target, opps(), { rewardWindow: w });
+        } else if (actionId === 'pass_space') {
+          // 동료 앞 공간으로 — 공간 패스. 멀면 자동 로빙(롱패스 능력 필요).
+          const aim = { x: target.x + 10, y: target.y };
+          if (dist(h, aim) > 28 && (h.traits?.longPass ?? 0) < LONG_PASS_GATE) return null;
+          const ev = evaluateLane(h, aim, opps(), { lofted: dist(h, aim) > 28, rewardWindow: w });
           risk = clamp(ev.risk * (1.1 - (h.traits?.pass ?? 0.7) * 0.25), 0.02, 0.97);
-          targetX = h.x + 7;
-        } else if (actionId === 'into_space') {
-          const ev = evaluateLane(h, { x: target.x + 10, y: target.y }, opps(), {});
-          risk = clamp(ev.risk * (1.1 - (h.traits?.pass ?? 0.7) * 0.25), 0.02, 0.97);
-          targetX = target.x + 10;
-        } else if (actionId === 'switch') {
-          if (Math.abs(target.y - h.y) < 22 || (h.traits?.longPass ?? 0) < 0.5) return null;
-          const ev = evaluateLane(h, target, opps(), { lofted: true, rewardWindow: w });
-          risk = clamp(ev.risk * 1.1, 0.02, 0.97);
-          targetX = target.x;
-        } else if (actionId === 'third_man') {
-          if (dist(h, target) > 26) return null;
-          const ev = evaluateLane(h, target, opps(), { rewardWindow: w });
-          risk = clamp(ev.risk * 1.08, 0.02, 0.97);
-          targetX = target.x;
+          targetX = aim.x;
         }
         if (risk >= 0.88) return null;
         const safety = (1 - risk) * 0.50;
@@ -1488,14 +1476,14 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
         }
         const phaseBonus = (state.phase === 'BUILDUP' && targetX > PHASE_LINES.PROGRESSION) ? 0.28
           : (state.phase === 'PROGRESSION' && targetX > PHASE_LINES.FINAL_THIRD) ? 0.28 : 0;
-        const comboBonus = { bounce: 0.14, third_man: 0.18, switch: 0.20, into_space: 0.10, to_feet: 0 }[actionId] ?? 0;
-        const orientBonus = (h.orientation === 'BACK' && (actionId === 'bounce' || targetX <= h.x + 2)) ? 0.18 : 0;
+        const comboBonus = actionId === 'pass_space' ? 0.12 : 0;
+        const orientBonus = (h.orientation === 'BACK' && targetX <= h.x + 2) ? 0.18 : 0;
         const score = safety + fwd + winBonus + phaseBonus + comboBonus * 0.8 + orientBonus;
         return { action: actionId, target, score, risk };
       };
 
       for (const mate of mates) {
-        for (const actionId of ['to_feet', 'bounce', 'third_man', 'into_space', 'switch']) {
+        for (const actionId of ['to_feet', 'pass_space']) {
           const opt = scoreOption(actionId, mate);
           if (opt) results.push(opt);
         }
@@ -1504,10 +1492,7 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
       const top = results.slice(0, limit);
       if (top[0]) {
         const { action, target, score } = top[0];
-        if (action === 'bounce') top[0].why = `${target.label}과 원투 — 마커 돌파 최우선`;
-        else if (action === 'third_man') top[0].why = `${target.label} 경유 써드맨`;
-        else if (action === 'switch') top[0].why = `약측 ${target.label}으로 전환`;
-        else if (action === 'into_space') top[0].why = `${target.label}에게 침투 패스`;
+        if (action === 'pass_space') top[0].why = `${target.label} 앞 공간으로 패스`;
         else top[0].why = `${target.label}에게 안전 연결 (score ${score.toFixed(2)})`;
       }
       return top;
