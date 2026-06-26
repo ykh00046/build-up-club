@@ -479,7 +479,13 @@ function drawSpaceAim(hover, h) {
   // 도달 한계 윤곽(약한 점선) — 향한 방향으로 길쭉한 모양이 보인다.
   ctx.strokeStyle = 'rgba(255,90,110,0.28)'; ctx.lineWidth = 1; ctx.setLineDash([3, 5]);
   lobePath(); ctx.stroke(); ctx.setLineDash([]);
-  const C = !hover.reachable ? '150,160,170' : hover.risk > 0.62 ? '255,90,110' : hover.risk > 0.34 ? '255,194,75' : '52,214,194';
+  // 색·라벨은 수신 자세 예측으로 — "이 패스를 주면 어떤 몸으로 받나".
+  const REC = {
+    free:      { c: '52,214,194', t: '▲ 자유 · 전진 가능' },
+    pressured: { c: '255,194,75', t: '◆ 압박 · 떨궈야' },
+    trapped:   { c: '255,90,110', t: '▼ 갇힘 · 등지고 받음' },
+  }[hover.reception || 'free'];
+  const C = !hover.reachable ? '150,160,170' : REC.c;
   ctx.strokeStyle = `rgba(${C},0.95)`; ctx.lineWidth = 2;
   ctx.setLineDash([6, 5]); ctx.lineDashOffset = -pulse * 22;
   ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(ax, ay); ctx.stroke();
@@ -492,11 +498,10 @@ function drawSpaceAim(hover, h) {
     ctx.strokeStyle = '#ffc24b'; ctx.lineWidth = 2.4;
     ctx.beginPath(); ctx.arc(mx(hover.receiver.x), my(hover.receiver.y), 2.4 * scale, 0, Math.PI * 2); ctx.stroke();
   }
-  const word = !hover.reachable ? '닿지 않음' : hover.risk > 0.62 ? '위험' : hover.risk > 0.34 ? '주의' : '안전';
   ctx.fillStyle = `rgba(${C},1)`;
   ctx.font = `600 ${Math.max(9.5, scale * 1.05)}px ui-sans-serif, system-ui, sans-serif`;
   ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
-  ctx.fillText(`공간 패스 · ${word}${hover.lofted ? ' · 로빙' : ''}`, ax, ay - 7 * scale);
+  ctx.fillText(!hover.reachable ? '닿지 않음' : REC.t + (hover.lofted ? ' · 로빙' : ''), ax, ay - 7 * scale);
 }
 
 function laneTag(text, p, status) {

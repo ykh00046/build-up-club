@@ -940,7 +940,17 @@ function buildSpaceHover(point) {
   // 도달 프로필 — 포지션/능력치로 다르게. 롱패스 < 0.5는 로빙 불가(지상 28m).
   const maxR = longPass < 0.5 ? 28 : 28 + (longPass - 0.5) * 58;
   const safeR = clamp(14 + pass * 22, 12, maxR);
-  return { kind: 'spaceAim', aim, lofted, reachable, receiver: nu ? { x: nu.x, y: nu.y } : null, du, risk, maxR, safeR, facingAngle, baseFrac };
+  // 수신 자세 예측 — "이 패스를 주면 어떤 몸으로 받나"(결정적, RNG 아님). 착지점
+  // 최근접 수비수가 골 사이드(전방을 막음)·근접이면 등지고 갇힘, 멀면 자유 전진.
+  let dno = Infinity, ndef = null;
+  for (const o of s.players) {
+    if (o.side !== 'opp' || o.line === 'gk') continue;
+    const od = dist(o, aim);
+    if (od < dno) { dno = od; ndef = o; }
+  }
+  const goalSide = ndef && ndef.x > aim.x - 1.5;          // 수비수가 전방(골 쪽)을 막음
+  const reception = (dno <= 3.5 && goalSide) ? 'trapped' : dno <= 6 ? 'pressured' : 'free';
+  return { kind: 'spaceAim', aim, lofted, reachable, receiver: nu ? { x: nu.x, y: nu.y } : null, du, risk, maxR, safeR, facingAngle, baseFrac, reception };
 }
 
 function afterDispatch() {
