@@ -8,7 +8,7 @@
 import { PHASE_LINES, PITCH_W, PITCH_H, clamp, dist, lerp, carryRange } from '../data/pitch.js';
 import { josa } from '../util/josa.js';
 import {
-  evaluateLane, evaluateLanding, landingZoneFor, linesBroken, offsideLine,
+  evaluateLane, evaluateLanding, linesBroken, offsideLine,
   nearestDefender, TACKLE_RADIUS, computeOrientation, receiverPressure,
 } from './space.js';
 import { createPress } from './press.js';
@@ -866,185 +866,6 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
       return { ok: true };
     },
 
-    bounce(targetId) {
-      const wall = byId(targetId);
-      const h = holder();
-      if (!wall || wall.side !== 'us' || wall.id === h.id) return fail('벽 역할 동료를 선택하세요.');
-      if (dist(h, wall) > 20) return fail('원투 거리가 너무 멉니다 (20m 이내).');
-
-      const { defender: presser } = nearestDefender(h, opps());
-      const escape = {
-        // The return ball is a pass — the escape spot must stay onside.
-        x: clamp(Math.min(h.x + 7, offsideLine(opps()) - 0.5), 2, PITCH_W - 2),
-        y: clamp(h.y + (h.y > wall.y ? -3 : 3), 2, PITCH_H - 2),
-      };
-      const leg1 = evaluateLane(h, wall, opps(), { rewardWindow: activeWindow() });
-      const defsMinusPresser = opps().filter((d2) => d2 !== presser);
-      const leg2 = evaluateLane(wall, escape, defsMinusPresser, { rewardWindow: activeWindow() });
-      const risk = clamp(Math.max(leg1.risk, leg2.risk * 0.9) * (1.1 - (h.traits?.pass ?? 0.7) * 0.25) * tacRiskMul(state.currentAction), 0.02, 0.97);
-
-      if (rollFail(risk)) {
-        const interceptor = (leg1.risk >= leg2.risk ? leg1.interceptor : leg2.interceptor) ?? presser;
-        pressReact({ type: 'bounce', trigger: 'bounce' });
-        startAnim({ from: { x: h.x, y: h.y }, to: { x: wall.x, y: wall.y } }, 600, () => {
-          endAttempt('intercepted', { interceptor, reason: leg1.risk >= leg2.risk ? leg1.reason : leg2.reason, risk });
-        });
-        return { ok: false };
-      }
-
-      const fromPos = { x: h.x, y: h.y };
-      h.x = escape.x; h.y = escape.y; h.tx = escape.x; h.ty = escape.y;
-      h.orientation = 'FACING'; // run-out to escape spot → always FACING (P1)
-      state.lastPassLofted = false;   // ground combination (QA Major 2)
-      state.lastPassFromByline = false;
-      state.lastPassCross = false;
-      if (presser) { presser.beatenTurns = 1; }
-      state.facts.linesBroken += linesBroken(fromPos, escape, opps());
-      addPressure(-8);
-      windowUseCheck(escape);
-      pressReact({ type: 'bounce', trigger: 'bounce' });
-      maybeAdvancePhase();
-      startAnim({ from: fromPos, to: { x: wall.x, y: wall.y }, then: { x: escape.x, y: escape.y } }, 950, null);
-      logLine(`원투! ${wall.label} 벽 패스로 ${presser ? presser.label + '를 벗겨냈습니다' : '전진했습니다'}.`, 'success');
-      return { ok: true };
-    },
-
-    third_man(targetId) {
-      const connector = byId(targetId);
-      const h = holder();
-      if (!connector || connector.side !== 'us' || connector.id === h.id) return fail('연결 고리가 될 동료를 선택하세요.');
-      if (dist(h, connector) > 26) return fail('연결 거리가 너무 멉니다 (26m 이내).');
-
-      const third = pickThirdMan(connector, h);
-      if (!third) return fail('연결할 제3의 선수가 근처에 없습니다.');
-
-      const leg1 = evaluateLane(h, connector, opps(), { rewardWindow: activeWindow() });
-      const leg2 = evaluateLane(connector, third, opps(), { rewardWindow: activeWindow() });
-      const risk = clamp(Math.max(leg1.risk, leg2.risk) * (1.08 - (h.traits?.pass ?? 0.7) * 0.2) * tacRiskMul(state.currentAction), 0.02, 0.97);
-
-      if (rollFail(risk)) {
-        const interceptor = (leg1.risk >= leg2.risk ? leg1.interceptor : leg2.interceptor);
-        pressReact({ type: 'third_man', trigger: 'third_man' });
-        startAnim({ from: { x: h.x, y: h.y }, to: { x: connector.x, y: connector.y } }, 600, () => {
-          endAttempt('intercepted', { interceptor, reason: leg1.risk >= leg2.risk ? leg1.reason : leg2.reason, risk });
-        });
-        return { ok: false };
-      }
-
-      const fromPos = { x: h.x, y: h.y };
-      state.facts.linesBroken += linesBroken(fromPos, third, opps());
-      state.holderId = third.id;
-      state.consecutiveHolds = 0;
-      state.lastPassLofted = false;   // ground combination (QA Major 2)
-      state.lastPassFromByline = false;
-      state.lastPassCross = false;
-      addPressure(-10);
-      windowUseCheck(third);
-      pressReact({ type: 'third_man', trigger: 'third_man' });
-      maybeAdvancePhase();
-      const trapped = receiverTrapCheck(third);
-      startAnim({ from: fromPos, to: { x: connector.x, y: connector.y }, then: { x: third.x, y: third.y } }, 1000, () => {
-        if (trapped) endAttempt('trapped', { holder: third });
-      });
-      logLine(`써드맨! ${connector.label} 경유 → ${third.label}. 압박 너머로 연결.`, 'success');
-      return { ok: true };
-    },
-
-    switch(targetId) {
-      const target = byId(targetId);
-      const h = holder();
-      if (!target || target.side !== 'us' || target.id === h.id) return fail('전환 받을 동료를 선택하세요.');
-      if (Math.abs(target.y - h.y) < 22) return fail('전환은 반대 측면(약측)으로 보내야 합니다.');
-      if ((h.traits?.longPass ?? 0) < LONG_PASS_GATE) {
-        return fail(`${h.label}의 킥 거리로는 약측까지 정확히 닿지 않습니다.`);
-      }
-      // Count what the switch punishes: defenders dragged ball-side.
-      const ballSide = h.y > PITCH_H / 2 ? 'high' : 'low';
-      const dragged = opps().filter((d2) => d2.line !== 'gk'
-        && (ballSide === 'high' ? d2.y > PITCH_H / 2 : d2.y < PITCH_H / 2)).length;
-
-      // A MARKED weak-side receiver can't take the switch to feet — the marker
-      // is standing on the delivery. Drop it into the space in FRONT of him
-      // instead (P1b: B2's switch route was structurally dead without this).
-      const { d: markD } = nearestDefender(target, opps());
-      if (markD < 3.5) {
-        const zone = landingZoneFor(target, 9);
-        const landing = evaluateLanding(zone, target, opps(), { rewardWindow: activeWindow() });
-        const ev = evaluateLane(h, zone, opps(), { lofted: true, rewardWindow: activeWindow() });
-        const extra = (1 - (h.traits?.longPass ?? 0.5)) * 0.08;
-        const risk = clamp(edgeRelief(clamp((Math.max(ev.risk, landing.risk) + extra) * (1.1 - (h.traits?.pass ?? 0.7) * 0.25), 0.02, 0.97), zone) * tacRiskMul(state.currentAction), 0.02, 0.97);
-        if (rollFail(risk)) {
-          const interceptor = landing.interceptor ?? ev.interceptor ?? nearestDefender(zone, opps()).defender;
-          pressReact({ type: 'pass', trigger: 'switch' });
-          startAnim({ from: { x: h.x, y: h.y }, to: zone, lofted: true }, 950, () => {
-            endAttempt('intercepted', { interceptor, reason: 'landing', risk });
-          });
-          return { ok: false };
-        }
-        const fromPos = { x: h.x, y: h.y };
-        state.facts.linesBroken += linesBroken(fromPos, zone, opps());
-        target.x = zone.x; target.y = zone.y; target.tx = zone.x; target.ty = zone.y;
-        state.holderId = target.id;
-        state.consecutiveHolds = 0;
-        state.lastPassLofted = true;
-        state.lastPassFromByline = false;
-        state.lastPassCross = Math.abs(fromPos.y - PITCH_H / 2) > 16
-          && Math.abs(zone.y - PITCH_H / 2) < 12 && zone.x > 78;
-        windowUseCheck(zone);
-        state.facts.switches++;
-        addPressure(-12);
-        pressReact({ type: 'pass', trigger: 'switch' });
-        maybeAdvancePhase();
-        const trapped = receiverTrapCheck(target);
-        startAnim({ from: fromPos, to: zone, lofted: true }, 950, () => {
-          if (trapped) endAttempt('trapped', { holder: target });
-        });
-        logLine(`약측 전환 — ${josa(target.label, '이', '가')} 마커 앞 공간에서 받습니다 (상대 ${dragged}명이 공 쪽에 쏠림).`, 'success');
-        return { ok: true };
-      }
-
-      const result = resolvePassTo(target, {
-        lofted: true, viaLabel: '전환',
-        extraRisk: (1 - (h.traits?.longPass ?? 0.5)) * 0.08,
-      });
-      if (result.ok) {
-        state.facts.switches++;
-        addPressure(-12);
-        logLine(`약측 전환 — 상대 ${dragged}명이 공 쪽에 쏠려 있었습니다.`, 'success');
-      }
-      return result;
-    },
-
-    // Off-ball order (§5.12): the ball stays — a teammate attacks space.
-    // Cost: a turn, and the press sees the run. Value: a repositioned
-    // receiver, ideally arriving inside a reward window before it closes.
-    run_order(targetId) {
-      const runner = byId(targetId);
-      if (!runner || runner.side !== 'us' || runner.id === state.holderId) return fail('침투시킬 동료를 선택하세요.');
-      if (runner.role === 'GK') return fail('GK는 침투하지 않습니다.');
-      const pick = pickRunDestination(runner);
-      if (!pick) return fail('침투할 만한 공간이 없습니다.');
-      runner.x = pick.zone.x; runner.y = pick.zone.y;
-      runner.tx = pick.zone.x; runner.ty = pick.zone.y;
-      state.facts.runs++;
-      state.lastPassLofted = false;   // a turn passed — reception context expires
-      state.lastPassFromByline = false;
-      state.lastPassCross = false;
-      addPressure(3); // the run is visible — the block stirs
-      pressReact({ type: 'run', trigger: 'run' });
-      startAnim(null, 700, null);
-      const w = activeWindow();
-      const intoWindow = w && w.kind === 'real' && dist(pick.zone, w) < w.r;
-      const statusKo = { open: '열린 공간', contested: '경합 공간', dead: '막힌 공간' }[pick.landing.status];
-      logLine(
-        intoWindow
-          ? `${josa(runner.label, '이', '가')} 열린 공간으로 침투합니다 — 닫히기 전에 찔러주세요!`
-          : `${runner.label} 침투 — ${statusKo}을 공략합니다.`,
-        intoWindow || pick.landing.status === 'open' ? 'success' : 'info',
-      );
-      return { ok: true };
-    },
-
     shoot() {
       const h = holder();
       if (state.phase !== 'FINAL_THIRD') return fail('아직 슛 단계가 아닙니다 — 파이널 서드까지 전진하세요.');
@@ -1066,75 +887,6 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
     return { ok: false, rejected: true, message };
   }
 
-  // Candidate run lines — phase-aware. Returns the most alive option or null.
-  // BUILDUP/PROGRESSION: straight + two diagonals + ball-side cut.
-  // FINAL_THIRD: box-entry angles (near post, penalty spot, far post) that
-  // match where crosses and cutbacks actually land.
-  function pickRunDestination(runner) {
-    const defs = opps();
-    // Runs stay onside: depth comes from the line retreating, not rule-breaking.
-    const maxX = Math.min(offsideLine(defs) - 0.5, PITCH_W - 4);
-    const inward = runner.y > PITCH_H / 2 ? -8 : 8;
-    const ballY = holder()?.y ?? PITCH_H / 2;
-    const toBall = clamp(ballY - runner.y, -12, 12); // pull toward ball side
-
-    let rawCandidates;
-    if (state.phase === 'FINAL_THIRD') {
-      // Box-entry geometry: 5 options so runners spread across the box.
-      const nearPost = runner.y > PITCH_H / 2 ? PITCH_H / 2 + 11 : PITCH_H / 2 - 11;
-      const farPost  = runner.y > PITCH_H / 2 ? PITCH_H / 2 - 5  : PITCH_H / 2 + 5;
-      rawCandidates = [
-        { x: runner.x + 12, y: runner.y },              // straight overlap
-        { x: runner.x + 9,  y: nearPost },              // near-post attack run
-        { x: runner.x + 12, y: PITCH_H / 2 },           // penalty-spot central
-        { x: runner.x + 8,  y: farPost },               // far-post diagonal
-        { x: runner.x + 10, y: runner.y + inward * 0.6 }, // shape-relative diagonal
-      ];
-    } else {
-      rawCandidates = [
-        { x: runner.x + 14, y: runner.y },              // straight forward
-        { x: runner.x + 11, y: runner.y + inward },     // inward diagonal
-        { x: runner.x + 11, y: runner.y - inward * 0.75 }, // outward diagonal
-        { x: runner.x + 10, y: runner.y + toBall * 0.8 }, // ball-side pull
-        { x: runner.x + 6,  y: runner.y + inward * 1.4 }, // lateral-forward burst
-      ];
-    }
-
-    const candidates = rawCandidates.map((c) => ({
-      x: clamp(Math.min(c.x, maxX), 4, PITCH_W - 4),
-      y: clamp(c.y, 3, PITCH_H - 3),
-      r: 5,
-    }));
-
-    // Penalise destinations already occupied by another of our players to
-    // prevent three runners bunching in the same zone.
-    const others = ours().filter((p) => p.id !== runner.id && p.id !== state.holderId);
-    let best = null;
-    for (const zone of candidates) {
-      const landing = evaluateLanding(zone, runner, defs, { rewardWindow: activeWindow() });
-      const crowd = others.filter((p) => dist(p, zone) < 8).length;
-      const score = (zone.x - runner.x) * 0.8 - landing.risk * 22 - crowd * 6;
-      if (!best || score > best.score) best = { zone, landing, score };
-    }
-    // Runs are off-ball: a player always moves, even into a contested zone.
-    // Return best unconditionally — null only if candidates was somehow empty.
-    return best ?? null;
-  }
-
-  function pickThirdMan(connector, currentHolder) {
-    let best = null, bestScore = -Infinity;
-    for (const m of ours()) {
-      if (m.id === connector.id || m.id === currentHolder.id || m.role === 'GK') continue;
-      if (isOffside(m)) continue;
-      const d = dist(connector, m);
-      if (d > 22) continue;
-      const ev = evaluateLane(connector, m, opps(), { rewardWindow: activeWindow() });
-      const score = (m.x - currentHolder.x) * 0.6 - ev.risk * 28 - d * 0.25;
-      if (score > bestScore) { bestScore = score; best = m; }
-    }
-    return best;
-  }
-
   function distToSegmentLocal(p, a, b) {
     const dx = b.x - a.x, dy = b.y - a.y;
     const len2 = dx * dx + dy * dy;
@@ -1153,32 +905,18 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
     let bestScore = -Infinity;
 
     for (const mate of mates) {
-      for (const actionId of ['bounce', 'third_man', 'into_space', 'switch', 'to_feet']) {
+      for (const actionId of ['to_feet', 'pass_space']) {
         let risk = 1, targetX = mate.x;
         if (actionId === 'to_feet') {
           const ev = evaluateLane(newHolder, mate, opps(), { rewardWindow: w });
           risk = clamp(ev.risk * (1.15 - (newHolder.traits?.pass ?? 0.7) * 0.3), 0.02, 0.97);
           targetX = mate.x;
-        } else if (actionId === 'bounce') {
-          if (dist(newHolder, mate) > 20) continue;
-          const ev = evaluateLane(newHolder, mate, opps(), { rewardWindow: w });
+        } else { // pass_space — 동료 앞 공간
+          const aim = { x: mate.x + 10, y: mate.y };
+          if (dist(newHolder, aim) > 28 && (newHolder.traits?.longPass ?? 0) < LONG_PASS_GATE) continue;
+          const ev = evaluateLane(newHolder, aim, opps(), { lofted: dist(newHolder, aim) > 28, rewardWindow: w });
           risk = clamp(ev.risk * (1.1 - (newHolder.traits?.pass ?? 0.7) * 0.25), 0.02, 0.97);
-          targetX = newHolder.x + 7;
-        } else if (actionId === 'into_space') {
-          if (mate.role === 'GK') continue;
-          const ev = evaluateLane(newHolder, { x: mate.x + 10, y: mate.y }, opps(), {});
-          risk = clamp(ev.risk * (1.1 - (newHolder.traits?.pass ?? 0.7) * 0.25), 0.02, 0.97);
-          targetX = mate.x + 10;
-        } else if (actionId === 'switch') {
-          if (Math.abs(mate.y - newHolder.y) < 22 || (newHolder.traits?.longPass ?? 0) < 0.5) continue;
-          const ev = evaluateLane(newHolder, mate, opps(), { lofted: true, rewardWindow: w });
-          risk = clamp(ev.risk * 1.1, 0.02, 0.97);
-          targetX = mate.x;
-        } else if (actionId === 'third_man') {
-          if (dist(newHolder, mate) > 26) continue;
-          const ev = evaluateLane(newHolder, mate, opps(), { rewardWindow: w });
-          risk = clamp(ev.risk * 1.08, 0.02, 0.97);
-          targetX = mate.x;
+          targetX = aim.x;
         }
         if (risk >= 0.88) continue;
         const safety = (1 - risk) * 0.50;
@@ -1190,7 +928,7 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
         }
         const phaseBonus = (state.phase === 'BUILDUP' && targetX > PHASE_LINES.PROGRESSION) ? 0.28
           : (state.phase === 'PROGRESSION' && targetX > PHASE_LINES.FINAL_THIRD) ? 0.28 : 0;
-        const comboBonus = { bounce: 0.14, third_man: 0.18, switch: 0.20, into_space: 0.10, to_feet: 0 }[actionId] ?? 0;
+        const comboBonus = actionId === 'pass_space' ? 0.10 : 0;
         const score = safety + fwd + winBonus + phaseBonus + comboBonus * 0.8;
         if (score > bestScore) { bestScore = score; best = { actionId, mate, score, risk, winBonus }; }
       }
@@ -1198,10 +936,7 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
     if (!best) return null;
     const { actionId, mate, winBonus } = best;
     if (winBonus > 0.3) return `→ ${mate.label}으로 열린 공간 마감 기회!`;
-    if (actionId === 'bounce') return `→ ${mate.label}과 원투로 마커 돌파 가능`;
-    if (actionId === 'third_man') return `→ ${mate.label} 경유 써드맨 시도 가능`;
-    if (actionId === 'switch') return `→ 약측 ${mate.label}으로 전환 검토`;
-    if (actionId === 'into_space' && bestScore > 0.7) return `→ ${mate.label}에게 침투 패스`;
+    if (actionId === 'pass_space' && bestScore > 0.7) return `→ ${mate.label} 앞 공간으로 패스`;
     return null;
   }
 
@@ -1281,12 +1016,9 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
         const oriented = edgeRelief(clamp(lane.risk + om, 0.02, 0.97), to);
         return { ..._applyTac({ ...lane, risk: oriented }), orientPenalty: om || undefined };
       };
-      if ((actionId === 'into_space' || actionId === 'run_order') && target.role === 'GK') return null;
-      if (actionId === 'bounce' && dist(h, target) > 20) return null;
-      if (actionId === 'third_man' && dist(h, target) > 26) return null;
-      if (actionId === 'switch' && (Math.abs(target.y - h.y) < 22 || (h.traits?.longPass ?? 0) < LONG_PASS_GATE)) return null;
+      if (actionId === 'into_space' && target.role === 'GK') return null;
       // Offside receivers: previewable, but as a rule violation — not a lane.
-      if (['to_feet', 'bounce', 'third_man', 'switch'].includes(actionId) && isOffside(target)) {
+      if (actionId === 'to_feet' && isOffside(target)) {
         return { kind: 'lane', target, lane: { risk: 1, status: 'offside', interceptor: null, reason: 'offside' } };
       }
       const w = activeWindow();
@@ -1299,36 +1031,6 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
         const landing = _applyTac(withTrap(pickL.landing, zone, target.id, target.traits, 'landing'), 'landing');
         const lane = _applyTac(evaluateLane(h, zone, opps(), { lofted: dist(h, zone) > 32, rewardWindow: w }));
         return { kind: 'space', zone, landing, lane, target };
-      }
-      if (actionId === 'run_order') {
-        const pick = pickRunDestination(target);
-        return pick ? { kind: 'run', target, zone: pick.zone, landing: pick.landing } : null;
-      }
-      if (actionId === 'third_man') {
-        const third = pickThirdMan(target, h);
-        return {
-          kind: 'chain', target, third,
-          leg1: _applyTac(evaluateLane(h, target, opps(), { rewardWindow: w })),
-          leg2: third
-            ? _applyTac(withTrap(evaluateLane(target, third, opps(), { rewardWindow: w }), third, third.id, third.traits))
-            : null,
-        };
-      }
-      if (actionId === 'bounce') {
-        return { kind: 'lane', target, lane: _applyOrient(evaluateLane(h, target, opps(), { rewardWindow: w }), target) };
-      }
-      if (actionId === 'switch') {
-        // Marked receiver → the switch resolves into space; preview the same.
-        const { d: markD } = nearestDefender(target, opps());
-        if (markD < 3.5) {
-          const zone = landingZoneFor(target, 9);
-          return {
-            kind: 'space', zone, target,
-            landing: _applyTac(withTrap(evaluateLanding(zone, target, opps(), { rewardWindow: w }), zone, target.id, target.traits, 'landing'), 'landing'),
-            lane: _applyTac(evaluateLane(h, zone, opps(), { lofted: true, rewardWindow: w })),
-          };
-        }
-        return { kind: 'lane', target, lane: _applyOrient(withTrap(evaluateLane(h, target, opps(), { lofted: true, rewardWindow: w }), target, target.id, target.traits), target) };
       }
       // to_feet: same rescue-only ground-vs-lob pick the resolver makes
       // (ground cut ≥0.45, longPass range/accuracy respected).

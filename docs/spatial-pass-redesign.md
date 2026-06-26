@@ -58,3 +58,16 @@ scatter = baseScatter × (거리/refDist) × (1.2 − pass) × orientationPenalt
 - **Inc.5 — 정리**: 구 이산 타깃·레인 프리뷰 제거, 밸런스 재튜닝, 회귀 갱신.
 
 각 증분: 헤드리스 측정 + 회귀 + 브라우저 검증 후 커밋. 실패해도 직전 증분으로 롤백.
+
+## 6. 진행 현황 (완료)
+
+- ✅ Inc.1 착지 경합(루즈볼) · ✅ Inc.2 공간 패스 엔진 · ✅ Inc.2.5 시간(dt)
+- ✅ Inc.3 UI 2단 메뉴 + 범위 그라데이션 + 양 팀 AI 전진
+- ✅ 능력치별 범위(maxR/safeR) · ✅ 몸 방향(방향성 로브 + 수신 자세 예측, 공간·발밑)
+- ✅ Inc.4 하위 정합(스카우팅·정체성·상황·리포트·추천을 새 액션으로)
+- ✅ Inc.5 밸런스 검증(골 18%/턴오버 51%, 건강) + 구 액션 제거(bounce·third_man·
+  switch·run_order ~298줄). into_space는 contest/transition 테스트 의존으로 잔존
+  (UI 미노출) — 향후 pass_space로 마이그레이션 시 제거 가능.
+
+남은 선택: into_space 완전 제거(테스트 2개 마이그레이션), press.js/labels의 dead
+라벨 정리(무해), 밸런스 미세 튜닝(주관적).
