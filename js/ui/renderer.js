@@ -454,13 +454,19 @@ function laneLine(from, to, status, dashOffset = 0) {
 function drawSpaceAim(hover, h) {
   const cx = mx(h.x), cy = my(h.y);
   const ax = mx(hover.aim.x), ay = my(hover.aim.y);
-  const reachR = 56 * scale;
-  const grad = ctx.createRadialGradient(cx, cy, 6 * scale, cx, cy, reachR);
-  grad.addColorStop(0, 'rgba(77,139,255,0.05)');
-  grad.addColorStop(0.6, 'rgba(77,139,255,0.04)');
-  grad.addColorStop(0.82, 'rgba(255,194,75,0.10)');
-  grad.addColorStop(1, 'rgba(255,90,110,0.20)');
-  ctx.beginPath(); ctx.arc(cx, cy, reachR, 0, Math.PI * 2); ctx.fillStyle = grad; ctx.fill();
+  // 도달 프로필을 능력치로 — maxR(도달 한계)·safeR(정확 구간)이 포지션별로 다르다.
+  // 좋은 패서(레지스타)는 넓고 옅은(안전한) 범위, 전방은 좁고 빨리 붉어진다.
+  const maxR = (hover.maxR ?? 40) * scale;
+  const safeFrac = clamp((hover.safeR ?? 22) / (hover.maxR ?? 40), 0.2, 0.95);
+  const grad = ctx.createRadialGradient(cx, cy, 6 * scale, cx, cy, maxR);
+  grad.addColorStop(0, 'rgba(77,139,255,0.06)');
+  grad.addColorStop(safeFrac * 0.85, 'rgba(77,139,255,0.05)');
+  grad.addColorStop(safeFrac, 'rgba(255,194,75,0.10)');
+  grad.addColorStop(1, 'rgba(255,90,110,0.22)');
+  ctx.beginPath(); ctx.arc(cx, cy, maxR, 0, Math.PI * 2); ctx.fillStyle = grad; ctx.fill();
+  // 도달 한계 링(약하게) — 여기까지가 이 선수의 패스 사거리.
+  ctx.strokeStyle = 'rgba(255,90,110,0.28)'; ctx.lineWidth = 1; ctx.setLineDash([3, 5]);
+  ctx.beginPath(); ctx.arc(cx, cy, maxR, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
   const C = !hover.reachable ? '150,160,170' : hover.risk > 0.62 ? '255,90,110' : hover.risk > 0.34 ? '255,194,75' : '52,214,194';
   ctx.strokeStyle = `rgba(${C},0.95)`; ctx.lineWidth = 2;
   ctx.setLineDash([6, 5]); ctx.lineDashOffset = -pulse * 22;

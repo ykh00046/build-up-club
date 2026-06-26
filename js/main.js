@@ -928,9 +928,14 @@ function buildSpaceHover(point) {
     if (dd < du) { du = dd; nu = p; }
   }
   const pass = h.traits?.pass ?? 0.7;
+  const longPass = h.traits?.longPass ?? 0.5;
   const reachPenalty = clamp((du - 6) / 16, 0, 0.4);
   const risk = clamp((d / 70 + reachPenalty) * (1.15 - pass * 0.3), 0.05, 0.95);
-  return { kind: 'spaceAim', aim, lofted, reachable, receiver: nu ? { x: nu.x, y: nu.y } : null, du, risk };
+  // 도달 프로필 — 포지션/능력치로 다르게. 롱패스 < 0.5는 로빙 불가(지상 28m).
+  // 그 이상은 롱패스만큼 멀리. safeR(정확 구간)은 패스 정확도로.
+  const maxR = longPass < 0.5 ? 28 : 28 + (longPass - 0.5) * 58;
+  const safeR = clamp(14 + pass * 22, 12, maxR);
+  return { kind: 'spaceAim', aim, lofted, reachable, receiver: nu ? { x: nu.x, y: nu.y } : null, du, risk, maxR, safeR };
 }
 
 function afterDispatch() {
