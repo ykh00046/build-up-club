@@ -431,6 +431,19 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
     return { result: 'opp', winner: no };
   }
 
+  // 수신 자세 예측 — "이 지점에서 받으면 어떤 몸으로 받나"(결정적). 최근접 수비수가
+  // 골 사이드(전방 차단)·근접이면 갇힘(등짐), 멀면 자유 전진. viz가 조준 시 표시.
+  function predictReception(point) {
+    let dno = Infinity, ndef = null;
+    for (const d of opps()) {
+      if (d.line === 'gk') continue;
+      const od = dist(d, point);
+      if (od < dno) { dno = od; ndef = d; }
+    }
+    const goalSide = ndef && ndef.x > point.x - 1.5;
+    return (dno <= 3.5 && goalSide) ? 'trapped' : dno <= 6 ? 'pressured' : 'free';
+  }
+
   // Preview-side trap read (QA Major 1): the same surrounded/no-exit test the
   // resolver rolls AFTER arrival, evaluated on current positions so the
   // preview can warn BEFORE the pass. A lane the engine may kill on arrival
@@ -1331,7 +1344,7 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
           }
         }
       }
-      return { kind: 'lane', target, lane: _applyOrient(withTrap(feetLane, target, target.id, target.traits), target) };
+      return { kind: 'lane', target, lane: _applyOrient(withTrap(feetLane, target, target.id, target.traits), target), reception: predictReception(target) };
     },
 
     shotZoneNow() {

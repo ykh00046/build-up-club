@@ -617,10 +617,12 @@ function drawHover(hover, holder) {
   if (!p) return;
   // QA Major 1: trapped-on-arrival risk is part of the read — tag it.
   const trapKo = (ev) => (ev?.trap > 0.2 ? ' · 고립 주의' : '');
+  // 수신 자세 — 공간 패스와 같은 어휘. 자유는 표기 생략(클러터 방지).
+  const recKo = (r) => (r === 'trapped' ? ' · ▼갇힘(등짐)' : r === 'pressured' ? ' · ◆압박' : '');
   if (p.kind === 'lane') {
     const t = { x: p.target.rx ?? p.target.x, y: p.target.ry ?? p.target.y };
     laneLine(h, t, p.lane.status, off);
-    laneTag(LANE_KO[p.lane.status] + (p.lane.lofted ? ' · 로빙' : '') + trapKo(p.lane), { x: (h.x + t.x) / 2, y: (h.y + t.y) / 2 }, p.lane.status);
+    laneTag(LANE_KO[p.lane.status] + (p.lane.lofted ? ' · 로빙' : '') + recKo(p.reception), { x: (h.x + t.x) / 2, y: (h.y + t.y) / 2 }, p.lane.status);
   } else if (p.kind === 'space') {
     laneLine(h, p.zone, p.lane.status, off);
     ctx.strokeStyle = LANE_COLORS[p.landing.status];
