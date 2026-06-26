@@ -691,7 +691,13 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
       }
       // 정확도 산포 — 거리·패스 능력치·몸 방향(등질수록 부정확). 능력치가 해결.
       const pass = from.traits?.pass ?? 0.7;
-      const orient = from.orientation === 'BACK' ? 1.5 : from.orientation === 'HALF' ? 1.15 : 1;
+      // 몸 방향 — 향한 쪽 패스는 정확, 등 뒤(특히 BACK 자세의 전방)는 부정확.
+      // viz 로브와 동일한 모델: 정렬되면 페널티 0, 정반대면 최대.
+      const facing = from.orientation === 'BACK' ? Math.PI : 0;
+      const baseFrac = from.orientation === 'BACK' ? 0.32 : from.orientation === 'HALF' ? 0.45 : 0.6;
+      const passAngle = Math.atan2(aim.y - from.y, aim.x - from.x);
+      const lobe = baseFrac + (1 - baseFrac) * (1 + Math.cos(passAngle - facing)) / 2;
+      const orient = 1 + (1 - lobe) * 1.3;   // 정렬 1.0 ~ 정반대 ~1.9
       const spread = clamp((d / 30) * (1.25 - pass) * orient, 0, 1) * 6; // 최대 ~6m
       const ang = rng.next() * Math.PI * 2;
       const mag = spread * rng.next();

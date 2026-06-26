@@ -930,12 +930,17 @@ function buildSpaceHover(point) {
   const pass = h.traits?.pass ?? 0.7;
   const longPass = h.traits?.longPass ?? 0.5;
   const reachPenalty = clamp((du - 6) / 16, 0, 0.4);
-  const risk = clamp((d / 70 + reachPenalty) * (1.15 - pass * 0.3), 0.05, 0.95);
+  // 몸 방향(orientation) — 정면이면 앞(+x)으로, 등지면 뒤로 향한다. 향한 쪽은
+  // 멀리/정확, 반대(특히 등 뒤)는 짧고 위험. 범위가 원이 아니라 방향성 로브.
+  const facingAngle = h.orientation === 'BACK' ? Math.PI : 0;
+  const baseFrac = h.orientation === 'BACK' ? 0.32 : h.orientation === 'HALF' ? 0.45 : 0.6;
+  const passAngle = Math.atan2(aim.y - h.y, aim.x - h.x);
+  const lobe = baseFrac + (1 - baseFrac) * (1 + Math.cos(passAngle - facingAngle)) / 2; // 0.32~1
+  const risk = clamp((d / 70 + reachPenalty) * (1.15 - pass * 0.3) * (1 + (1 - lobe) * 0.8), 0.05, 0.95);
   // 도달 프로필 — 포지션/능력치로 다르게. 롱패스 < 0.5는 로빙 불가(지상 28m).
-  // 그 이상은 롱패스만큼 멀리. safeR(정확 구간)은 패스 정확도로.
   const maxR = longPass < 0.5 ? 28 : 28 + (longPass - 0.5) * 58;
   const safeR = clamp(14 + pass * 22, 12, maxR);
-  return { kind: 'spaceAim', aim, lofted, reachable, receiver: nu ? { x: nu.x, y: nu.y } : null, du, risk, maxR, safeR };
+  return { kind: 'spaceAim', aim, lofted, reachable, receiver: nu ? { x: nu.x, y: nu.y } : null, du, risk, maxR, safeR, facingAngle, baseFrac };
 }
 
 function afterDispatch() {
