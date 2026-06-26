@@ -95,7 +95,7 @@ function classifyTransition(state, outcome) {
 
 function pickNext(state, outcome) {
   const active = state.situations?.active || [];
-  if (active.some((s) => s.id === 'pressure_surge')) return '압박 강화가 보이면 기다리기보다 원투/써드맨으로 첫 압박선을 바로 벗기세요.';
+  if (active.some((s) => s.id === 'pressure_surge')) return '압박 강화가 보이면 기다리기보다 빠른 원터치 발밑 연결로 첫 압박선을 바로 벗기세요.';
   if (active.some((s) => s.id === 'flank_lock')) return '전환이 읽히면 중앙 조합으로 수비를 다시 모은 뒤 약측을 여세요.';
   if (active.some((s) => s.id === 'counter_risk')) return '풀백 전진 후 공격이 막히면 후방 안정으로 역습 리스크를 먼저 줄이세요.';
   if (state.adaptRead) return `${ACTION_LABELS[state.adaptRead] ?? state.adaptRead}를 한 번 쉬고 다른 루트로 시작하세요.`;

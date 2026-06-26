@@ -47,9 +47,9 @@ export function identityLevel(xp) {
 // positional(점유 조립)=조합 플레이 / direct(직선 전진)=침투 / wing(측면 전환)=전환
 // pressproof(압박 회피)=지연·운반 회피. design §4.3 획득 기준과 대응.
 export const IDENTITY_ACTIONS = {
-  positional: ['bounce', 'third_man'],
-  direct: ['into_space', 'run_order'],
-  wing: ['switch'],
+  positional: ['to_feet'],        // 짧은 발밑 연결(원투·써드맨은 dt로 자연 발생)
+  direct: ['pass_space'],         // 전방 공간 패스·침투
+  wing: ['pass_space'],           // 측면 공간 패스(전환 흡수)
   pressproof: ['hold', 'carry'],
 };
 
@@ -73,9 +73,9 @@ export function scanFactor() {
 }
 
 export const IDENTITIES = {
-  positional: { label: '점유 조립형', desc: '원투·써드맨으로 라인 사이 전개', color: '#5dd6c5' },
+  positional: { label: '점유 조립형', desc: '짧은 발밑 연결로 라인 사이 전개', color: '#5dd6c5' },
   direct: { label: '직선 전진형', desc: '공간 패스·침투·빠른 마무리', color: '#f5a623' },
-  wing: { label: '측면 전환형', desc: '전환·오버랩·약측 공략', color: '#5aa9f0' },
+  wing: { label: '측면 전환형', desc: '측면 공간 패스·오버랩·약측 공략', color: '#5aa9f0' },
   pressproof: { label: '압박 회피형', desc: '리셋·상황 대응·후방 안정', color: '#c8a0e8' },
 };
 
@@ -93,9 +93,12 @@ export function identitySummary() {
 
 export function inferIdentityFromMatch(state, outcome) {
   const f = state.facts || {};
+  const ah = state.actionHistory || [];
+  const cnt = (id) => ah.filter((a) => a === id).length;
+  const spaceFwd = Math.max(0, cnt('pass_space') - (f.switches || 0)); // 전방 공간 패스(측면 전환 제외)
   const gains = {
-    positional: (f.linesBroken || 0) * 2 + (state.actionHistory || []).filter((a) => a === 'bounce' || a === 'third_man').length * 3,
-    direct: (f.runs || 0) * 3 + (state.actionHistory || []).filter((a) => a === 'into_space').length * 3 + (outcome?.tone === 'goal' ? 2 : 0),
+    positional: (f.linesBroken || 0) * 2 + cnt('to_feet') * 1.5,
+    direct: (f.runs || 0) * 3 + spaceFwd * 3 + (outcome?.tone === 'goal' ? 2 : 0),
     wing: (f.switches || 0) * 4 + (state.lineIntents?.back === 'overlap' ? 2 : 0),
     pressproof: (f.situationsResolved || 0) * 4 + (f.decisionsMade || 0) * 2 + (state.lineIntents?.back === 'hold' ? 1 : 0),
   };
@@ -136,25 +139,25 @@ export function trainingOptionsFromReport(report, state) {
   const make = (o) => ({ ...o, nextEffect: formatEffectText(o) });
   if (read.includes('전환') || f.switches >= 2) {
     return [
-      make({ id: 'wide_switch', label: '전환 패턴 훈련', desc: '측면 전환형 XP +4 · DF +1 · 다음 경기 전환 위험 감소', pos: 'df', identity: 'wing', actions: ['switch'], score: { execAdd: 0.04 } }),
-      make({ id: 'central_combo', label: '중앙 조합 훈련', desc: '점유 조립형 XP +4 · MF +1 · 다음 경기 원투/써드맨 강화', pos: 'mf', identity: 'positional', actions: ['bounce', 'third_man'], score: { execAdd: 0.04 } }),
+      make({ id: 'wide_switch', label: '측면 전환 훈련', desc: '측면 전환형 XP +4 · DF +1 · 다음 경기 측면 공간 패스 위험 감소', pos: 'df', identity: 'wing', actions: ['pass_space'], score: { execAdd: 0.04 } }),
+      make({ id: 'central_combo', label: '짧은 연결 훈련', desc: '점유 조립형 XP +4 · MF +1 · 다음 경기 짧은 발밑 연결 강화', pos: 'mf', identity: 'positional', actions: ['to_feet'], score: { execAdd: 0.04 } }),
     ];
   }
   if (read.includes('압박') || f.situationsResolved > 0 || f.decisionsMade > 0) {
     return [
-      make({ id: 'press_escape', label: '압박 탈출 훈련', desc: '압박 회피형 XP +4 · MF +1 · 다음 경기 압박 탈출 행동 강화', pos: 'mf', identity: 'pressproof', actions: ['hold', 'carry', 'bounce', 'third_man'], score: { execAdd: 0.03 } }),
+      make({ id: 'press_escape', label: '압박 탈출 훈련', desc: '압박 회피형 XP +4 · MF +1 · 다음 경기 압박 탈출 행동 강화', pos: 'mf', identity: 'pressproof', actions: ['hold', 'carry'], score: { execAdd: 0.03 } }),
       make({ id: 'rest_defense', label: '후방 균형 훈련', desc: '압박 회피형 XP +3 · DF +1 · 2경기 수비 폼/실점 억제', pos: 'df', identity: 'pressproof', effect: 'def', actions: ['hold'], score: { concedeMul: 0.93 }, duration: 2 }),
     ];
   }
   if (read.includes('마무리') || report?.decisive?.includes('xG')) {
     return [
-      make({ id: 'finish_run', label: '침투 마무리 훈련', desc: '직선 전진형 XP +4 · FW +1 · 다음 경기 침투/마무리 보정', pos: 'fw', identity: 'direct', actions: ['into_space', 'run_order'], score: { xgMul: 1.06 } }),
-      make({ id: 'third_man', label: '써드맨 반복 훈련', desc: '점유 조립형 XP +4 · MF +1 · 다음 경기 써드맨 강화', pos: 'mf', identity: 'positional', actions: ['third_man', 'bounce'], score: { execAdd: 0.04 } }),
+      make({ id: 'finish_run', label: '침투 마무리 훈련', desc: '직선 전진형 XP +4 · FW +1 · 다음 경기 공간 침투/마무리 보정', pos: 'fw', identity: 'direct', actions: ['pass_space'], score: { xgMul: 1.06 } }),
+      make({ id: 'short_combo', label: '짧은 연결 반복 훈련', desc: '점유 조립형 XP +4 · MF +1 · 다음 경기 짧은 발밑 연결 강화', pos: 'mf', identity: 'positional', actions: ['to_feet'], score: { execAdd: 0.04 } }),
     ];
   }
   return [
-    make({ id: 'buildout', label: '빌드업 기본기', desc: '점유 조립형 XP +3 · MF +1 · 다음 경기 짧은 연결 안정', pos: 'mf', identity: 'positional', actions: ['to_feet', 'bounce'], score: { execAdd: 0.03 } }),
-    make({ id: 'vertical', label: '전진 타이밍', desc: '직선 전진형 XP +3 · FW +1 · 다음 경기 침투 타이밍 강화', pos: 'fw', identity: 'direct', actions: ['into_space', 'run_order'], score: { execAdd: 0.03 } }),
+    make({ id: 'buildout', label: '빌드업 기본기', desc: '점유 조립형 XP +3 · MF +1 · 다음 경기 짧은 연결 안정', pos: 'mf', identity: 'positional', actions: ['to_feet'], score: { execAdd: 0.03 } }),
+    make({ id: 'vertical', label: '전진 타이밍', desc: '직선 전진형 XP +3 · FW +1 · 다음 경기 공간 침투 타이밍 강화', pos: 'fw', identity: 'direct', actions: ['pass_space'], score: { execAdd: 0.03 } }),
   ];
 }
 

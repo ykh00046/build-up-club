@@ -828,8 +828,9 @@ function nearestTeammate(p) {
 
 // ─── Keyboard play: ←/→ 동료 선택, Enter 실행 (마우스 없이 완주 가능) ──────────
 const ACTION_KO = {
-  to_feet: '발밑 패스', into_space: '공간 패스', bounce: '원투', third_man: '써드맨',
-  switch: '전환', run_order: '런 지시', carry: '운반', hold: '기다리기', shoot: '슈팅',
+  to_feet: '발밑 패스', pass_space: '공간 패스', carry: '운반', hold: '기다리기', shoot: '슈팅',
+  // 구 액션(엔진 잔존, UI 없음) — 라벨만 보존.
+  into_space: '공간 패스', bounce: '원투', third_man: '써드맨', switch: '전환', run_order: '런 지시',
 };
 
 function selectableTeammates() {

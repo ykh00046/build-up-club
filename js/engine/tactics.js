@@ -1,11 +1,12 @@
 import { clamp } from '../data/pitch.js';
 
 export const ACTION_LABELS = {
-  to_feet: '발밑 패스', into_space: '공간 패스', hold: '기다리기', carry: '운반',
-  run_order: '침투 지시', bounce: '원투', third_man: '서드맨', switch: '전환', shoot: '슈팅',
+  to_feet: '발밑', pass_space: '공간 패스', hold: '기다리기', carry: '운반', shoot: '슈팅',
+  // 구 액션(엔진 잔존, UI 없음) — 라벨만 보존.
+  into_space: '공간 패스', run_order: '침투 지시', bounce: '원투', third_man: '서드맨', switch: '전환',
 };
 
-const AGGRESSIVE = new Set(['into_space', 'run_order', 'carry', 'third_man', 'switch']);
+const AGGRESSIVE = new Set(['pass_space', 'carry']);
 
 export function createTacticalState() {
   return {
@@ -35,27 +36,29 @@ export function tacticalFactors(state, actionId) {
     if (effect.actions?.includes(actionId)) addFactor(factors, `training_${effect.id}`, `${effect.label} 효과`, effect.multiplier || 0.88);
   }
 
+  // 라인 의도 — 공간 지향 모델 어휘. 원투/써드맨은 짧은 발밑 연쇄로 자연 발생,
+  // 전환은 공간 패스로 흡수.
   const li = state.lineIntents;
-  if (li.front === 'drop' && actionId === 'bounce') addFactor(factors, 'front_drop', '전방 내려와 연결', 0.85);
-  if (li.front === 'drop' && actionId === 'into_space') addFactor(factors, 'front_drop_cost', '박스 침투 인원 부족', 1.10);
+  if (li.front === 'drop' && actionId === 'to_feet') addFactor(factors, 'front_drop', '전방 내려와 짧은 연결', 0.88);
   if (li.mid === 'between' && actionId === 'to_feet') addFactor(factors, 'mid_between', '중원 라인 사이 배치', 0.90);
-  if (li.mid === 'support' && actionId === 'bounce') addFactor(factors, 'mid_support', '중원 빌드업 보조', 0.90);
-  if (li.back === 'overlap' && actionId === 'switch') addFactor(factors, 'back_overlap', '풀백 전진으로 전환 거리 증가', 1.08);
+  if (li.back === 'overlap' && actionId === 'pass_space') addFactor(factors, 'back_overlap', '풀백 전진으로 측면 전환 강화', 0.92);
   const scheme = state.scenario?.scheme;
-  if (scheme === 'man' && (actionId === 'bounce' || actionId === 'third_man')) addFactor(factors, 'opp_man_combo', '대인 압박은 조합 플레이에 취약', 0.90);
+  // 대인: 등 뒤 공간 침투로 마크를 벗긴다 / 같은 발밑 반복은 추적당함.
+  if (scheme === 'man' && actionId === 'pass_space') addFactor(factors, 'opp_man_space', '대인 압박은 등 뒤 공간에 취약', 0.90);
   if (scheme === 'man' && actionId === 'to_feet' && reps >= 2) addFactor(factors, 'opp_man_read', '대인 압박이 같은 연결을 추적', 1.12);
-  if (scheme === 'zonal' && actionId === 'switch') addFactor(factors, 'opp_zonal_shift', '지역 블록은 빠른 전환에 흔들림', 0.91);
-  if (scheme === 'zonal' && actionId === 'into_space') addFactor(factors, 'opp_zonal_lane', '지역 블록의 중앙 밀집', 1.08);
+  // 지역: 빠른 측면 전환(공간 패스)에 흔들림.
+  if (scheme === 'zonal' && actionId === 'pass_space') addFactor(factors, 'opp_zonal_shift', '지역 블록은 빠른 전환에 흔들림', 0.92);
+  // 게겐: 원터치 발밑 연결로 첫 파도 우회 / 기다리기·운반은 즉시 압살.
+  if (scheme === 'gegen' && actionId === 'to_feet') addFactor(factors, 'opp_gegen_bypass', '원터치 연결로 첫 파도 우회', 0.90);
   if (scheme === 'gegen' && (actionId === 'hold' || actionId === 'carry')) addFactor(factors, 'opp_gegen_swarm', '게겐프레스의 즉시 압박', 1.14);
-  if (scheme === 'gegen' && (actionId === 'bounce' || actionId === 'third_man')) addFactor(factors, 'opp_gegen_bypass', '첫 파도 우회', 0.88);
-  if (scheme === 'hybrid' && actionId === 'third_man') addFactor(factors, 'opp_hybrid_shadow', '하이브리드 압박의 커버 섀도우 우회', 0.93);
-  // 미드블록(E10): 앞 공간으로 운반은 유리, 압축된 중앙으로의 침투는 불리.
+  // 하이브리드: 공간 패스로 커버 섀도우를 우회.
+  if (scheme === 'hybrid' && actionId === 'pass_space') addFactor(factors, 'opp_hybrid_shadow', '하이브리드 압박의 커버 섀도우 우회', 0.93);
+  // 미드블록: 앞 공간 운반은 유리, 압축된 중앙으로의 공간 패스는 불리.
   if (scheme === 'midblock' && actionId === 'carry') addFactor(factors, 'opp_midblock_space', '미드블록 앞 공간으로 운반', 0.92);
-  if (scheme === 'midblock' && actionId === 'into_space') addFactor(factors, 'opp_midblock_compact', '미드블록 중앙 압축', 1.10);
-  // 로우블록(E10): 좌우 전환·앞 공간 운반은 유리, 배후 공간이 없어 침투는 불리.
-  if (scheme === 'lowblock' && actionId === 'switch') addFactor(factors, 'opp_lowblock_shift', '깊은 블록을 좌우로 흔듦', 0.90);
+  if (scheme === 'midblock' && actionId === 'pass_space') addFactor(factors, 'opp_midblock_compact', '미드블록 중앙 압축', 1.08);
+  // 로우블록: 좌우 전환(공간 패스)·앞 공간 운반은 유리.
   if (scheme === 'lowblock' && actionId === 'carry') addFactor(factors, 'opp_lowblock_front', '로우블록 앞 넓은 공간', 0.93);
-  if (scheme === 'lowblock' && actionId === 'into_space') addFactor(factors, 'opp_lowblock_nodepth', '깊은 블록 뒤 공간 없음', 1.12);
+  if (scheme === 'lowblock' && actionId === 'pass_space') addFactor(factors, 'opp_lowblock_shift', '깊은 블록을 좌우로 흔듦', 0.90);
   // 정체성 레벨 보정 — roadmap P4. Lv3+ 에서 주 정체성 관련 액션 위험도 소폭 안정화(0.97).
   // state.identityLevel 은 applyClubBoost 가 club.philosophy/identityXp 기반으로 주입.
   const il = state.identityLevel;
@@ -78,19 +81,19 @@ export function tacticalRiskMultiplier(state, actionId) {
 
 const SITUATIONS = {
   pressure_surge: {
-    title: '상대 압박 강화', detail: '상대가 전진 압박을 시작했습니다. 원투나 서드맨으로 첫 압박선을 벗겨내세요.',
-    factorLabel: '강화된 전진 압박', duration: 3, solutions: ['bounce', 'third_man'],
-    modifiers: { hold: 1.22, carry: 1.15, bounce: 0.90, third_man: 0.90 },
+    title: '상대 압박 강화', detail: '상대가 전진 압박을 시작했습니다. 빠른 원터치 발밑 연결로 첫 압박선을 벗겨내세요.',
+    factorLabel: '강화된 전진 압박', duration: 3, solutions: ['to_feet'],
+    modifiers: { hold: 1.22, carry: 1.15, to_feet: 0.90 },
   },
   flank_lock: {
-    title: '측면 봉쇄', detail: '반복된 전환을 읽고 약한 쪽을 미리 닫았습니다. 중앙 조합으로 수비를 다시 모으세요.',
-    factorLabel: '상대의 측면 선점', duration: 4, solutions: ['bounce', 'third_man'],
-    modifiers: { switch: 1.28, bounce: 0.90, third_man: 0.88 },
+    title: '측면 봉쇄', detail: '반복된 전환을 읽고 약한 쪽을 미리 닫았습니다. 발밑 연결로 중앙을 다시 모으세요.',
+    factorLabel: '상대의 측면 선점', duration: 4, solutions: ['to_feet'],
+    modifiers: { pass_space: 1.28, to_feet: 0.90 },
   },
   counter_risk: {
     title: '역습 경고', detail: '풀백이 전진한 상태입니다. 공격 실패 시 측면 뒷공간이 크게 열립니다.',
     factorLabel: '풀백 뒤 역습 노출', duration: 2, solutions: [],
-    modifiers: { into_space: 1.12, carry: 1.12, third_man: 1.08, switch: 1.10 },
+    modifiers: { pass_space: 1.12, carry: 1.12 },
   },
 };
 
@@ -134,8 +137,8 @@ export function prepareSituations(state, actionId) {
       title: '측면 봉쇄 대응',
       detail: '상대가 전환을 미리 닫았습니다. 중앙으로 다시 모을지, 빠르게 재전환할지 선택하세요.',
       choices: [
-        { id: 'central_combo', label: '중앙 조합', desc: '원투·써드맨 위험↓' },
-        { id: 'reswitch', label: '재전환 강행', desc: '전환 위험↓ · 피로↑' },
+        { id: 'central_combo', label: '중앙 조합', desc: '발밑 연결 위험↓' },
+        { id: 'reswitch', label: '재전환 강행', desc: '공간 전환 위험↓ · 피로↑' },
       ],
     };
     events.push({ type: 'decision', decision: state.matchDecision });
@@ -189,7 +192,7 @@ export function applyMatchDecision(state, choiceId) {
     state.fatigue = clamp(state.fatigue + 10, 0, 100);
     state.pressure = clamp(state.pressure + 4, 0, 100);
     state.decisionBoost = {
-      actions: ['into_space', 'third_man', 'switch'],
+      actions: ['pass_space', 'to_feet'],
       label: '템포를 올린 직후',
       multiplier: 0.88,
       expiresTurn: state.turn + 2,
@@ -199,17 +202,17 @@ export function applyMatchDecision(state, choiceId) {
   if (choiceId === 'central_combo') {
     state.momentum = clamp(state.momentum + 6, 0, 100);
     state.decisionBoost = {
-      actions: ['bounce', 'third_man'],
+      actions: ['to_feet'],
       label: '중앙으로 다시 모은 직후',
       multiplier: 0.84,
       expiresTurn: state.turn + 2,
     };
-    return { choice, text: '중앙 조합을 택했습니다 — 원투와 써드맨 루트가 열립니다.', tone: 'success' };
+    return { choice, text: '중앙 조합을 택했습니다 — 짧은 발밑 연결 루트가 열립니다.', tone: 'success' };
   }
   if (choiceId === 'reswitch') {
     state.fatigue = clamp(state.fatigue + 8, 0, 100);
     state.decisionBoost = {
-      actions: ['switch'],
+      actions: ['pass_space'],
       label: '빠른 재전환 타이밍',
       multiplier: 0.86,
       expiresTurn: state.turn + 1,
@@ -226,7 +229,7 @@ export function applyMatchDecision(state, choiceId) {
   if (choiceId === 'overload_wide') {
     state.fatigue = clamp(state.fatigue + 7, 0, 100);
     state.decisionBoost = {
-      actions: ['switch', 'into_space'],
+      actions: ['pass_space'],
       label: '측면 과부하 유지',
       multiplier: 0.88,
       expiresTurn: state.turn + 2,

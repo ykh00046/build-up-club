@@ -745,6 +745,7 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
         loose = true;
       }
       state.facts.linesBroken += linesBroken(fromPos, landing, opps());
+      if (Math.abs(fromPos.y - landing.y) > 20) state.facts.switches++; // 측면 전환 → 측면 정체성
       nu.tx = landing.x; nu.ty = landing.y; nu.x = landing.x; nu.y = landing.y;
       state.holderId = nu.id;
       state.consecutiveHolds = 0;

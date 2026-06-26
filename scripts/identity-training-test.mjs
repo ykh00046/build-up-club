@@ -93,7 +93,7 @@ applyTrainingChoice(pick);
 const stored = activeTrainingEffects().find((e) => e.id === 'central_combo');
 ok(stored && typeof stored.nextEffect === 'string' && stored.nextEffect === pick.nextEffect,
    `effect.nextEffect 저장 ("${stored?.nextEffect}" === 옵션 nextEffect)`);
-ok(stored.nextEffect.includes('원투') && stored.nextEffect.includes('수행 +'),
+ok(stored.nextEffect.includes('발밑') && stored.nextEffect.includes('수행 +'),
    `central_combo nextEffect 내용 점검 ("${stored?.nextEffect}")`);
 
 // ── careerHistory (roadmap 고도화: 커리어 히스토리 차트) ──
@@ -199,9 +199,9 @@ ok(identityLevel(-5) === 1, '음수 xp → Lv1 보정');
 
 // IDENTITY_ACTIONS — 4종 정체성 관련 액션 정의
 ok(Object.keys(IDENTITY_ACTIONS).length === 4, 'IDENTITY_ACTIONS 4종');
-ok(IDENTITY_ACTIONS.positional.includes('bounce') && IDENTITY_ACTIONS.positional.includes('third_man'), 'positional 관련 액션: bounce/third_man');
-ok(IDENTITY_ACTIONS.direct.includes('into_space'), 'direct 관련 액션: into_space');
-ok(IDENTITY_ACTIONS.wing.includes('switch'), 'wing 관련 액션: switch');
+ok(IDENTITY_ACTIONS.positional.includes('to_feet'), 'positional 관련 액션: to_feet');
+ok(IDENTITY_ACTIONS.direct.includes('pass_space'), 'direct 관련 액션: pass_space');
+ok(IDENTITY_ACTIONS.wing.includes('pass_space'), 'wing 관련 액션: pass_space');
 ok(IDENTITY_ACTIONS.pressproof.includes('hold') && IDENTITY_ACTIONS.pressproof.includes('carry'), 'pressproof 관련 액션: hold/carry');
 
 // activeIdentityLevel — club.philosophy + identityXp 기반
@@ -210,7 +210,7 @@ club.philosophy = 'positional';
 ok(activeIdentityLevel() === null || activeIdentityLevel().level === 1, 'positional xp=0 → Lv1');
 club.identityXp.positional = 20;
 const ail = activeIdentityLevel();
-ok(ail && ail.id === 'positional' && ail.level === 3 && ail.actions.includes('bounce'), 'positional xp=20 → Lv3 + actions');
+ok(ail && ail.id === 'positional' && ail.level === 3 && ail.actions.includes('to_feet'), 'positional xp=20 → Lv3 + actions');
 hardReset();
 club.philosophy = null;
 ok(activeIdentityLevel() === null, 'philosophy=null → null');
@@ -222,29 +222,29 @@ function cleanState(identityLevel) {
     ...createTacticalState(), turn: 0, pressure: 22,
     lineIntents: { front: 'pin', mid: 'level', back: 'hold' },
     trainingEffects: [],
-    scenario: { scheme: 'man' },   // man 은 bounce/third_man 유리(0.90) — identity 와 같은 액션
+    scenario: { scheme: 'man' },   // man+to_feet 기준 1.0 — identity Lv3 0.97 factor 확인용
     identityLevel,
   };
 }
 // identityLevel 없음 → identity factor 미발생
 const noId = cleanState(null);
-ok(!tacticalFactors(noId, 'bounce').some((f) => f.id.startsWith('identity_')), 'identityLevel null → identity factor 없음');
+ok(!tacticalFactors(noId, 'to_feet').some((f) => f.id.startsWith('identity_')), 'identityLevel null → identity factor 없음');
 // Lv2 → 미발생 (임계 3)
-const lv2 = cleanState({ id: 'positional', level: 2, actions: ['bounce', 'third_man'] });
-ok(!tacticalFactors(lv2, 'bounce').some((f) => f.id === 'identity_lv2'), 'Lv2 → identity factor 미발생');
+const lv2 = cleanState({ id: 'positional', level: 2, actions: ['to_feet'] });
+ok(!tacticalFactors(lv2, 'to_feet').some((f) => f.id === 'identity_lv2'), 'Lv2 → identity factor 미발생');
 // Lv3 + 관련 액션 → 0.97 factor
-const lv3 = cleanState({ id: 'positional', level: 3, actions: ['bounce', 'third_man'] });
-const lv3Factors = tacticalFactors(lv3, 'bounce');
+const lv3 = cleanState({ id: 'positional', level: 3, actions: ['to_feet'] });
+const lv3Factors = tacticalFactors(lv3, 'to_feet');
 ok(lv3Factors.some((f) => f.id === 'identity_lv3' && Math.abs(f.multiplier - 0.97) < 0.001), 'Lv3 + 관련 액션 → 0.97 factor 발생');
 // Lv3 + 비관련 액션 → 미발생
-const lv3Other = tacticalFactors(lv3, 'switch');
-ok(!lv3Other.some((f) => f.id.startsWith('identity_')), 'Lv3 + 비관련 액션(switch) → identity factor 없음');
+const lv3Other = tacticalFactors(lv3, 'hold');
+ok(!lv3Other.some((f) => f.id.startsWith('identity_')), 'Lv3 + 비관련 액션(hold) → identity factor 없음');
 // Lv4 → 더 강한 factor id (여전 0.97, id만 lv4)
-const lv4 = cleanState({ id: 'positional', level: 4, actions: ['bounce', 'third_man'] });
-ok(tacticalFactors(lv4, 'bounce').some((f) => f.id === 'identity_lv4'), 'Lv4 → identity_lv4 factor');
+const lv4 = cleanState({ id: 'positional', level: 4, actions: ['to_feet'] });
+ok(tacticalFactors(lv4, 'to_feet').some((f) => f.id === 'identity_lv4'), 'Lv4 → identity_lv4 factor');
 // 위험도 실제 감소 확인
-const baseRisk = tacticalRiskMultiplier(cleanState(null), 'bounce');
-const lv3Risk = tacticalRiskMultiplier(lv3, 'bounce');
+const baseRisk = tacticalRiskMultiplier(cleanState(null), 'to_feet');
+const lv3Risk = tacticalRiskMultiplier(lv3, 'to_feet');
 ok(lv3Risk < baseRisk, `Lv3 시 관련 액션 위험도 감소 (${baseRisk.toFixed(3)} → ${lv3Risk.toFixed(3)})`);
 
 console.log(fail === 0 ? '\n✅ 정체성·훈련 루프 전 항목 통과' : `\n❌ ${fail}건 실패`);
