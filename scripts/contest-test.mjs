@@ -1,5 +1,5 @@
 // 공간 지향 패스 Inc.1 — 착지 경합: 이진 실패를 루즈볼(세컨볼)로 완화.
-// resolveLanding은 클로저 내부라, 관측 가능한 into_space 결과 분포로 검증한다.
+// resolveLanding은 클로저 내부라, 관측 가능한 pass_space 결과 분포로 검증한다.
 import { getScenario } from '../js/data/scenarios.js';
 import { createEngine } from '../js/engine/engine.js';
 
@@ -11,7 +11,7 @@ for (let seed = 1; seed <= 2000; seed++) {
   const mate = cands.sort((a, b) => b.x - a.x)[1] || cands[0];
   if (!mate) continue;
   const before = s.facts.secondBalls;
-  const r = e.dispatch('into_space', mate.id);
+  const r = e.dispatch('pass_space', null, { x: Math.min(mate.x + 8, 100), y: mate.y });
   if (!r || r.rejected) continue;
   if (r.ok === false) opp++;
   else if (s.facts.secondBalls > before) loose++;
@@ -22,7 +22,7 @@ const retain = (clean + loose) / t;
 
 let fail = 0;
 const ok = (c, m) => { console.log(`  ${c ? '✓' : '✗ FAIL —'} ${m}`); if (!c) fail++; };
-console.log('=== 착지 경합 (into_space, n=' + t + ') ===\n');
+console.log('=== 착지 경합 (pass_space, n=' + t + ') ===\n');
 console.log(`  깨끗 ${(clean / t * 100).toFixed(0)}% | 루즈볼 ${(loose / t * 100).toFixed(0)}% | 탈취 ${(opp / t * 100).toFixed(0)}%\n`);
 
 ok(loose > 0, '루즈볼(세컨볼)이 발생 — 가혹한 이진 실패 완화');

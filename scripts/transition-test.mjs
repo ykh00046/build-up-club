@@ -15,7 +15,7 @@ function openTransition(startSeed) {
       if (e.state.transition) return e;
       if (e.state.status !== 'live') break;
       const mate = e.state.players.filter((p) => p.side === 'us' && p.id !== e.state.holderId && p.role !== 'GK').sort((a, b) => b.x - a.x)[0];
-      if (mate) e.dispatch('into_space', mate.id);
+      if (mate) e.dispatch('pass_space', null, { x: Math.min(mate.x + 8, 100), y: mate.y });
       for (let i = 0; i < 70 && e.busy; i++) e.update(16);
       if (e.state.transition) return e;
     }

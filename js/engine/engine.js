@@ -389,30 +389,6 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
     return rng.next() < trapProb;
   }
 
-  // The space pass goes to wherever the receiver's space actually IS — not
-  // only straight ahead. Scan direction (straight / inward / outward) ×
-  // depth and take the most alive corridor: an open fullback gets the channel
-  // ahead of him, a midfielder gets the pocket, a striker the in-behind.
-  // Used by both dispatch and preview, so what you see is what gets played.
-  function bestLandingFor(target) {
-    const depths = state.phase === 'BUILDUP' ? [7, 11] : [8, 13, 18];
-    const inward = target.y > PITCH_H / 2 ? -7 : 7;
-    let best = null;
-    for (const depth of depths) {
-      for (const dy of [0, inward, -inward * 0.7]) {
-        const zone = {
-          x: clamp(target.x + depth, 4, PITCH_W - 5),
-          y: clamp(target.y + dy, 3, PITCH_H - 3),
-          r: 5,
-        };
-        const landing = evaluateLanding(zone, target, opps(), { rewardWindow: activeWindow() });
-        const score = -landing.risk * 20 + zone.x * 0.15;
-        if (!best || score > best.score) best = { zone, landing, score };
-      }
-    }
-    return best;
-  }
-
   // 공간 지향 패스 — 실패 시 착지 경합(spatial-pass-redesign Inc.1).
   // 패스가 깨끗이 안 닿았을 때(rollFail), 그게 즉시 턴오버인지 루즈볼인지를
   // 근접으로 판정: 러너(receiver)가 최근접 수비수와 비등하게 가까우면 세컨볼 경합
@@ -625,68 +601,6 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
       const target = byId(targetId);
       if (!target || target.side !== 'us' || target.id === state.holderId) return fail('받을 동료를 선택하세요.');
       return resolvePassTo(target, { autoLob: true });
-    },
-
-    into_space(targetId) {
-      const target = byId(targetId);
-      if (!target || target.side !== 'us' || target.id === state.holderId) return fail('침투할 동료를 선택하세요.');
-      if (target.role === 'GK') return fail('GK는 공간 침투를 하지 않습니다.');
-      if (isOffside(target)) return fail(`${josa(target.label, '은', '는')} 오프사이드 위치입니다 — 먼저 온사이드로 데려오세요 (런 지시).`);
-      const from = holder();
-      const { zone, landing } = bestLandingFor(target);
-      const lofted = dist(from, zone) > 32;
-      if (lofted && (from.traits?.longPass ?? 0) < LONG_PASS_GATE) {
-        return fail(`${from.label}의 긴 패스 정확도로는 닿지 않는 거리입니다.`);
-      }
-      const kickPenalty = lofted ? (1 - (from.traits?.longPass ?? 0.5)) * 0.3 : 0;
-      const ev = evaluateLane(from, zone, opps(), { lofted, rewardWindow: activeWindow() });
-      const risk = clamp((Math.max(ev.risk, landing.risk) + kickPenalty) * (1.1 - (from.traits?.pass ?? 0.7) * 0.25) * tacRiskMul(state.currentAction), 0.02, 0.97);
-
-      // 깨끗한 성공 vs 실패는 기존 risk로 판정(밸런스 보존). 실패 시 착지 경합으로
-      // 루즈볼(세컨볼·되찾기) vs 탈취 분기 — 가혹한 이진 실패 완화(Inc.1).
-      let loose = false;
-      if (rollFail(risk)) {
-        const contest = resolveLanding(zone, target);
-        if (contest.result !== 'loose') {
-          const interceptor = contest.winner ?? landing.interceptor ?? ev.interceptor ?? nearestDefender(zone, opps()).defender;
-          pressReact({ type: 'pass', trigger: 'pass' });
-          startAnim({ from: { x: from.x, y: from.y }, to: zone, lofted }, lofted ? 950 : 700, () => {
-            endAttempt('intercepted', { interceptor, reason: 'contest', risk });
-          });
-          return { ok: false };
-        }
-        loose = true;   // 세컨볼 — 압박 속에 따냄(계속)
-      }
-
-      const fromPos = { x: from.x, y: from.y };
-      state.facts.linesBroken += linesBroken(fromPos, zone, opps());
-      target.tx = zone.x; target.ty = zone.y;
-      target.x = zone.x; target.y = zone.y; // logical position = landing point
-      state.holderId = target.id;
-      state.consecutiveHolds = 0;
-      target.orientation = 'FACING'; // moving reception → always FACING (P1)
-      state.lastPassLofted = lofted;
-      state.lastPassFromByline = false;
-      state.lastPassCross = false;
-      windowUseCheck(zone);
-      // 루즈볼(세컨볼) = 압박 속에 따냄 — 실패가 아니라 경합 승리. 깨끗하면 압박 완화.
-      if (loose) {
-        addPressure(10);
-        state.facts.secondBalls = (state.facts.secondBalls || 0) + 1;
-      } else {
-        addPressure(-6);
-      }
-      pressReact({ type: 'pass', trigger: 'pass', dist: dist(fromPos, zone) });
-      maybeAdvancePhase();
-      const trapped = receiverTrapCheck(target);
-      startAnim({ from: fromPos, to: zone, lofted }, lofted ? 950 : 700, () => {
-        if (trapped) endAttempt('trapped', { holder: target });
-      });
-      logLine(loose
-        ? `세컨볼 경합 — ${josa(target.label, '이', '가')} 압박 속에 따냈습니다.`
-        : `${josa(target.label, '이', '가')} 공간에서 받았습니다.`,
-        loose ? 'warn' : 'success');
-      return { ok: true };
     },
 
     // 공간 지향 패스(Inc.2): 임의 지점으로 패스 → 정확도만큼 산포된 착지점에서
@@ -1016,22 +930,11 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
         const oriented = edgeRelief(clamp(lane.risk + om, 0.02, 0.97), to);
         return { ..._applyTac({ ...lane, risk: oriented }), orientPenalty: om || undefined };
       };
-      if (actionId === 'into_space' && target.role === 'GK') return null;
       // Offside receivers: previewable, but as a rule violation — not a lane.
       if (actionId === 'to_feet' && isOffside(target)) {
         return { kind: 'lane', target, lane: { risk: 1, status: 'offside', interceptor: null, reason: 'offside' } };
       }
       const w = activeWindow();
-      if (actionId === 'into_space') {
-        if (isOffside(target)) {
-          return { kind: 'lane', target, lane: { risk: 1, status: 'offside', interceptor: null, reason: 'offside' } };
-        }
-        const pickL = bestLandingFor(target);
-        const zone = pickL.zone;
-        const landing = _applyTac(withTrap(pickL.landing, zone, target.id, target.traits, 'landing'), 'landing');
-        const lane = _applyTac(evaluateLane(h, zone, opps(), { lofted: dist(h, zone) > 32, rewardWindow: w }));
-        return { kind: 'space', zone, landing, lane, target };
-      }
       // to_feet: same rescue-only ground-vs-lob pick the resolver makes
       // (ground cut ≥0.45, longPass range/accuracy respected).
       let feetLane = evaluateLane(h, target, opps(), { rewardWindow: w });

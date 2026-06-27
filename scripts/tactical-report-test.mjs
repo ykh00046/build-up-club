@@ -29,11 +29,11 @@ ok(report.decisive.includes('xG 31%'), '결정적 장면에 xG 반영');
 ok(report.next.includes('찬스'), '근접 실패에는 마무리 추천 제공');
 
 report = buildTacticalReport(makeState({
-  adaptRead: 'switch',
-  actionHistory: ['switch', 'switch', 'switch'],
+  adaptRead: 'pass_space',
+  actionHistory: ['pass_space', 'pass_space', 'pass_space'],
 }), { tone: 'fail' });
-ok(report.read.includes('전환'), '읽힌 반복 액션을 리포트에 표시');
-ok(report.next.includes('전환'), '다음 경기 추천이 읽힌 액션 회피로 연결');
+ok(report.read.includes('공간 패스'), '읽힌 반복 액션을 리포트에 표시');
+ok(report.next.includes('공간 패스'), '다음 경기 추천이 읽힌 액션 회피로 연결');
 
 report = buildTacticalReport(makeState({
   facts: { situationsResolved: 1, linesBroken: 0 },

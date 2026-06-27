@@ -2,8 +2,6 @@ import { clamp } from '../data/pitch.js';
 
 export const ACTION_LABELS = {
   to_feet: '발밑', pass_space: '공간 패스', hold: '기다리기', carry: '운반', shoot: '슈팅',
-  // 구 액션(엔진 잔존, UI 없음) — 라벨만 보존.
-  into_space: '공간 패스', run_order: '침투 지시', bounce: '원투', third_man: '서드맨', switch: '전환',
 };
 
 const AGGRESSIVE = new Set(['pass_space', 'carry']);

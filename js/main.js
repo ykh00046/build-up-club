@@ -604,12 +604,8 @@ document.getElementById('btn-guide')?.addEventListener('click', () => {
 
 const ACTION_SFX = {
   to_feet: () => sfx.kick(0.55),
-  bounce: () => { sfx.kick(0.5); sfx.kick(0.45); },
-  third_man: () => sfx.kick(0.55),
-  switch: () => { sfx.kick(0.85); sfx.whoosh(); },
-  into_space: () => sfx.kick(0.7),
+  pass_space: () => sfx.kick(0.7),
   carry: () => sfx.kick(0.3),
-  run_order: () => sfx.tick(),
 };
 
 for (const btn of actionButtons) {
@@ -720,7 +716,6 @@ function refreshActionAvailability() {
     const id = btn.dataset.action;
     let enabled = live;
     if (id === 'shoot') enabled = live && !!zone;
-    if (id === 'switch') enabled = live && (engine.holder()?.traits?.longPass ?? 0) >= 0.5;
     btn.disabled = !enabled;
   }
   // U3: the glow means "this is a GOOD shot", not "a shot exists" — low-xG
@@ -784,7 +779,7 @@ canvas.addEventListener('click', (e) => {
     const point = pendingCarry ?? p;
     pendingCarry = null;
     const r = engine.dispatch(selectedAction, null, point);
-    if (r.ok) (selectedAction === 'carry' ? ACTION_SFX.carry() : ACTION_SFX.to_feet?.());
+    if (r.ok) ACTION_SFX[selectedAction]?.();
     afterDispatch();
     return;
   }
@@ -829,8 +824,6 @@ function nearestTeammate(p) {
 // ─── Keyboard play: ←/→ 동료 선택, Enter 실행 (마우스 없이 완주 가능) ──────────
 const ACTION_KO = {
   to_feet: '발밑 패스', pass_space: '공간 패스', carry: '운반', hold: '기다리기', shoot: '슈팅',
-  // 구 액션(엔진 잔존, UI 없음) — 라벨만 보존.
-  into_space: '공간 패스', bounce: '원투', third_man: '써드맨', switch: '전환', run_order: '런 지시',
 };
 
 function selectableTeammates() {
@@ -1471,16 +1464,6 @@ function loop(ts) {
           const pv = engine.preview('to_feet', m.id);
           if (!pv || pv.lane.status === 'offside') return null;
           return { targetId: m.id, risk: pv.lane.risk };
-        })
-        .filter(Boolean);
-    } else if (h && selectedAction === 'run_order') {
-      // Orange arrows + destination circles for every potential runner.
-      runDestinations = s.players
-        .filter(m => m.side === 'us' && m.id !== h.id && m.role !== 'GK')
-        .map(m => {
-          const pv = engine.preview('run_order', m.id);
-          if (!pv?.zone) return null;
-          return { targetId: m.id, from: { x: m.rx ?? m.x, y: m.ry ?? m.y }, zone: pv.zone };
         })
         .filter(Boolean);
     }
