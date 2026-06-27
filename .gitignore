@@ -13,6 +13,10 @@ Thumbs.db
 # 빌드/임시
 dist/
 
+# 분석 산출물 (graphify 등 — 커밋 불필요)
+graphify-out/
+*.canvas
+
 # 런타임 산출물 — 커밋에 섞이지 않도록 (roadmap P0)
 .bkit/runtime/
 .bkit/audit/

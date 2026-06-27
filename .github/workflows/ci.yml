@@ -1,0 +1,38 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # 의존성 없음 — 바닐라 ES 모듈. 설치 단계 불필요.
+
+      - name: Syntax check (node --check)
+        run: |
+          set -e
+          for f in $(find js scripts -type f \( -name '*.js' -o -name '*.mjs' \)); do
+            node --check "$f"
+          done
+
+      - name: Regression suite (scripts/*.mjs)
+        run: |
+          fail=0
+          for f in scripts/*.mjs; do
+            echo "──────── $f"
+            if ! node "$f"; then
+              echo "::error file=$f::regression failed"
+              fail=1
+            fi
+          done
+          exit $fail
