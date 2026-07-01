@@ -10,7 +10,7 @@ import {
 import { ROLES } from '../data/roles.js';
 import { matchSetup, upgradePreview } from './mods.js';
 import { opponentName, scenarioForMatchday } from './season.js';
-import { t, getLang, toggleLang } from './i18n.js';
+import { t, loc, getLang, toggleLang } from './i18n.js';
 import { currentMission, effectsSummary } from './events.js';
 import { currentPhilosophy } from './philosophy.js';
 import { identitySummary } from './identity.js';
@@ -104,7 +104,7 @@ function applyUnlocks() {
   if (lk) {
     if (u.clubTab && !u.philosophy) {
       lk.hidden = false;
-      lk.innerHTML = `<span class="lk-icon">🔒</span>곧 <b>클럽 철학</b>이 열립니다 — 경기를 더 치러보세요`;
+      lk.innerHTML = t('hub.lockedPhilo');
     } else lk.hidden = true;
   }
   // 클럽 탭이 잠겼는데 활성 상태면 경기 탭으로 되돌림
@@ -122,13 +122,13 @@ function pulse(el) {
 function renderRoles() {
   const el = $('hub-roles');
   if (!el) return;
-  const LINES = [['mf', '중원'], ['fw', '전방']];
-  el.innerHTML = LINES.map(([line, label]) => {
+  const LINES = [['mf', 'hub.line.mid'], ['fw', 'hub.line.front']];
+  el.innerHTML = LINES.map(([line, labelKey]) => {
     const cur = club.roles?.[line] || 'none';
-    const desc = ROLES[line][cur]?.desc || '';
+    const desc = loc(ROLES[line][cur]?.desc) || '';
     const btns = Object.values(ROLES[line]).map((r) =>
-      `<button type="button" class="role-btn ${r.key === cur ? 'active' : ''}" data-line="${line}" data-role="${r.key}">${r.label}</button>`).join('');
-    return `<div class="hub-role-line"><span class="rl-k">${label} 롤</span><div class="hub-role-btns">${btns}</div><div class="hub-role-desc">${desc}</div></div>`;
+      `<button type="button" class="role-btn ${r.key === cur ? 'active' : ''}" data-line="${line}" data-role="${r.key}">${loc(r.label)}</button>`).join('');
+    return `<div class="hub-role-line"><span class="rl-k">${t('hub.roleLine').replace('{x}', t(labelKey))}</span><div class="hub-role-btns">${btns}</div><div class="hub-role-desc">${desc}</div></div>`;
   }).join('');
   for (const btn of el.querySelectorAll('.role-btn')) {
     btn.addEventListener('click', () => { setRole(btn.dataset.line, btn.dataset.role); renderHub(); });
@@ -139,7 +139,7 @@ export function renderHub() {
   // 헤더
   setText('hub-name', clubLabel());
   setText('hub-div', divName());
-  setText('hub-record', `${club.record.w}승 ${club.record.d}무 ${club.record.l}패`);
+  setText('hub-record', t('hub.recordFmt').replace('{w}', club.record.w).replace('{d}', club.record.d).replace('{l}', club.record.l));
   setText('hub-cash', formatNum(club.cash));
   setText('hub-fans', formatNum(club.fans));
   setText('hub-ovr', Math.round(teamOVR()));
@@ -176,7 +176,7 @@ export function renderHub() {
   toggleAfford('hub-stadium', club.cash >= stadiumCost());
   // 세트피스 코치 (E5) — 자금 소모형, 최대 레벨에서 MAX 표시.
   const spCost = setPieceCoachCost();
-  setHtml('hub-setpiece', `<span class="cb-k">세트피스 코치 · Lv ${club.setPieceCoach}</span><span class="cb-v">${spCost == null ? 'MAX' : formatNum(spCost)}</span>`);
+  setHtml('hub-setpiece', `<span class="cb-k">${t('hub.setpieceCoach').replace('{n}', club.setPieceCoach)}</span><span class="cb-v">${spCost == null ? 'MAX' : formatNum(spCost)}</span>`);
   toggleAfford('hub-setpiece', spCost != null && club.cash >= spCost);
   renderRoles();
   const boostBtn = $('hub-boost');
@@ -196,7 +196,7 @@ export function renderHub() {
   if (philoBtn) {
     const ph = currentPhilosophy();
     const pts = club.philoPoints || 0;
-    philoBtn.innerHTML = `<span class="cb-k">${ph ? '철학 · ' + ph.name : '철학 선택'}</span><span class="cb-v">${pts}P</span>`;
+    philoBtn.innerHTML = `<span class="cb-k">${ph ? t('philo.label').replace('{x}', loc(ph.name)) : t('philo.pick')}</span><span class="cb-v">${pts}P</span>`;
     philoBtn.classList.toggle('on', !!ph);
     philoBtn.classList.toggle('alert', pts > 0);
   }
@@ -215,20 +215,20 @@ function renderIdentity() {
   if (chosen) {
     const xp = club.identityXp?.[chosen.id] ?? 0;
     const lv = identityLevel(xp);
-    const tendency = (dominant.id !== chosen.id && dominant.value > 0) ? ` · 성향 ${dominant.label}` : '';
+    const tendency = (dominant.id !== chosen.id && dominant.value > 0) ? ` · ${t('hub.tendency').replace('{x}', loc(dominant.label))}` : '';
     el.style.setProperty('--idc', chosen.color);
     el.innerHTML = `
-      <span class="hi-k">클럽 정체성</span>
-      <strong>${chosen.name}</strong>
-      <span class="hi-desc">${chosen.kicker}</span>
+      <span class="hi-k">${t('hub.identity')}</span>
+      <strong>${loc(chosen.name)}</strong>
+      <span class="hi-desc">${loc(chosen.kicker)}</span>
       <span class="hi-xp">Lv ${lv} · ${Math.round(xp)} XP${tendency}</span>`;
   } else {
     const lv = identityLevel(dominant.value);
     el.style.setProperty('--idc', dominant.color);
     el.innerHTML = `
-      <span class="hi-k">클럽 정체성 · 미선택</span>
-      <strong>${dominant.label} 성향</strong>
-      <span class="hi-desc">${dominant.desc} — 철학에서 정체성을 선택하세요</span>
+      <span class="hi-k">${t('hub.identityNone')}</span>
+      <strong>${t('hub.tendencyStrong').replace('{x}', loc(dominant.label))}</strong>
+      <span class="hi-desc">${t('hub.identityHint').replace('{x}', loc(dominant.desc))}</span>
       <span class="hi-xp">Lv ${lv} · ${Math.round(dominant.value)} XP</span>`;
   }
 }
@@ -254,11 +254,11 @@ function renderCareerChart() {
   const lastPts = pts[n - 1];
   const lastMd = hist[n - 1].matchday;
   el.innerHTML = `
-    <div class="hub-chart-title">승점 흐름 · ${n}경기</div>
+    <div class="hub-chart-title">${t('hub.pointsTrend').replace('{n}', n)}</div>
     <svg viewBox="0 0 100 30" preserveAspectRatio="none">
       <polyline points="${coords}" fill="none" stroke="#5dd6c5" stroke-width="1.4" vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round"/>
     </svg>
-    <div style="font-size:10.5px;color:var(--text-muted);margin-top:3px">MD ${lastMd} · ${lastPts} 승점</div>`;
+    <div style="font-size:10.5px;color:var(--text-muted);margin-top:3px">${t('hub.mdPoints').replace('{md}', lastMd).replace('{pts}', lastPts)}</div>`;
 }
 
 function renderCareerVariety() {
@@ -269,8 +269,8 @@ function renderCareerVariety() {
     missionEl.classList.toggle('done', !!mission?.done);
     if (mission) missionEl.innerHTML = `
       <span class="hm-icon">${mission.done ? '✓' : '🎯'}</span>
-      <span><span class="hm-title">${mission.title}</span><br><span class="hm-desc">${mission.desc}</span></span>
-      <span class="hm-reward">${mission.done ? '완료' : '+' + formatNum(mission.reward)}</span>`;
+      <span><span class="hm-title">${loc(mission.title)}</span><br><span class="hm-desc">${loc(mission.desc)}</span></span>
+      <span class="hm-reward">${mission.done ? t('hub.done') : '+' + formatNum(mission.reward)}</span>`;
   }
   // 시즌 목표 카드 — roadmap P3.
   const goalsEl = $('hub-season-goals');
@@ -281,10 +281,10 @@ function renderCareerVariety() {
       return `
       <div class="sg-card ${g.done ? 'done' : ''}">
         <div class="sg-head">
-          <span class="sg-title">${g.done ? '✓ ' : ''}${g.title}</span>
-          <span class="sg-reward">${g.done ? '완료' : '+' + formatNum(g.reward)}</span>
+          <span class="sg-title">${g.done ? '✓ ' : ''}${loc(g.title)}</span>
+          <span class="sg-reward">${g.done ? t('hub.done') : '+' + formatNum(g.reward)}</span>
         </div>
-        <div class="sg-desc">${g.desc}</div>
+        <div class="sg-desc">${loc(g.desc)}</div>
         <div class="sg-progress">
           <div class="sg-bar"><div class="sg-bar-fill" style="width:${pct}%"></div></div>
           <span class="sg-count">${cur}/${g.target}</span>
@@ -295,9 +295,9 @@ function renderCareerVariety() {
   const effectsEl = $('hub-effects');
   if (effectsEl) effectsEl.innerHTML = effectsSummary().map((effect) => `
     <span class="eff-chip chip-in ${effect.tone === 'bad' ? 'bad' : 'good'}">
-      ${effect.tone === 'bad' ? '⚠' : '◆'} ${effect.label}
-      ${effect.nextEffect ? `<span class="eff-next">${effect.nextEffect}</span>` : ''}
-      ${effect.left == null ? '' : `<span class="eff-left">${effect.left}경기</span>`}
+      ${effect.tone === 'bad' ? '⚠' : '◆'} ${loc(effect.label)}
+      ${effect.nextEffect ? `<span class="eff-next">${loc(effect.nextEffect)}</span>` : ''}
+      ${effect.left == null ? '' : `<span class="eff-left">${t('unit.matchesLeft').replace('{n}', effect.left)}</span>`}
     </span>`).join('');
   renderCareerChart();
 }
@@ -341,7 +341,7 @@ function renderSquad() {
     // 상세는 툴팁으로만 — 카드 표면엔 한 줄도 늘리지 않는다.
     const detail = `${t('pos.' + p.key)} Lv${lvl}→${lvl + 1} · `
       + `${t('hub.atk')} ${pv.atk.from}→${pv.atk.to}, ${t('hub.def')} ${pv.def.from}→${pv.def.to} · `
-      + (isAtk ? `슛 보정 +${dShot}%, 패스 안정 +${dPass} · ` : `선방 +${dGk}% · `)
+      + (isAtk ? `${t('hub.upgradeShot').replace('{shot}', dShot).replace('{pass}', dPass)} · ` : `${t('hub.upgradeGk').replace('{gk}', dGk)} · `)
       + `${t('match.win')} ${pv.win.from}%→${pv.win.to}%`;
     // 강화의 가치를 토큰 하나로: 승률이 오르면 승률, 아니면 스탯 증가분.
     const winDelta = pv.win.to - pv.win.from;

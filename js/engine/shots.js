@@ -7,19 +7,19 @@ import { receiverPressure } from './space.js';
 
 export const SHOT_ZONES = [
   {
-    id: 'sixYard', ko: '6야드 박스',
+    id: 'sixYard', ko: '6야드 박스', en: 'Six-yard box',
     baseXg: 0.88,
     match: (p) => p.x > BOX.sixX - 2 && p.y > BOX.sixYMin && p.y < BOX.sixYMax,
   },
   {
-    id: 'cutback', ko: '컷백 존 (페널티 스폿)',
+    id: 'cutback', ko: '컷백 존 (페널티 스폿)', en: 'Cut-back zone (penalty spot)',
     baseXg: 0.65,
     // Penalty-spot band, qualified by arriving onto a pull-back (checked via context).
     match: (p, ctx) => p.x > BOX.x + 2 && p.x < BOX.sixX && Math.abs(p.y - PITCH_H / 2) < 11
       && ctx?.lastPassFromByline === true,
   },
   {
-    id: 'header', ko: '크로스 헤더',
+    id: 'header', ko: '크로스 헤더', en: 'Cross header',
     baseXg: 0.18,
     // A header needs a CROSS (wide origin → central box), not any lofted ball
     // — a central chip is a closeRange/centralD chance, not an aerial one.
@@ -29,23 +29,23 @@ export const SHOT_ZONES = [
     // Close central: inside the box past the central-D band but short of the
     // six-yard line. Closes the inversion where x 92~97.5 fell through to
     // midRange (0.09) — i.e. a 9m central shot rated worse than a 20m one. (S1)
-    id: 'closeRange', ko: '박스 중앙 근거리',
+    id: 'closeRange', ko: '박스 중앙 근거리', en: 'Close central range',
     baseXg: 0.62,
     match: (p) => p.x > 92 && p.x <= BOX.sixX && Math.abs(p.y - PITCH_H / 2) < 11,
   },
   {
-    id: 'halfSpace', ko: '하프스페이스 컬',
+    id: 'halfSpace', ko: '하프스페이스 컬', en: 'Half-space curler',
     baseXg: 0.44,
     match: (p) => p.x > 82 && p.x <= BOX.sixX
       && ((p.y > 13.6 && p.y < 27.2) || (p.y > 40.8 && p.y < 54.4)),
   },
   {
-    id: 'centralD', ko: '센트럴 D',
+    id: 'centralD', ko: '센트럴 D', en: 'Central D',
     baseXg: 0.17,
     match: (p) => p.x > 82 && p.x < 92 && Math.abs(p.y - PITCH_H / 2) < 8,
   },
   {
-    id: 'midRange', ko: '중거리',
+    id: 'midRange', ko: '중거리', en: 'Long range',
     baseXg: 0.09,
     match: (p) => p.x > 74 && Math.abs(p.y - PITCH_H / 2) < 18,
   },

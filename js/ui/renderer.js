@@ -6,6 +6,7 @@ import {
   COLORS, TOKEN_R_M, PHASE_LINES, clamp,
 } from '../data/pitch.js';
 import { prefersReducedMotion } from '../util/motion.js';
+import { t, getLang } from '../career/i18n.js';
 
 let canvas, ctx, dpr = 1, viewW = 0, viewH = 0, scale = 1, offsetX = 0, offsetY = 0;
 let pulse = 0;
@@ -321,8 +322,8 @@ function drawChannelGrid() {
 // The next phase objective line, so progress is legible at a glance.
 function drawPhaseLine(phase) {
   let x = null, label = null;
-  if (phase === 'BUILDUP') { x = PHASE_LINES.PROGRESSION; label = '빌드업 돌파선'; }
-  else if (phase === 'PROGRESSION') { x = PHASE_LINES.FINAL_THIRD; label = '파이널 서드'; }
+  if (phase === 'BUILDUP') { x = PHASE_LINES.PROGRESSION; label = t('pitch.breakLine'); }
+  else if (phase === 'PROGRESSION') { x = PHASE_LINES.FINAL_THIRD; label = t('pitch.finalThird'); }
   if (x === null) return;
   ctx.strokeStyle = 'rgba(245, 166, 35, 0.4)';
   ctx.lineWidth = 1.6;
@@ -341,9 +342,9 @@ function drawPhaseLine(phase) {
 // position them, colour-coded by edge kind. This is the thing the reward
 // window points at — made visible so the player reads the edge, not luck.
 const EDGE_STYLE = {
-  numerical:        { fill: 'rgba(245, 200, 66, 0.13)', ring: 'rgba(245, 200, 66, 0.6)',  ko: '+1' },
-  between_lines:    { fill: 'rgba(77, 139, 255, 0.13)', ring: 'rgba(77, 139, 255, 0.6)',  ko: '라인 사이' },
-  overload_between: { fill: 'rgba(140, 230, 140, 0.16)', ring: 'rgba(140, 230, 140, 0.7)', ko: '+1 사이' },
+  numerical:        { fill: 'rgba(245, 200, 66, 0.13)', ring: 'rgba(245, 200, 66, 0.6)',  ko: '+1', en: '+1' },
+  between_lines:    { fill: 'rgba(77, 139, 255, 0.13)', ring: 'rgba(77, 139, 255, 0.6)',  ko: '라인 사이', en: 'Between lines' },
+  overload_between: { fill: 'rgba(140, 230, 140, 0.16)', ring: 'rgba(140, 230, 140, 0.7)', ko: '+1 사이', en: '+1 between' },
 };
 function drawSuperiorityZones(zones) {
   for (const z of zones) {
@@ -361,7 +362,7 @@ function drawSuperiorityZones(zones) {
       ctx.fillStyle = st.ring;
       ctx.font = `600 ${Math.max(8.5, scale * 0.95)}px ui-sans-serif, system-ui, sans-serif`;
       ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
-      ctx.fillText(st.ko, cx, cy - r - 2);
+      ctx.fillText(getLang() === 'en' ? st.en : st.ko, cx, cy - r - 2);
     }
   }
 }
@@ -388,7 +389,7 @@ function drawRewardWindow(w) {
     ctx.fillStyle = 'rgba(190, 250, 240, 0.9)';
     ctx.font = `${Math.max(9, scale * 1.0)}px ui-sans-serif, system-ui, sans-serif`;
     ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
-    ctx.fillText('열린 공간', mx(w.x), my(w.y) - r - 3);
+    ctx.fillText(t('pitch.openSpace'), mx(w.x), my(w.y) - r - 3);
   }
 }
 
@@ -401,7 +402,10 @@ function drawShotZoneBadge(zone, holder, xg) {
   ctx.font = `700 ${Math.max(10, scale * 1.2)}px ui-sans-serif, system-ui, sans-serif`;
   ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
   const pct = xg != null ? ` · ${Math.round(xg * 100)}%` : '';
-  const label = good ? `슛 존: ${zone.ko}${pct}` : `슛 존: ${zone.ko}${pct} · 낮은 확률`;
+  const zoneWord = getLang() === 'en' ? zone.en : zone.ko;
+  const label = good
+    ? `${t('pitch.shotZone')}: ${zoneWord}${pct}`
+    : `${t('pitch.shotZone')}: ${zoneWord}${pct}${t('pitch.lowProb')}`;
   ctx.fillText(label, mx(holder.rx ?? holder.x), my(holder.ry ?? holder.y) - scale * TOKEN_R_M - 14);
 }
 
@@ -429,7 +433,12 @@ function drawCoverShadows(view) {
 }
 
 const LANE_COLORS = { safe: COLORS.laneSafe, risky: COLORS.laneRisky, cut: COLORS.laneCut, open: COLORS.laneSafe, contested: COLORS.laneRisky, dead: COLORS.laneCut, offside: 'rgba(168, 178, 190, 0.85)' };
-const LANE_KO = { safe: '안전', risky: '위험', cut: '차단', open: '열림', contested: '경합', dead: '막힘', offside: '오프사이드' };
+// 레인 상태 단어 — 언어 반응형(그리기 시점에 t() 해석). 기존 LANE_KO 맵을 대체.
+// 모듈 스코프 헬퍼라 drawHover 내부의 지역 `const t`(좌표 객체) 섀도잉에 영향받지 않는다.
+function laneWord(status) { return t('lane.' + status); }
+function lobWord() { return t('pitch.lob'); }
+function landingWord() { return t('pitch.landing'); }
+function pierceWord() { return t('pitch.pierce'); }
 
 // U4: status is double-coded (color + dash pattern) for color-blind players:
 // safe = solid, risky = long dash, cut/dead = short dash, offside = dots.
@@ -481,9 +490,9 @@ function drawSpaceAim(hover, h) {
   lobePath(); ctx.stroke(); ctx.setLineDash([]);
   // 색·라벨은 수신 자세 예측으로 — "이 패스를 주면 어떤 몸으로 받나".
   const REC = {
-    free:      { c: '52,214,194', t: '▲ 자유 · 전진 가능' },
-    pressured: { c: '255,194,75', t: '◆ 압박 · 떨궈야' },
-    trapped:   { c: '255,90,110', t: '▼ 갇힘 · 등지고 받음' },
+    free:      { c: '52,214,194', t: t('pitch.rec.free') },
+    pressured: { c: '255,194,75', t: t('pitch.rec.pressured') },
+    trapped:   { c: '255,90,110', t: t('pitch.rec.trapped') },
   }[hover.reception || 'free'];
   const C = !hover.reachable ? '150,160,170' : REC.c;
   ctx.strokeStyle = `rgba(${C},0.95)`; ctx.lineWidth = 2;
@@ -501,7 +510,7 @@ function drawSpaceAim(hover, h) {
   ctx.fillStyle = `rgba(${C},1)`;
   ctx.font = `600 ${Math.max(9.5, scale * 1.05)}px ui-sans-serif, system-ui, sans-serif`;
   ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
-  ctx.fillText(!hover.reachable ? '닿지 않음' : REC.t + (hover.lofted ? ' · 로빙' : ''), ax, ay - 7 * scale);
+  ctx.fillText(!hover.reachable ? t('pitch.unreachable') : REC.t + (hover.lofted ? lobWord() : ''), ax, ay - 7 * scale);
 }
 
 function laneTag(text, p, status) {
@@ -606,7 +615,7 @@ function drawHover(hover, holder) {
   const off = pulse * 22;
   if (hover.kind === 'carryPath') {
     laneLine(h, hover.to, hover.status, off);
-    laneTag(`운반 (${LANE_KO[hover.status]})`, hover.to, hover.status);
+    laneTag(`${t('pitch.carry')} (${laneWord(hover.status)})`, hover.to, hover.status);
     return;
   }
   if (hover.kind === 'spaceAim') {
@@ -616,13 +625,15 @@ function drawHover(hover, holder) {
   const p = hover.preview;
   if (!p) return;
   // QA Major 1: trapped-on-arrival risk is part of the read — tag it.
-  const trapKo = (ev) => (ev?.trap > 0.2 ? ' · 고립 주의' : '');
+  // 이 화살표들은 drawHover 본문 스코프에서 정의되므로 t는 모듈 import를 가리킨다
+  // (아래 블록의 지역 `const t` 좌표 섀도잉은 정의 시점 스코프 체인에 없음).
+  const trapKo = (ev) => (ev?.trap > 0.2 ? t('pitch.trapWarn') : '');
   // 수신 자세 — 공간 패스와 같은 어휘. 자유는 표기 생략(클러터 방지).
-  const recKo = (r) => (r === 'trapped' ? ' · ▼갇힘(등짐)' : r === 'pressured' ? ' · ◆압박' : '');
+  const recKo = (r) => (r === 'trapped' ? t('pitch.recTrappedShort') : r === 'pressured' ? t('pitch.recPressuredShort') : '');
   if (p.kind === 'lane') {
     const t = { x: p.target.rx ?? p.target.x, y: p.target.ry ?? p.target.y };
     laneLine(h, t, p.lane.status, off);
-    laneTag(LANE_KO[p.lane.status] + (p.lane.lofted ? ' · 로빙' : '') + recKo(p.reception), { x: (h.x + t.x) / 2, y: (h.y + t.y) / 2 }, p.lane.status);
+    laneTag(laneWord(p.lane.status) + (p.lane.lofted ? lobWord() : '') + recKo(p.reception), { x: (h.x + t.x) / 2, y: (h.y + t.y) / 2 }, p.lane.status);
   } else if (p.kind === 'space') {
     laneLine(h, p.zone, p.lane.status, off);
     ctx.strokeStyle = LANE_COLORS[p.landing.status];
@@ -633,7 +644,7 @@ function drawHover(hover, holder) {
     const t = { x: p.target.rx ?? p.target.x, y: p.target.ry ?? p.target.y };
     line(t.x, t.y, p.zone.x, p.zone.y);
     ctx.setLineDash([]);
-    laneTag(`랜딩 ${LANE_KO[p.landing.status]}${trapKo(p.landing)}`, p.zone, p.landing.status);
+    laneTag(`${landingWord()} ${laneWord(p.landing.status)}${trapKo(p.landing)}`, p.zone, p.landing.status);
   } else if (p.kind === 'run') {
     // Off-ball run: runner path + landing read, no ball lane.
     const t = { x: p.target.rx ?? p.target.x, y: p.target.ry ?? p.target.y };
@@ -643,15 +654,15 @@ function drawHover(hover, holder) {
     arrow(t.x, t.y, p.zone.x, p.zone.y);
     ctx.beginPath(); ctx.arc(mx(p.zone.x), my(p.zone.y), p.zone.r * scale, 0, Math.PI * 2); ctx.stroke();
     ctx.setLineDash([]);
-    laneTag(`침투 ${LANE_KO[p.landing.status]}`, p.zone, p.landing.status);
+    laneTag(`${pierceWord()} ${laneWord(p.landing.status)}`, p.zone, p.landing.status);
   } else if (p.kind === 'chain') {
     const t = { x: p.target.rx ?? p.target.x, y: p.target.ry ?? p.target.y };
     laneLine(h, t, p.leg1.status, off);
-    laneTag(`1 ${LANE_KO[p.leg1.status]}`, { x: (h.x + t.x) / 2, y: (h.y + t.y) / 2 }, p.leg1.status);
+    laneTag(`1 ${laneWord(p.leg1.status)}`, { x: (h.x + t.x) / 2, y: (h.y + t.y) / 2 }, p.leg1.status);
     if (p.third && p.leg2) {
       const th = { x: p.third.rx ?? p.third.x, y: p.third.ry ?? p.third.y };
       laneLine(t, th, p.leg2.status, off);
-      laneTag(`2 ${LANE_KO[p.leg2.status]}${trapKo(p.leg2)} → ${p.third.label}`, { x: (t.x + th.x) / 2, y: (t.y + th.y) / 2 }, p.leg2.status);
+      laneTag(`2 ${laneWord(p.leg2.status)}${trapKo(p.leg2)} → ${p.third.label}`, { x: (t.x + th.x) / 2, y: (t.y + th.y) / 2 }, p.leg2.status);
     }
   }
 }

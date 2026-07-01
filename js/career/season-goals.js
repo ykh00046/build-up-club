@@ -15,8 +15,8 @@ import { divisionPool } from './season.js';
 export const SEASON_GOALS = {
   identity_streak: {
     id: 'identity_streak',
-    title: '정체성 정착',
-    desc: '같은 클럽 정체성으로 3경기 연속 우세하세요.',
+    title: { ko: '정체성 정착', en: 'Identity set' },
+    desc: { ko: '같은 클럽 정체성으로 3경기 연속 우세하세요.', en: 'Top the same club identity for 3 matches in a row.' },
     reward: 200,
     target: 3,
     targetCell: () => null,
@@ -25,8 +25,8 @@ export const SEASON_GOALS = {
   },
   scenario_win: {
     id: 'scenario_win',
-    title: '상대 압박 돌파',
-    desc: '이번 디비전의 주요 압박 상대에게 2승을 거두세요.',
+    title: { ko: '상대 압박 돌파', en: 'Break their press' },
+    desc: { ko: '이번 디비전의 주요 압박 상대에게 2승을 거두세요.', en: "Beat this division's key pressing opponent twice." },
     reward: 300,
     target: 2,
     targetCell: (ctx = {}) => divisionPool(ctx.divIdx ?? club.divIdx)[0],

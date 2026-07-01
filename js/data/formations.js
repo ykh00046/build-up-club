@@ -84,6 +84,122 @@ export function build442Ours() {
   ];
 }
 
+// ── 추가 전용 포메이션 빌더 (허브 포메이션 보드 8종 중 나머지 6개) ──────────────
+// 역할별 트레잇 템플릿(복제해 공유 방지). 기존 빌더 id 규약 재사용 → 맨마킹 호환.
+const TR = {
+  gk: { pass: .8, longPass: .6, pressResistance: .55, pace: .3, shot: {} },
+  cb: { pass: .85, longPass: .7, pressResistance: .7, pace: .5, shot: {} },
+  fb: { pass: .73, longPass: .5, pressResistance: .62, pace: .86, shot: { cutbackDeliver: 1.1 } },
+  dm: { pass: .9, longPass: .8, pressResistance: .85, pace: .52, shot: { midRange: 1.0, centralD: .9 } },
+  cm: { pass: .86, longPass: .65, pressResistance: .8, pace: .72, shot: { cutback: 1.15, centralD: 1.05, midRange: .95, closeRange: 1.0 } },
+  am: { pass: .9, longPass: .6, pressResistance: .85, pace: .76, shot: { centralD: 1.2, midRange: 1.1, cutback: 1.1, closeRange: 1.05 } },
+  w: { pass: .76, longPass: .4, pressResistance: .7, pace: .92, shot: { halfSpace: 1.18, cutback: .9 } },
+  st: { pass: .7, longPass: .32, pressResistance: .66, pace: .8, shot: { sixYard: 1.3, header: 1.25, halfSpace: .9, centralD: .9, closeRange: 1.15 } },
+};
+const tr = (k) => ({ ...TR[k], shot: { ...TR[k].shot } });
+
+// 4-2-3-1: 더블 6 + 3선(양 와이드 + 중앙 10) + 원톱.
+export function build4231Ours() {
+  return [
+    P({ id: 'us-gk',  role: 'GK', num: 1,  label: 'GK',  x: 6,  y: 34, traits: tr('gk') }),
+    P({ id: 'us-lcb', role: 'CB', num: 4,  label: 'LCB', x: 16, y: 25, traits: tr('cb') }),
+    P({ id: 'us-rcb', role: 'CB', num: 5,  label: 'RCB', x: 16, y: 43, traits: tr('cb') }),
+    P({ id: 'us-lb',  role: 'FB', num: 3,  label: 'LB',  x: 30, y: 9,  traits: tr('fb') }),
+    P({ id: 'us-rb',  role: 'FB', num: 2,  label: 'RB',  x: 30, y: 59, traits: tr('fb') }),
+    P({ id: 'us-6',   role: 'DM', num: 6,  label: '6A',  x: 29, y: 28, traits: tr('dm') }),
+    P({ id: 'us-r8',  role: 'DM', num: 8,  label: '6B',  x: 29, y: 40, traits: tr('dm') }),
+    P({ id: 'us-lw',  role: 'W',  num: 11, label: 'LAM', x: 58, y: 13, traits: tr('w') }),
+    P({ id: 'us-l8',  role: '10', num: 10, label: 'CAM', x: 54, y: 34, traits: tr('am') }),
+    P({ id: 'us-rw',  role: 'W',  num: 7,  label: 'RAM', x: 58, y: 55, traits: tr('w') }),
+    P({ id: 'us-st',  role: 'ST', num: 9,  label: 'ST',  x: 80, y: 34, traits: tr('st') }),
+  ];
+}
+
+// 3-5-2: 백3 + 윙백2(높이) + 중앙 3(6+더블8) + 투톱.
+export function build352Ours() {
+  return [
+    P({ id: 'us-gk',  role: 'GK', num: 1,  label: 'GK',  x: 6,  y: 34, traits: tr('gk') }),
+    P({ id: 'us-lcb', role: 'CB', num: 4,  label: 'LCB', x: 16, y: 20, traits: tr('cb') }),
+    P({ id: 'us-rcb', role: 'CB', num: 5,  label: 'CB',  x: 16, y: 34, traits: tr('cb') }),
+    P({ id: 'us-6',   role: 'CB', num: 6,  label: 'RCB', x: 16, y: 48, traits: tr('cb') }),
+    P({ id: 'us-lb',  role: 'FB', num: 3,  label: 'LWB', x: 44, y: 8,  traits: tr('fb') }),
+    P({ id: 'us-rb',  role: 'FB', num: 2,  label: 'RWB', x: 44, y: 60, traits: tr('fb') }),
+    P({ id: 'us-l8',  role: 'DM', num: 8,  label: '6',   x: 29, y: 34, traits: tr('dm') }),
+    P({ id: 'us-r8',  role: '8',  num: 10, label: 'L8',  x: 47, y: 25, traits: tr('cm') }),
+    P({ id: 'us-lw',  role: '8',  num: 7,  label: 'R8',  x: 47, y: 43, traits: tr('cm') }),
+    P({ id: 'us-rw',  role: 'ST', num: 11, label: 'LST', x: 76, y: 27, traits: tr('st') }),
+    P({ id: 'us-st',  role: 'ST', num: 9,  label: 'RST', x: 76, y: 41, traits: tr('st') }),
+  ];
+}
+
+// 3-4-3: 백3 + 미드4(중앙 더블8 + 양 윙백) + 전방3(양 윙어 + 원톱).
+export function build343Ours() {
+  return [
+    P({ id: 'us-gk',  role: 'GK', num: 1,  label: 'GK',  x: 6,  y: 34, traits: tr('gk') }),
+    P({ id: 'us-lcb', role: 'CB', num: 4,  label: 'LCB', x: 16, y: 20, traits: tr('cb') }),
+    P({ id: 'us-rcb', role: 'CB', num: 5,  label: 'CB',  x: 16, y: 34, traits: tr('cb') }),
+    P({ id: 'us-6',   role: 'CB', num: 6,  label: 'RCB', x: 16, y: 48, traits: tr('cb') }),
+    P({ id: 'us-l8',  role: '8',  num: 8,  label: 'L8',  x: 40, y: 28, traits: tr('cm') }),
+    P({ id: 'us-r8',  role: '8',  num: 10, label: 'R8',  x: 40, y: 40, traits: tr('cm') }),
+    P({ id: 'us-lb',  role: 'FB', num: 3,  label: 'LWB', x: 50, y: 8,  traits: tr('fb') }),
+    P({ id: 'us-rb',  role: 'FB', num: 2,  label: 'RWB', x: 50, y: 60, traits: tr('fb') }),
+    P({ id: 'us-lw',  role: 'W',  num: 11, label: 'LW',  x: 70, y: 16, traits: tr('w') }),
+    P({ id: 'us-st',  role: 'ST', num: 9,  label: 'ST',  x: 80, y: 34, traits: tr('st') }),
+    P({ id: 'us-rw',  role: 'W',  num: 7,  label: 'RW',  x: 70, y: 52, traits: tr('w') }),
+  ];
+}
+
+// 4-3-1-2 다이아몬드: 백4 + 다이아(6+양8+10) + 투톱.
+export function build4312Ours() {
+  return [
+    P({ id: 'us-gk',  role: 'GK', num: 1,  label: 'GK',  x: 6,  y: 34, traits: tr('gk') }),
+    P({ id: 'us-lcb', role: 'CB', num: 4,  label: 'LCB', x: 16, y: 25, traits: tr('cb') }),
+    P({ id: 'us-rcb', role: 'CB', num: 5,  label: 'RCB', x: 16, y: 43, traits: tr('cb') }),
+    P({ id: 'us-lb',  role: 'FB', num: 3,  label: 'LB',  x: 30, y: 9,  traits: tr('fb') }),
+    P({ id: 'us-rb',  role: 'FB', num: 2,  label: 'RB',  x: 30, y: 59, traits: tr('fb') }),
+    P({ id: 'us-6',   role: 'DM', num: 6,  label: '6',   x: 29, y: 34, traits: tr('dm') }),
+    P({ id: 'us-l8',  role: '8',  num: 8,  label: 'L8',  x: 46, y: 23, traits: tr('cm') }),
+    P({ id: 'us-r8',  role: '8',  num: 7,  label: 'R8',  x: 46, y: 45, traits: tr('cm') }),
+    P({ id: 'us-lw',  role: '10', num: 10, label: '10',  x: 57, y: 34, traits: tr('am') }),
+    P({ id: 'us-rw',  role: 'ST', num: 11, label: 'LST', x: 78, y: 28, traits: tr('st') }),
+    P({ id: 'us-st',  role: 'ST', num: 9,  label: 'RST', x: 78, y: 40, traits: tr('st') }),
+  ];
+}
+
+// 5-3-2: 백5(윙백 포함) + 중앙3 + 투톱 — 가장 수비적.
+export function build532Ours() {
+  return [
+    P({ id: 'us-gk',  role: 'GK', num: 1,  label: 'GK',  x: 6,  y: 34, traits: tr('gk') }),
+    P({ id: 'us-lcb', role: 'CB', num: 4,  label: 'LCB', x: 16, y: 18, traits: tr('cb') }),
+    P({ id: 'us-rcb', role: 'CB', num: 5,  label: 'CB',  x: 15, y: 34, traits: tr('cb') }),
+    P({ id: 'us-6',   role: 'CB', num: 6,  label: 'RCB', x: 16, y: 50, traits: tr('cb') }),
+    P({ id: 'us-lb',  role: 'FB', num: 3,  label: 'LWB', x: 40, y: 8,  traits: tr('fb') }),
+    P({ id: 'us-rb',  role: 'FB', num: 2,  label: 'RWB', x: 40, y: 60, traits: tr('fb') }),
+    P({ id: 'us-l8',  role: 'DM', num: 8,  label: '6',   x: 29, y: 34, traits: tr('dm') }),
+    P({ id: 'us-r8',  role: '8',  num: 10, label: 'L8',  x: 44, y: 24, traits: tr('cm') }),
+    P({ id: 'us-lw',  role: '8',  num: 7,  label: 'R8',  x: 44, y: 44, traits: tr('cm') }),
+    P({ id: 'us-rw',  role: 'ST', num: 11, label: 'LST', x: 74, y: 28, traits: tr('st') }),
+    P({ id: 'us-st',  role: 'ST', num: 9,  label: 'RST', x: 74, y: 40, traits: tr('st') }),
+  ];
+}
+
+// 4-5-1: 백4 + 미드5(6+더블8+양 와이드) + 원톱 — 컴팩트.
+export function build451Ours() {
+  return [
+    P({ id: 'us-gk',  role: 'GK', num: 1,  label: 'GK',  x: 6,  y: 34, traits: tr('gk') }),
+    P({ id: 'us-lcb', role: 'CB', num: 4,  label: 'LCB', x: 16, y: 25, traits: tr('cb') }),
+    P({ id: 'us-rcb', role: 'CB', num: 5,  label: 'RCB', x: 16, y: 43, traits: tr('cb') }),
+    P({ id: 'us-lb',  role: 'FB', num: 3,  label: 'LB',  x: 30, y: 9,  traits: tr('fb') }),
+    P({ id: 'us-rb',  role: 'FB', num: 2,  label: 'RB',  x: 30, y: 59, traits: tr('fb') }),
+    P({ id: 'us-6',   role: 'DM', num: 6,  label: '6',   x: 32, y: 34, traits: tr('dm') }),
+    P({ id: 'us-l8',  role: '8',  num: 8,  label: 'L8',  x: 44, y: 26, traits: tr('cm') }),
+    P({ id: 'us-r8',  role: '8',  num: 10, label: 'R8',  x: 44, y: 42, traits: tr('cm') }),
+    P({ id: 'us-lw',  role: 'W',  num: 11, label: 'LM',  x: 52, y: 12, traits: tr('w') }),
+    P({ id: 'us-rw',  role: 'W',  num: 7,  label: 'RM',  x: 52, y: 56, traits: tr('w') }),
+    P({ id: 'us-st',  role: 'ST', num: 9,  label: 'ST',  x: 78, y: 34, traits: tr('st') }),
+  ];
+}
+
 // ─── Opponent presses ──────────────────────────────────────────
 // Opp players carry: line ('front'|'mid'|'back'|'gk'), jumpiness (who commits),
 // leash (how far they stray from anchor), and optionally markId (man/hybrid).

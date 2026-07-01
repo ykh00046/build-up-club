@@ -4,42 +4,64 @@
 
 import { openModal, closeModal } from './modal.js';
 import { prefersReducedMotion } from '../util/motion.js';
+import { loc, t, getLang } from '../career/i18n.js';
+import { bestObjectiveText } from '../util/board-read-i18n.js';
 
 const ARCHIVE_KEY = 'beat-the-block:archive:v2';
 
 export function bindScenarioPanels(scenario) {
-  setText('scn-title', scenario.title);
-  setText('scn-our', scenario.ourShapeName);
-  setText('scn-opp', scenario.oppShapeName);
+  setText('scn-title', loc(scenario.title));
+  setText('scn-our', loc(scenario.ourShapeName));
+  setText('scn-opp', loc(scenario.oppShapeName));
   setText('scn-scheme', scenario.scheme);
   setText('scn-intensity', scenario.intensity.toUpperCase());
   setText('scn-compact', scenario.compactness.toUpperCase());
-  setText('scn-target', scenario.targetShot);
-  setText('scn-briefing', scenario.briefing);
-  setText('scn-opp-plan', scenario.oppPlan ?? '—');
-  document.title = `빌드업 클럽 · ${scenario.cell}`;
+  setText('scn-target', loc(scenario.targetShot));
+  setText('rc-target', loc(scenario.targetShot));   // 읽기 칩(피치 위) 동기화
+  setText('scn-briefing', loc(scenario.briefing));
+  setText('scn-opp-plan', loc(scenario.oppPlan) ?? '—');
+  document.title = `${t('app.title')} · ${scenario.cell}`;
   const sel = document.getElementById('scenario-selector');
   if (sel) sel.value = scenario.cell;
 }
 
-export function renderHudState(engine) {
+export function renderHudState(engine, boardRead = null) {
   const s = engine.state;
   setText('phase-chip', s.phase);
   const chip = document.getElementById('phase-chip');
   if (chip) chip.dataset.phase = s.phase;
   setText('turn-count', String(s.turn));
   const objectives = {
-    BUILDUP: '압박을 끌어낸 뒤 첫 라인을 통과하세요.',
-    PROGRESSION: '열린 전진 레인을 찾아 최종 3선으로 진입하세요.',
-    FINAL_THIRD: '수비가 닫히기 전에 슛 존을 만드세요.',
-    SHOT: '열린 슛 존에서 공격을 마무리하세요.',
+    BUILDUP: t('obj.buildup'),
+    PROGRESSION: t('obj.progression'),
+    FINAL_THIRD: t('obj.finalThird'),
+    PRESSING: t('obj.pressing'),
+    SHOT: t('obj.shot'),
   };
-  setText('objective-text', objectives[s.phase] ?? '블록의 빈 공간을 찾아 공격을 이어가세요.');
+  // 다음 추천 행동 — 단일 CTA. 상황 > 좋은 슛 > 압박 위험 > 국면 순으로 하나만 강하게 민다.
+  let objective = objectives[s.phase] ?? t('obj.default');
+  const decisionNow = s.matchDecision;
+  const zoneNow = engine.shotZoneNow?.();
+  const pressLvl = engine.pressureExpression?.().level ?? 0;
+  if (decisionNow) objective = t('obj.decision').replace('{title}', decisionNow.title);
+  else if (zoneNow && zoneNow.baseXg >= 0.24) objective = t('obj.shootNow');
+  else if (boardRead?.best && boardRead.reset && boardRead.best.risk >= 0.35) {
+    // 전진 제안이 위험(≥35%)하고 안전 리사이클이 있으면 — 강행 대신 볼 지켜 다시
+    // 시작하는 탈출구를 표면화. "읽히면 그냥 잃는다"의 해소: 리셋 옵션을 보여준다.
+    objective = t('obj.reset').replace('{label}', boardRead.reset.target?.label ?? '');
+  } else if (boardRead?.best) objective = bestObjectiveText(boardRead.best);
+  else if (pressLvl >= 0.78) objective = t('obj.pressRisk');
+  setText('objective-text', objective);
   const info = engine.pressInfo?.();
   if (info) {
-    setText('opp-adapt', info.pending ? '읽는 중…' : (info.labelKo ?? '기본 압박'));
+    const oppText = info.pending ? t('hud.reading') : (info.labelKo ?? t('dr.oppStateDefault'));
+    const oppColor = info.pending ? 'var(--accent)' : info.labelKo ? 'var(--warn)' : '';
+    setText('opp-adapt', oppText);
     const el = document.getElementById('opp-adapt');
-    if (el) el.style.color = info.pending ? 'var(--accent)' : info.labelKo ? 'var(--warn)' : '';
+    if (el) el.style.color = oppColor;
+    // 읽기 칩(피치 위) 상대 상태 동기화
+    const rc = document.getElementById('rc-opp');
+    if (rc) { rc.textContent = oppText; rc.style.color = oppColor || 'var(--text)'; }
   }
   // §9 / master_plan "하지 않을 것": no pressure NUMBER in the HUD. The bar
   // breathes; the exact value stays internal. (aria keeps it for screen readers.)
@@ -50,11 +72,11 @@ export function renderHudState(engine) {
     fill.style.width = `${percent}%`;
     fill.className = level >= 0.78 ? 'danger' : level >= 0.55 ? 'warn' : '';
     // 접근성: 스크린리더가 맥락 있는 값을 읽도록 valuetext 제공(숫자만 X).
-    const word = level >= 0.78 ? '위험' : level >= 0.55 ? '주의' : '안정';
+    const word = level >= 0.78 ? t('hud.pressDanger') : level >= 0.55 ? t('hud.pressCaution') : t('hud.pressSafe');
     const gauge = document.getElementById('pressure-gauge');
     if (gauge) {
       gauge.setAttribute('aria-valuenow', String(percent));
-      gauge.setAttribute('aria-valuetext', `압박 ${percent}% · ${word}`);
+      gauge.setAttribute('aria-valuetext', t('hud.pressVT').replace('{percent}', String(percent)).replace('{word}', word));
     }
   }
 }
@@ -65,7 +87,7 @@ export function renderLog(engine) {
   const items = engine.state.log.slice(-7).reverse();
   el.innerHTML = items.map((it, i) =>
     `<div class="log-item ${it.tone}${i === 0 ? ' log-new' : ''}"><span class="t">${String(it.turn).padStart(2, '0')}</span>${escapeHtml(it.text)}</div>`
-  ).join('') || '<div class="log-empty">아직 기록이 없습니다</div>';
+  ).join('') || `<div class="log-empty">${t('dr.logEmpty')}</div>`;
   // Auto-scroll to show the latest entry.
   el.scrollTop = 0;
   // Brief highlight on newest entry that fades out.
@@ -113,15 +135,23 @@ export function renderTacticalReport(report) {
 function renderReport(report) {
   if (!report) return '';
   const rows = [
-    ['잘 먹힌 전술', report.worked],
-    ['상대가 읽은 패턴', report.read],
-    ['결정적 장면', report.decisive],
-    ['다음 경기 추천', report.next],
+    [t('trh.worked'), report.worked],
+    [t('trh.read'), report.read],
+    [t('trh.decisive'), report.decisive],
   ];
   const body = rows.map(([k, v]) => `<div class="tr-row"><span>${escapeHtml(k)}</span><b>${escapeHtml(v || '—')}</b></div>`).join('');
-  const sup = report.superiority ? `<div class="tr-sup">만든 우위 · <b>${escapeHtml(report.superiority)}</b></div>` : '';
-  const trans = report.transition ? `<div class="tr-sup tr-trans">수비 전환 · <b>${escapeHtml(report.transition)}</b></div>` : '';
-  return renderMetrics(report.metrics) + sup + trans + body;
+  const sup = report.superiority ? `<div class="tr-sup">${escapeHtml(t('trh.superiority'))} · <b>${escapeHtml(report.superiority)}</b></div>` : '';
+  const trans = report.transition ? `<div class="tr-sup tr-trans">${escapeHtml(t('trh.transition'))} · <b>${escapeHtml(report.transition)}</b></div>` : '';
+  // "그래서 다음엔?" — 가장 먼저 보이는 1순위 학습 CTA (P2).
+  const next = report.next
+    ? `<div class="tr-next"><span class="tr-next-k">${escapeHtml(t('trh.next'))}</span><strong>${escapeHtml(report.next)}</strong></div>`
+    : '';
+  // 상세 분석(지표·우위·전환·리포트행)은 접어서 온디맨드 — 결과 카드를 한눈에 들어오게.
+  const details = renderMetrics(report.metrics) + sup + trans + body;
+  const detailsBlock = details
+    ? `<details class="tr-details"><summary>${escapeHtml(t('rep.details'))}</summary><div class="tr-details-body">${details}</div></details>`
+    : '';
+  return next + detailsBlock;
 }
 
 // 실제 축구 지표로 결과를 설명 (E2). 데이터는 report.js가 facts·xG로 산출.
@@ -130,10 +160,10 @@ function renderMetrics(m) {
   const cell = (label, value, title) =>
     `<span class="tm-cell" title="${escapeHtml(title)}"><i>${escapeHtml(label)}</i><b>${escapeHtml(value)}</b></span>`;
   return `<div class="tr-metrics">`
-    + cell('패킹', String(m.packing), '라인 브레이킹 — 패스·드리블로 제친 상대 라인 수')
-    + cell('xT', String(m.xt), '기대 위협 — 전진 행동이 만든 위협 가치 지수(0~100)')
-    + cell('xG', m.xg != null ? m.xg + '%' : '—', '기대 득점 — 마무리 찬스의 질')
-    + cell('지배력', String(m.dominance), '빌드업 지배력 — 유인·전진·상황 해결 종합(0~100)')
+    + cell(t('trh.packing'), String(m.packing), t('trh.packingTip'))
+    + cell('xT', String(m.xt), t('trh.xtTip'))
+    + cell('xG', m.xg != null ? m.xg + '%' : '—', t('trh.xgTip'))
+    + cell(t('trh.dominance'), String(m.dominance), t('trh.dominanceTip'))
     + `</div>`;
 }
 
@@ -220,14 +250,14 @@ export function renderArchive(filter = null) {
   const list = f === 'ALL' ? all : all.filter((e) => e.cell === f);
   setText('archive-count', `${list.length}`);
   if (!list.length) {
-    el.innerHTML = '<div class="archive-empty">아직 기록이 없습니다 — 첫 공격을 시도해 보세요.</div>';
+    el.innerHTML = `<div class="archive-empty">${t('archive.empty')}</div>`;
     return;
   }
   el.innerHTML = list.slice(0, 8).map((e) => `
     <div class="archive-item ${e.tone}">
       <strong>[${e.cell}] ${escapeHtml(e.headline)}</strong>
       <span>${escapeHtml(e.facts || '')}</span>
-      <span class="meta">${e.turns}턴 · ${new Date(e.at).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+      <span class="meta">${t('archive.turnsN').replace('{n}', e.turns)} · ${new Date(e.at).toLocaleString(getLang() === 'ko' ? 'ko-KR' : 'en-US', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
     </div>
   `).join('');
 }

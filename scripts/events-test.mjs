@@ -2,6 +2,7 @@
 // 실행: node scripts/events-test.mjs
 import * as Club from '../js/career/club.js';
 import { checkMission, applyEventChoice, currentMission, effectsSummary } from '../js/career/events.js';
+import { loc } from '../js/career/i18n.js';
 
 let fail = 0;
 function ok(cond, msg) { console.log(`  ${cond ? '✓' : '✗ FAIL —'} ${msg}`); if (!cond) fail++; }
@@ -38,7 +39,7 @@ console.log('\n[4] 디비전 미션');
 Club.hardReset();
 const cash0 = Club.club.cash;
 const m1 = checkMission({ result: 'w', cleanSheet: false, ourGoals: 1, oppGoals: 0, tone: 'goal' });
-ok(m1 && m1.title === '첫 승점', `5부 미션 달성: ${m1?.title}`);
+ok(m1 && loc(m1.title) === '첫 승점', `5부 미션 달성: ${loc(m1?.title)}`);
 ok(Club.club.cash > cash0, `보상 지급 (+${(Club.club.cash - cash0)})`);
 ok(checkMission({ result: 'w' }) === null, '이미 달성한 미션은 재보상 없음');
 ok(currentMission().done === true, 'currentMission.done = true');

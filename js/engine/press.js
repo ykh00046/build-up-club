@@ -6,6 +6,7 @@
 import { clamp, dist, PITCH_W, PITCH_H } from '../data/pitch.js';
 import { nearestDefender, evaluateLane } from './space.js';
 import { findSuperiorityZones } from './superiority.js';
+import { t } from '../career/i18n.js';
 
 // midblock/lowblock(E10): 지역 방어 계열 — 사람보다 공간을 지키고 드롭오프가 잦다
 // (마킹 분기는 man/hybrid가 아니라 zonal-like로 폴백). 블록일수록 base commit↓.
@@ -66,13 +67,13 @@ export function createPress(config) {
 
   function deriveAdaptation(r) {
     const a = { lineBias: 0, backDrop: 0, sideBias: 0, commitMul: 1, labelKo: [] };
-    if (r.forwardLine === 'high') { a.backDrop = 4; a.labelKo.push('백라인을 내립니다'); }
-    if (r.forwardLine === 'low') { a.lineBias = -3; a.commitMul *= 1.15; a.labelKo.push('압박 라인을 올립니다'); }
+    if (r.forwardLine === 'high') { a.backDrop = 4; a.labelKo.push(t('press.adapt.dropBack')); }
+    if (r.forwardLine === 'low') { a.lineBias = -3; a.commitMul *= 1.15; a.labelKo.push(t('press.adapt.pushUp')); }
     if (r.overload !== 'balanced') {
       a.sideBias = r.overload === 'high' ? 6 : -6;
-      a.labelKo.push(r.overload === 'high' ? '아래쪽 쏠림을 읽고 블록을 이동합니다' : '위쪽 쏠림을 읽고 블록을 이동합니다');
+      a.labelKo.push(r.overload === 'high' ? t('press.adapt.shiftLow') : t('press.adapt.shiftHigh'));
     }
-    if (r.baity) { a.commitMul *= 0.75; a.labelKo.push('미끼에 신중해집니다'); }
+    if (r.baity) { a.commitMul *= 0.75; a.labelKo.push(t('press.adapt.wary')); }
     a.labelKo = a.labelKo.join(' · ') || null;
     return a;
   }

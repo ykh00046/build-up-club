@@ -5,9 +5,33 @@
 //  - outswing: 달려드는 공격수에게 맞춰 → 지역/블록 마킹에 강함
 //  - short   : 마크를 끌어내 각을 바꿈 → 선택적 점프(하이브리드)에 강함
 export const DELIVERIES = {
-  inswing: { key: 'inswing', label: '인스윙', desc: '골 쪽 회전으로 GK 압박 — 대인·게겐에 강함', strongVs: ['man', 'gegen'] },
-  outswing: { key: 'outswing', label: '아웃스윙', desc: '달려드는 공격수에게 — 지역·블록에 강함', strongVs: ['zonal', 'midblock', 'lowblock'] },
-  short: { key: 'short', label: '숏코너', desc: '마크를 끌어내 각 변경 — 하이브리드에 강함', strongVs: ['hybrid'] },
+  inswing: {
+    key: 'inswing',
+    label: { ko: '인스윙', en: 'Inswing' },
+    desc: {
+      ko: '골 쪽 회전으로 GK 압박 — 대인·게겐에 강함',
+      en: 'Spins toward goal to pressure the keeper — strong vs man-marking and gegenpress',
+    },
+    strongVs: ['man', 'gegen'],
+  },
+  outswing: {
+    key: 'outswing',
+    label: { ko: '아웃스윙', en: 'Outswing' },
+    desc: {
+      ko: '달려드는 공격수에게 — 지역·블록에 강함',
+      en: 'Onto attackers running in — strong vs zonal and block marking',
+    },
+    strongVs: ['zonal', 'midblock', 'lowblock'],
+  },
+  short: {
+    key: 'short',
+    label: { ko: '숏코너', en: 'Short corner' },
+    desc: {
+      ko: '마크를 끌어내 각 변경 — 하이브리드에 강함',
+      en: 'Draws markers out to change the angle — strong vs hybrid',
+    },
+    strongVs: ['hybrid'],
+  },
 };
 
 export const DEFAULT_DELIVERY = 'inswing';

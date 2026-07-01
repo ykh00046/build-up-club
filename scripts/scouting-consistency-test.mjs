@@ -14,6 +14,11 @@ const ok = (condition, message) => {
   if (!condition) fail++;
 };
 
+// 다국어 { ko, en } 필드 검증 — 두 언어 모두 비어있지 않은 문자열인지(선택적 최소 길이).
+const hasText = (v, minLen = 0) =>
+  !!v && typeof v.ko === 'string' && typeof v.en === 'string' &&
+  v.ko.length > minLen && v.en.length > minLen;
+
 // scheme factor 만 격리: momentum=50(±0 factor), fatigue=0, 빈 히스토리,
 // 어떤 lineIntent factor 도 터지지 않는 의도값.
 function cleanState(scheme) {
@@ -42,8 +47,8 @@ const schemes = ['man', 'zonal', 'gegen', 'hybrid', 'midblock', 'lowblock'];
 for (const scheme of schemes) {
   const meta = getScouting(scheme);
   ok(meta !== null, `${scheme}: 스카우팅 메타데이터 존재`);
-  ok(typeof meta.style === 'string' && meta.style.length > 0, `${scheme}: 성향(style) 문구 있음`);
-  ok(typeof meta.weakness === 'string' && meta.weakness.length > 0, `${scheme}: 약점(weakness) 문구 있음`);
+  ok(hasText(meta.style), `${scheme}: 성향(style) 문구 있음(ko/en)`);
+  ok(hasText(meta.weakness), `${scheme}: 약점(weakness) 문구 있음(ko/en)`);
   ok(Array.isArray(meta.recommendActions) && meta.recommendActions.length > 0, `${scheme}: 추천 행동 1개 이상`);
   ok(Array.isArray(meta.cautionActions), `${scheme}: 주의 행동 배열 정의됨`);
 
@@ -64,7 +69,7 @@ ok(lookupSchemes.filter((s) => SCOUTING[s]).length === 6, 'SCOUTING 은 6종 sch
 
 // ── E9: 모든 scheme 에 압박 덫(trap) 서술이 채워짐 ──
 for (const s of ['man', 'zonal', 'gegen', 'hybrid', 'midblock', 'lowblock']) {
-  ok(typeof SCOUTING[s].trap === 'string' && SCOUTING[s].trap.length > 10, `E9: ${s} 압박 덫 서술 존재`);
+  ok(hasText(SCOUTING[s].trap, 10), `E9: ${s} 압박 덫 서술 존재(ko/en)`);
 }
 
 // ── 모든 시나리오 셀의 scheme 이 SCOUTING 키와 일치 (E1/E2 포함) ──

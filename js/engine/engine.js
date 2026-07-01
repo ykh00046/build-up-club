@@ -15,17 +15,26 @@ import { createPress } from './press.js';
 import { findSuperiorityZones, superiorityAt } from './superiority.js';
 import { detectShotZone, resolveShot } from './shots.js';
 import { buildOutcome } from './outcome.js';
+import { applyOpponentBuildStep, applyPossessionEvent } from './possession-adapter.js';
 import { createRng } from './rng.js';
 import {
   applyMatchDecision, createTacticalState, prepareSituations, resolveCounterRisk,
   tacticalFactors, tacticalRiskMultiplier, updateTacticalState,
 } from './tactics.js';
+import { t, getLang } from '../career/i18n.js';
 
 const LONG_PASS_GATE = 0.5;
 
+// Localized label for a log line: Korean gets the josa-attached form (correct
+// particle), English gets the bare label — the English templates read naturally
+// without particles. Keeps the ko output byte-identical to the original josa().
+function jl(label, withB, withoutB) {
+  return getLang() === 'en' ? String(label ?? '') : josa(label, withB, withoutB);
+}
+
 export function createEngine(scenario, seed = Date.now() % 2147483647, options = {}) {
   const rng = createRng(seed);
-  const { intensityOverride } = options;
+  const { intensityOverride, possessionTurnoverLoop = false, opponentBuildDisposition = null } = options;
   const press = createPress({ ...scenario, ...(intensityOverride ? { intensityOverride } : {}) });
 
   const players = [...scenario.buildOurs(), ...scenario.buildOpp()].map((p) => ({
@@ -39,6 +48,7 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
   const state = {
     scenario, seed,
     players,
+    possession: 'us',
     holderId: 'us-gk',
     phase: 'BUILDUP',
     pressure: 22,
@@ -48,12 +58,13 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
     facts: {
       baits: 0, linesBroken: 0, switches: 0, windowsUsed: 0, runs: 0,
       situationsTriggered: 0, situationsResolved: 0, decisionsMade: 0,
-      counterpressWins: 0, secondBalls: 0,
+      counterpressWins: 0, defensivePressWins: 0, secondBalls: 0,
     },
     log: [],
     status: 'live',          // live | over
     outcome: null,
     transition: null,        // 카운터프레스 5초 창 (E1): { kind, detail, loss, msLeft, regainP }
+    defensivePress: null,    // 상대 소유 압박 창: { carrierId, msLeft, regainP, cutP }
     transitionUsed: false,
     lastPassFromByline: false,
     lastPassLofted: false,
@@ -101,7 +112,20 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
     state.cueTone = tone;
   }
 
+  // 상대 압박 공격성 0..1 — 전방·중원 압박수의 jumpiness 평균(게겐 높음, 로우블록 낮음).
+  function pressAggression() {
+    const pressers = opps().filter((d) => d.line === 'front' || d.line === 'mid');
+    if (!pressers.length) return 0;
+    const avg = pressers.reduce((a, p) => a + (p.jumpiness ?? 0.5), 0) / pressers.length;
+    return clamp((avg - 0.4) / 0.5, 0, 1);
+  }
   function addPressure(delta) {
+    // 지침-압박 상호작용: 높은 압박에 build-up 지침(중원 support / 전방 drop)으로 대응하면
+    // 유인·수적우위로 압박이 완화된다. 압박이 셀수록 효과 크고, 낮은 블록엔 거의 무효
+    // (블록 상대엔 드롭이 오히려 무의미 — 밀어붙여야 함). "압박 깨는 원리"를 게임화.
+    if (delta > 0 && (state.lineIntents.mid === 'support' || state.lineIntents.front === 'drop')) {
+      delta *= (1 - pressAggression() * 0.38);
+    }
     state.pressure = clamp(state.pressure + delta, 0, 100);
   }
 
@@ -111,10 +135,10 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
     for (const event of events) {
       if (event.type === 'activated') {
         state.facts.situationsTriggered++;
-        logLine(`${event.situation.title} — ${event.situation.detail}`, 'warn');
+        logLine(`${t(`sit.${event.situation.id}.title`)} — ${t(`sit.${event.situation.id}.detail`)}`, 'warn');
       } else if (event.type === 'resolved') {
         state.facts.situationsResolved++;
-        logLine(`${event.situation.title} 대응 성공 — 상대의 변화를 다시 흔들었습니다.`, 'success');
+        logLine(t('sit.resolvedLog').replace('{x}', t(`sit.${event.situation.id}.title`)), 'success');
       } else if (event.type === 'decision') {
         logLine(`${event.decision.title} — ${event.decision.detail}`, 'warn');
       }
@@ -181,14 +205,14 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
     state.transition = { kind, detail, loss, msLeft: 5000, regainP };
     state.matchDecision = {
       id: 'transition',
-      title: '⚡ 카운터프레스 (5초)',
-      detail: `볼 상실 — 즉시 압박해 되찾거나(${Math.round(regainP * 100)}%) 후퇴하세요.`,
+      title: t('dec.transition.title'),
+      detail: t('dec.transition.detail').replace('{n}', String(Math.round(regainP * 100))),
       choices: [
-        { id: 'cp_press', label: '카운터프레스', desc: '즉시 압박해 되찾기 — 실패 시 역습 노출' },
-        { id: 'cp_retreat', label: '후퇴', desc: '블록으로 복귀해 안전하게 종료' },
+        { id: 'cp_press', label: t('dec.transition.cp_press.label'), desc: t('dec.transition.cp_press.desc') },
+        { id: 'cp_retreat', label: t('dec.transition.cp_retreat.label'), desc: t('dec.transition.cp_retreat.desc') },
       ],
     };
-    logLine('볼 상실 — 카운터프레스 기회! 5초 안에 결정하세요.', 'warn');
+    logLine(t('log.transition.open'), 'warn');
     return true;
   }
 
@@ -205,12 +229,123 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
       state.facts.counterpressWins++;
       state.consecutiveHolds = 0;
       addPressure(-8);
-      logLine('카운터프레스 성공! 높은 곳에서 되찾아 즉시 재공격합니다.', 'success');
+      logLine(t('log.transition.cpWin'), 'success');
       return { ok: true, recovered: true };
     }
-    logLine(choiceId === 'cp_press' ? '카운터프레스 실패 — 역습에 노출됩니다.' : '후퇴 — 블록으로 복귀합니다.',
+    logLine(choiceId === 'cp_press' ? t('log.transition.cpFail') : t('log.transition.retreat'),
       choiceId === 'cp_press' ? 'error' : 'info');
+    if (possessionTurnoverLoop) {
+      const turnover = applyPossessionEvent({ state }, 'turnover');
+      if (turnover) {
+        logLine(t('log.transition.turnover'), 'warn');
+        return { ok: true, recovered: false, turnover };
+      }
+    }
     finishAttempt(tr.kind, tr.detail);
+    return { ok: true, recovered: false };
+  }
+
+  function pressureHunters(point) {
+    return ours()
+      .filter((p) => p.role !== 'GK')
+      .map((p) => ({ p, d: dist(p, point) }))
+      .filter((x) => x.d < 24)
+      .sort((a, b) => a.d - b.d);
+  }
+
+  function defensivePressProb(carrier, hunters) {
+    const near = hunters.filter((x) => x.d < 14).length;
+    const front = state.lineIntents.front === 'pin' ? 0.08 : 0;
+    const mid = state.lineIntents.mid === 'between' ? 0.06 : 0;
+    const momentum = ((state.momentum ?? 50) - 50) / 100 * 0.12;
+    const fatigue = ((state.fatigue ?? 0) / 100) * 0.16;
+    const carrierCalm = (carrier.traits?.pressResistance ?? carrier.traits?.pass ?? 0.65) * 0.18;
+    return clamp(0.22 + near * 0.11 + front + mid + momentum - fatigue - carrierCalm, 0.12, 0.74);
+  }
+
+  function openPressingMode() {
+    if (state.status !== 'live' || anim || state.matchDecision || state.defensivePress) return { ok: false, rejected: true };
+    const current = holder();
+    const anchor = current ?? { x: 52, y: PITCH_H / 2 };
+    const carrier = opps()
+      .filter((p) => p.line !== 'gk')
+      .sort((a, b) => dist(a, anchor) - dist(b, anchor))[0];
+    if (!carrier) return { ok: false, rejected: true };
+    for (const p of players) {
+      p.fx = p.rx ?? p.x; p.fy = p.ry ?? p.y;
+      p.tx = p.x; p.ty = p.y;
+    }
+    state.turn++;
+    state.holderId = carrier.id;
+    state.phase = 'PRESSING';
+    state.currentAction = 'press_mode';
+    const hunters = pressureHunters(carrier);
+    const regainP = defensivePressProb(carrier, hunters);
+    const cutP = clamp(regainP - 0.08 + (state.lineIntents.mid === 'support' ? 0.08 : 0), 0.1, 0.68);
+    state.defensivePress = { carrierId: carrier.id, msLeft: 6000, regainP, cutP };
+    state.matchDecision = {
+      id: 'defensive_press',
+      title: t('dec.defensive_press.title'),
+      detail: t('dec.defensive_press.detail').replace('{x}', carrier.label),
+      choices: [
+        { id: 'dp_press', label: t('dec.defensive_press.dp_press.label'), desc: t('dec.defensive_press.dp_press.desc').replace('{n}', String(Math.round(regainP * 100))) },
+        { id: 'dp_cut', label: t('dec.defensive_press.dp_cut.label'), desc: t('dec.defensive_press.dp_cut.desc').replace('{n}', String(Math.round(cutP * 100))) },
+        { id: 'dp_drop', label: t('dec.defensive_press.dp_drop.label'), desc: t('dec.defensive_press.dp_drop.desc') },
+      ],
+    };
+    addPressure(6);
+    logLine(t('log.defPress.open').replace('{label}', carrier.label), 'warn');
+    return { ok: true, pressing: state.defensivePress };
+  }
+
+  function resetToKeeper(message, tone = 'info') {
+    const gk = ours().find((p) => p.role === 'GK') ?? ours()[0];
+    if (gk) {
+      state.holderId = gk.id;
+      gk.orientation = 'FACING';
+    }
+    state.phase = 'BUILDUP';
+    state.consecutiveHolds = 0;
+    state.defensivePress = null;
+    state.matchDecision = null;
+    addPressure(-12);
+    logLine(message, tone);
+  }
+
+  function resolveDefensivePress(choiceId) {
+    const pressState = state.defensivePress;
+    if (!pressState) return { ok: false, rejected: true };
+    const carrier = byId(pressState.carrierId) ?? holder();
+    state.defensivePress = null;
+    state.matchDecision = null;
+    state.facts.decisionsMade++;
+    if (choiceId === 'dp_drop') {
+      resetToKeeper(t('log.defPress.drop'), 'info');
+      return { ok: true, recovered: false };
+    }
+    const chance = choiceId === 'dp_cut' ? pressState.cutP : pressState.regainP;
+    if (rng.next() < chance) {
+      const rec = pressureHunters(carrier)[0]?.p ?? ours().find((p) => p.role !== 'GK') ?? ours()[0];
+      if (rec) {
+        state.holderId = rec.id;
+        rec.orientation = 'FACING';
+      }
+      state.phase = rec && rec.x > PHASE_LINES.PROGRESSION ? 'PROGRESSION' : 'BUILDUP';
+      state.facts.defensivePressWins++;
+      state.facts.situationsResolved++;
+      state.consecutiveHolds = 0;
+      addPressure(-14);
+      logLine(choiceId === 'dp_cut'
+        ? t('log.defPress.cutWin')
+        : t('log.defPress.pressWin'),
+      'success');
+      return { ok: true, recovered: true };
+    }
+    logLine(choiceId === 'dp_cut'
+      ? t('log.defPress.cutFail')
+      : t('log.defPress.pressFail'),
+    'error');
+    finishAttempt('press_broken', { carrier, choiceId });
     return { ok: true, recovered: false };
   }
 
@@ -230,11 +365,6 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
     front: { pin: { off: 0, gap: 0.5 }, drop: { off: -11, gap: 9 } },
     mid: { between: { off: 0, gap: 0.5 }, support: { off: -8, gap: 0.5 } },
     back: { overlap: { off: 14, gap: 0.5 }, hold: { off: 0, gap: 0.5 } },
-  };
-  const INTENT_KO = {
-    front: { pin: '라인 밀어내기', drop: '내려와 연결' },
-    mid: { between: '라인 사이 침투', support: '빌드업 보조' },
-    back: { overlap: '풀백 전진', hold: '후방 안정' },
   };
 
   function lineGroupOf(p) {
@@ -283,6 +413,26 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
     const h = holder();
     const ballX = h?.x ?? 20;
     const ballY = h?.y ?? PITCH_H / 2;
+    // 바이라인 돌파: 홀더가 깊고(x>88) 측면(y 바깥)이면 컷백 국면 — ST가 페널티 스폿으로
+    // 파고들어 풀백(뒤로 빼는 패스)을 받는다. 바이라인 패스는 오프사이드가 아니다.
+    const carrierWide = !!h && (h.y < 20 || h.y > PITCH_H - 20);
+    const carrierByline = carrierWide && h.x > 88;
+    // 컷백 전개(도착 타이밍): 측면 캐리어가 x>66(파이널서드 위치)로 깊어지면 러너가
+    // 바이라인(x>88) 도달을 기다리지 않고 미리 도착런을 시작한다. 이전엔 x>88에서야
+    // 트리거돼 러너가 오프사이드 라인에 묶여 있다가 늘 늦었고 — 컷백 대상이 박스에
+    // 없었다(실플레이 확인). 위치 기반이라 phase 갱신 지연(maybeAdvancePhase가
+    // pressReact 뒤)에도 즉시 켜진다. 측면 전진에만 반응하므로 중앙 빌드업엔 무영향.
+    const cutbackDeveloping = carrierByline || (carrierWide && h.x > 66);
+    const carrierSide = h ? (h.y < PITCH_H / 2 ? 'low' : 'high') : null;
+    // 지원 앵커: 컷백 전개 시 가장 깊은 중앙 미드(DM/6/8) 한 명을 골라 캐리어 뒤에
+    // 남겨 짧은 안전 리사이클 아웃렛을 만든다. 포메이션마다 role 문자열이 달라
+    // (DM/8/6) 문자열이 아닌 homeX 최소값으로 선정. 없으면 앵커 없음.
+    let anchorId = null;
+    if (cutbackDeveloping) {
+      const pivots = ours().filter((p) => ['DM', '6', '8'].includes(p.role));
+      pivots.sort((a, b) => a.homeX - b.homeX);
+      anchorId = pivots[0]?.id ?? null;
+    }
 
     // Y-pull strengths per line — mids track the ball side most aggressively,
     // backs shift with the block, forwards keep formation width to stretch the
@@ -297,9 +447,53 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
       const push = clamp((ballX - 18) * pushCfg.k, 0, pushCfg.cap);
       // 90 cap: off-ball players hold the box edge — camping the goalmouth
       // ratchets the opp line backward via separation. (P1a)
-      const want = clamp(Math.min(p.homeX + push + cfg.off, line - cfg.gap, 95), 4, PITCH_W - 3);
+      // 오프볼 침투런: 전방 선수(ST/W)는 빌드업을 벗어나면 오프사이드 라인 끝까지
+      // 적극 전진해 공보다 앞서고(전진 패스 옵션), 라인이 물러나면 배후를 노린다.
+      // 온사이드를 유지하므로 공짜 오프사이드가 아니라 "라인을 끌어내려" 공간을 연다.
+      const isRunner = (p.role === 'ST' || p.role === 'W');
+      const isLateRunner = (p.role === '8' || p.role === '10') && state.phase === 'FINAL_THIRD';
+      const advancing = state.phase === 'PROGRESSION' || state.phase === 'FINAL_THIRD' || ballX > 42;
+      // 반대쪽 윙(캐리어 반대편)은 백포스트로 침투 — 컷백/크로스의 제2 도착 옵션.
+      const farSideW = p.role === 'W' && carrierSide
+        && ((carrierSide === 'low' && p.homeY > PITCH_H / 2) || (carrierSide === 'high' && p.homeY < PITCH_H / 2));
+      // 지원 앵커: 측면 높이 커밋 시 피벗('6')은 박스로 쇄도하지 않고 캐리어 ~13m
+      // 뒤·안쪽에 남아 짧은 안전 리사이클(백패스) 아웃렛을 제공한다. 이게 없으면
+      // 가장 가까운 후방 동료도 25~35m라 리사이클이 롱볼 리스크가 커 — 캐리어가
+      // 고립돼 "읽히면 그냥 잃던" 문제의 짝. 전방은 쇄도, 한 명은 탈출구로 트레일.
+      const isSupportAnchor = cutbackDeveloping && p.id === anchorId;
+      let want;
+      if (cutbackDeveloping && (p.role === 'ST' || p.role === '10')) {
+        // 컷백 도착: 페널티 스폿(컷백 존 x90.5~99.5)으로 파고들어 풀백을 받는다.
+        want = clamp(PITCH_W - 12, 4, PITCH_W - 3);   // ~93 (penaltySpotX)
+      } else if (cutbackDeveloping && farSideW) {
+        // 백포스트 도착 — 컷백이 뒤로 흐르거나 크로스가 넘어올 때의 제2 마무리 지점.
+        want = clamp(PITCH_W - 7, 4, PITCH_W - 3);    // ~98 back post
+      } else if (isSupportAnchor) {
+        want = clamp((h?.x ?? ballX) - 13, 4, PITCH_W - 3);   // 캐리어 뒤 지원
+      } else if (isRunner && advancing) {
+        const depthCap = state.phase === 'FINAL_THIRD' ? 97 : 95;   // 파이널서드선 박스 가장자리까지 침투
+        want = clamp(Math.min(line - 0.6, depthCap), 4, PITCH_W - 3);
+      } else if (isLateRunner) {
+        // 서드맨 런: 8/10이 파이널서드에 박스 가장자리로 늦게 침투 — 중앙 마무리 옵션(다양성).
+        want = clamp(Math.min(line - 3.5, 93), 4, PITCH_W - 3);
+      } else {
+        want = clamp(Math.min(p.homeX + push + cfg.off, line - cfg.gap, 95), 4, PITCH_W - 3);
+      }
       const dx = want - p.x;
-      if (Math.abs(dx) > 0.3) {
+      const isArrivalRunner = cutbackDeveloping && (p.role === 'ST' || p.role === '10' || farSideW);
+      if (isArrivalRunner) {
+        // 컷백 도착런: 액션당 이동이 dt(≈0.3 고정)로 작아 고정거리로는 3~4액션짜리
+        // 돌파에서 러너가 박스에 못 닿았다(컷백 대상 부재의 근본 원인). 한 액션은
+        // ≈수 초를 압축하므로 스프린트로 갭의 큰 비율을 좁힌다 — 캐리어의 바이라인
+        // 도달에 맞춰 페널티 스폿/백포스트에 실제로 도착.
+        p.x = clamp(p.x + dx * 0.6, 2, PITCH_W - 2);
+        p.tx = p.x;
+      } else if (isSupportAnchor) {
+        // 앵커도 캐리어(액션당 크게 전진)를 따라붙어 리사이클 거리(~13m)를 유지하도록
+        // 비율 close로 페이스를 맞춘다. 고정거리(16·dt)로는 캐리어에 뒤처졌다.
+        p.x = clamp(p.x + dx * 0.5, 2, PITCH_W - 2);
+        p.tx = p.x;
+      } else if (Math.abs(dx) > 0.3) {
         p.x = clamp(p.x + Math.sign(dx) * Math.min(10 * dt, Math.abs(dx)), 2, PITCH_W - 2);
         p.tx = p.x;
       }
@@ -313,7 +507,17 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
       const yPull = Y_PULL[grp] ?? 0.10;
       let wantY = p.homeY + (ballY - p.homeY) * yPull;
 
-      if (state.phase === 'FINAL_THIRD') {
+      if (cutbackDeveloping && (p.role === 'ST' || p.role === '10')) {
+        // 컷백 도착 — 페널티 스폿 중앙(컷백 존)으로 강하게 좁힘.
+        wantY = lerp(wantY, PITCH_H / 2, 0.65);
+      } else if (cutbackDeveloping && farSideW) {
+        // 백포스트 — 캐리어 반대쪽 포스트 라인으로.
+        const backPost = carrierSide === 'low' ? PITCH_H / 2 + 8 : PITCH_H / 2 - 8;
+        wantY = lerp(wantY, backPost, 0.6);
+      } else if (isSupportAnchor) {
+        // 지원 앵커는 캐리어와 중앙 사이 안쪽으로 — 짧고 안전한 리사이클 각도.
+        wantY = lerp(ballY, PITCH_H / 2, 0.5);
+      } else if (state.phase === 'FINAL_THIRD') {
         if (p.role === 'W') {
           // Wingers tuck in toward their near-post angle — not the centre,
           // so they arrive on the edge of the box rather than crowding the 6yd.
@@ -323,11 +527,18 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
           // Striker gravitates to penalty-spot Y — slight pull from ball side
           // so a cross from either flank finds them near the centre.
           wantY = lerp(wantY, PITCH_H / 2, 0.35);
+        } else if (p.role === '8' || p.role === '10') {
+          // 서드맨 늦은 침투 — 중앙 박스로 살짝 좁혀 마무리 지점에 도착.
+          wantY = lerp(wantY, PITCH_H / 2, 0.3);
         }
       }
 
       const dy = clamp(wantY, 2, PITCH_H - 2) - p.y;
-      if (Math.abs(dy) > 0.3) {
+      if (isArrivalRunner || isSupportAnchor) {
+        // 도착런/지원 앵커는 x와 함께 y도 같은 비율로 좁혀 제자리(컷백 존/안쪽 지원)에 도달.
+        p.y = clamp(p.y + dy * 0.6, 2, PITCH_H - 2);
+        p.ty = p.y;
+      } else if (Math.abs(dy) > 0.3) {
         p.y = clamp(p.y + Math.sign(dy) * Math.min(6 * dt, Math.abs(dy)), 2, PITCH_H - 2);
         p.ty = p.y;
       }
@@ -344,10 +555,10 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
     // §6.4 shape reading: surface the recognition delay so the player can
     // feel (and exploit) the window before the press adjusts.
     if (reaction.shapeAdapted) {
-      logLine(`상대가 적응했습니다 — ${reaction.shapeAdapted}`, 'warn');
+      logLine(t('log.shapeAdapted').replace('{x}', reaction.shapeAdapted), 'warn');
       shapePendingLogged = false;
     } else if (reaction.shapePending && !shapePendingLogged) {
-      logLine('상대가 우리 배치 변화를 읽는 중입니다 — 지금이 기회입니다.', 'info');
+      logLine(t('log.shapePending'), 'info');
       shapePendingLogged = true;
     } else if (!reaction.shapePending) {
       shapePendingLogged = false;
@@ -355,7 +566,7 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
     if (reaction.rewardWindow) {
       state.rewardWindow = reaction.rewardWindow;
       if (reaction.rewardWindow.kind === 'real') {
-        logLine(`${byId(reaction.committerId)?.label ?? '압박수'}가 튀어나왔습니다 — 등 뒤가 비었습니다!`, 'success');
+        logLine(t('log.committerJump').replace('{label}', byId(reaction.committerId)?.label ?? t('log.presser')), 'success');
       }
     }
     // Counter-drop fork log: when a marker chooses to HOLD rather than follow
@@ -363,7 +574,7 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
     // player knows to exploit it before the situation closes.
     if (reaction.forkHeld?.length > 0) {
       const mark = byId(reaction.forkHeld[0].markId);
-      if (mark) logLine(`${josa(mark.label, '이', '가')} 내려오는데 마커가 따라오지 않습니다 — 발 밑으로 받을 수 있습니다!`, 'success');
+      if (mark) logLine(t('log.forkHeld').replace('{label}', jl(mark.label, '이', '가')), 'success');
     }
     // Beaten defenders are frozen inside positionBlock (separation-aware);
     // here we only tick the freeze down.
@@ -402,8 +613,14 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
       if (dd < do_) { do_ = dd; no = d; }
     }
     const du = receiver ? dist(receiver, landing) : Infinity;
-    const contested = du < do_ + 2.5;   // 러너가 충분히 가까움 → 세컨볼 경합
-    if (contested && rng.next() < 0.5) return { result: 'loose', receiver, winner: no };
+    // 착지 경합 — 도착 우위를 반영(기존 단조로운 50/50 제거). 러너가 착지점에
+    // 명백히 가까울수록(margin↑) 확실히 이기고, 수비수가 더 가까우면 뺏긴다.
+    // "우리가 먼저 잡을 공간"이면 실제로 대체로 잡는다.
+    const margin = do_ - du;                              // 양수면 우리가 앞섬(m)
+    // dead-heat(margin 0)는 수비수 약간 우세(0.42) — 진짜 50/50 볼은 깔끔히 잡기 어렵다.
+    // 러너가 명백히 앞설수록 급격히 우리 쪽(최대 0.88). 우위가 결과를 가른다.
+    const usWinP = clamp(0.42 + margin * 0.1, 0.06, 0.88);
+    if (rng.next() < usWinP) return { result: 'loose', receiver, winner: receiver };
     return { result: 'opp', winner: no };
   }
 
@@ -461,23 +678,23 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
         .filter((o) => o.ev.risk < 0.45)
         .sort((a, b) => b.p.x - a.p.x)[0];
       const tip = midFree
-        ? ` — ${josa(midFree.p.label, '이', '가')} 라인 사이에서 열려 있습니다`
-        : ' — 라인 사이에서 전개하세요';
-      logLine(`빌드업 돌파 — 전진 단계입니다${tip}.`, 'success');
+        ? t('log.tip.midFree').replace('{label}', jl(midFree.p.label, '이', '가'))
+        : t('log.tip.midGeneric');
+      logLine(t('log.phase.progression').replace('{tip}', tip), 'success');
     } else if (state.phase === 'PROGRESSION' && h.x > PHASE_LINES.FINAL_THIRD) {
       state.phase = 'FINAL_THIRD';
       addPressure(-6);
       // Suggest the scenario target shot or the most open finishing runner.
       const targetTip = state.scenario?.targetShot
-        ? ` — 목표: ${state.scenario.targetShot}`
+        ? t('log.tip.target').replace('{x}', state.scenario.targetShot)
         : '';
       const boxRunner = ours()
         .filter((p) => p.id !== h.id && (p.role === 'W' || p.role === 'ST'))
         .map((p) => ({ p, ev: evaluateLane(h, p, opps(), {}) }))
         .filter((o) => o.ev.risk < 0.50)
         .sort((a, b) => a.ev.risk - b.ev.risk)[0];
-      const runTip = boxRunner ? ` · ${boxRunner.p.label} 마무리 가능` : '';
-      logLine(`파이널 서드${targetTip}${runTip}.`, 'success');
+      const runTip = boxRunner ? t('log.tip.runner').replace('{label}', boxRunner.p.label) : '';
+      logLine(t('log.phase.finalThird').replace('{target}', targetTip).replace('{run}', runTip), 'success');
     }
   }
 
@@ -501,6 +718,9 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
   }
 
   function isOffside(point) {
+    // 오프사이드는 "공보다 앞선" 선수에게만 적용된다. 공보다 뒤(골에서 먼 쪽)로
+    // 빼주는 패스(바이라인 풀백=컷백, 백패스)의 수신자는 라인 너머라도 온사이드.
+    if (point.x <= (holder()?.x ?? 0)) return false;
     return point.x > offsideLine(opps()) + 0.2;
   }
 
@@ -508,7 +728,7 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
   function resolvePassTo(target, { lofted = false, viaLabel = null, extraRisk = 0, autoLob = false } = {}) {
     const from = holder();
     if (isOffside(target)) {
-      return fail(`${josa(target.label, '은', '는')} 오프사이드 위치입니다 — 라인 뒤에서는 받을 수 없습니다.`);
+      return fail(t('log.offside').replace('{label}', jl(target.label, '은', '는')));
     }
     // Lob option — a RESCUE, not an optimizer (review Major 4): only when the
     // ground lane is genuinely cut (≥0.45) and the chip is clearly better.
@@ -585,10 +805,10 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
       }
     });
 
-    let msg = viaLabel ? `${viaLabel} → ${target.label}` : `${target.label}에게 연결`;
-    if (useLofted && !lofted) msg += ' — 로빙으로 넘김';
-    if (broken > 0) msg += ` — 라인 ${broken}개 통과`;
-    if (usedWindow) msg += ' — 열린 공간 활용!';
+    let msg = viaLabel ? `${viaLabel} → ${target.label}` : t('log.pass.toTarget').replace('{label}', target.label);
+    if (useLofted && !lofted) msg += t('log.pass.lofted');
+    if (broken > 0) msg += t('log.pass.linesBroken').replace('{x}', String(broken));
+    if (usedWindow) msg += t('log.pass.window');
     const _hint = _quickHint(target);
     if (_hint) msg += ` ${_hint}`;
     logLine(msg, broken > 0 || usedWindow ? 'success' : 'info');
@@ -599,7 +819,7 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
   const actions = {
     to_feet(targetId) {
       const target = byId(targetId);
-      if (!target || target.side !== 'us' || target.id === state.holderId) return fail('받을 동료를 선택하세요.');
+      if (!target || target.side !== 'us' || target.id === state.holderId) return fail(t('log.fail.toFeet'));
       return resolvePassTo(target, { autoLob: true });
     },
 
@@ -608,13 +828,13 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
     // 흡수 — 멀면 자동 로빙. 발밑(to_feet)은 선수 선택으로 별도 유지.
     pass_space(_t, point) {
       const from = holder();
-      if (!point) return fail('패스할 공간을 클릭하세요.');
+      if (!point) return fail(t('log.fail.passPoint'));
       const aim = { x: clamp(point.x, 2, PITCH_W - 2), y: clamp(point.y, 2, PITCH_H - 2) };
       const d = dist(from, aim);
-      if (d < 4) return fail('너무 가깝습니다 — 운반을 쓰세요.');
+      if (d < 4) return fail(t('log.fail.tooClose'));
       const lofted = d > 28;
       if (lofted && (from.traits?.longPass ?? 0) < LONG_PASS_GATE) {
-        return fail(`${from.label}의 롱패스 정확도로는 닿지 않는 거리입니다.`);
+        return fail(t('log.fail.longRange').replace('{label}', from.label));
       }
       // 정확도 산포 — 거리·패스 능력치·몸 방향(등질수록 부정확). 능력치가 해결.
       const pass = from.traits?.pass ?? 0.7;
@@ -639,7 +859,7 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
         const dd = dist(p, landing);
         if (dd < du) { du = dd; nu = p; }
       }
-      if (!nu) return fail('받을 동료가 근처에 없습니다.');
+      if (!nu) return fail(t('log.fail.noReceiver'));
       const ev = evaluateLane(from, landing, opps(), { lofted, rewardWindow: activeWindow() });
       const reachPenalty = clamp((du - 6) / 16, 0, 0.4); // 동료가 착지점에서 멀면 위험↑
       const risk = clamp((ev.risk + reachPenalty) * (1.1 - pass * 0.25) * tacRiskMul(state.currentAction), 0.02, 0.97);
@@ -650,6 +870,17 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
         const c = resolveLanding(landing, nu);
         if (c.result !== 'loose') {
           const interceptor = c.winner ?? ev.interceptor ?? nearestDefender(landing, opps()).defender;
+          // 컷백 자책골(실제 자책골 1위 유형): 바이라인에서 박스로 낮게 깔린 공간 패스를
+          // 깊은 수비수가 걷어내려다 자기 골문으로. 공간볼이 박스를 가로지를 때 "터진다".
+          const isCutback = fromPos.x > 90 && (fromPos.y < 16 || fromPos.y > PITCH_H - 16)
+            && Math.abs(landing.y - PITCH_H / 2) < 14 && landing.x > 88;
+          if (isCutback && interceptor && interceptor.x > 92 && rng.next() < 0.16) {
+            pressReact({ type: 'pass', trigger: 'pass' });
+            startAnim({ from: fromPos, to: { x: interceptor.x, y: interceptor.y }, lofted }, 620, () => {
+              endAttempt('own_goal', { interceptor });
+            });
+            return { ok: false };
+          }
           pressReact({ type: 'pass', trigger: 'pass' });
           startAnim({ from: fromPos, to: landing, lofted }, lofted ? 950 : 700, () => {
             endAttempt('intercepted', { interceptor, reason: 'contest', risk });
@@ -665,7 +896,10 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
       state.consecutiveHolds = 0;
       nu.orientation = computeOrientation(nu, opps(), { moving: true });
       state.lastPassLofted = lofted;
-      state.lastPassFromByline = false;
+      // 컷백 = 공간 패스: 바이라인(from x>90·측면)에서 박스 중앙 공간으로 빼주면 컷백.
+      // 받은 선수가 컷백 존이면 높은 xG. (발밑이 아닌 공간으로 — 뛰어드는 것)
+      state.lastPassFromByline = fromPos.x > 90 && (fromPos.y < 16 || fromPos.y > PITCH_H - 16)
+        && Math.abs(landing.y - PITCH_H / 2) < 14 && landing.x > 88;
       state.lastPassCross = lofted && Math.abs(fromPos.y - PITCH_H / 2) > 16 && Math.abs(landing.y - PITCH_H / 2) < 12 && landing.x > 78;
       windowUseCheck(landing);
       if (loose) { addPressure(10); state.facts.secondBalls = (state.facts.secondBalls || 0) + 1; }
@@ -678,8 +912,8 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
         if (trapped) endAttempt('trapped', { holder: nu });
       });
       logLine(loose
-        ? `세컨볼 경합 — ${josa(nu.label, '이', '가')} 압박 속에 따냈습니다.`
-        : `${josa(nu.label, '이', '가')} 공간에서 받았습니다.`,
+        ? t('log.pass.secondBall').replace('{label}', jl(nu.label, '이', '가'))
+        : t('log.pass.received').replace('{label}', jl(nu.label, '이', '가')),
         loose ? 'warn' : 'success');
       return { ok: true };
     },
@@ -699,10 +933,10 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
         const prevOrient = h.orientation;
         h.orientation = computeOrientation(h, opps());
         if (prevOrient !== 'BACK' && h.orientation === 'BACK') {
-          logLine(`${josa(h.label, '이', '가')} 마커에 막혔습니다 — 리턴이 가장 안전합니다.`, 'warn');
+          logLine(t('log.holdBlocked').replace('{label}', jl(h.label, '이', '가')), 'warn');
         } else if (h.orientation === 'BACK') {
           const _escHint = _quickHint(h);
-          if (_escHint) logLine(`등진 상태 지속 — ${_escHint.replace('→ ', '')}`, 'warn');
+          if (_escHint) logLine(t('log.holdBackPersist').replace('{x}', _escHint.replace('→ ', '')), 'warn');
         }
       }
       const reaction = pressReact({ type: 'hold', trigger: 'hold' });
@@ -713,9 +947,9 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
       if (reaction.decision === 'full_commit') {
         // window log already emitted in pressReact
       } else if (reaction.decision === 'drop_off') {
-        logLine('상대가 미끼를 물지 않고 물러섭니다 — 블록이 내려앉습니다.', 'info');
+        logLine(t('log.hold.dropOff'), 'info');
       } else {
-        logLine('상대가 버팁니다. 압박이 조여옵니다…', 'warn');
+        logLine(t('log.hold.squeeze'), 'warn');
       }
       startAnim(null, 450, null);
       return { ok: true };
@@ -723,7 +957,7 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
 
     carry(_targetId, point) {
       const h = holder();
-      if (!point) return fail('운반할 지점을 클릭하세요.');
+      if (!point) return fail(t('log.fail.carryPoint'));
       const maxCarry = carryRange(h.traits);   // 공을 달면 느리다 — pace·볼 컨트롤로 5~10m
       const d = dist(h, point);
       const to = d > maxCarry
@@ -776,22 +1010,22 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
       pressReact({ type: 'carry', trigger: 'carry', dist: dist(h, to) });
       maybeAdvancePhase();
       startAnim({ from: fromPos, to, lofted: false, withHolder: true }, 650, null);
-      logLine(`${josa(h.label, '이', '가')} 공을 운반하며 압박을 시험합니다.`, 'info');
+      logLine(t('log.carry.probe').replace('{label}', jl(h.label, '이', '가')), 'info');
       return { ok: true };
     },
 
     shoot() {
       const h = holder();
-      if (state.phase !== 'FINAL_THIRD') return fail('아직 슛 단계가 아닙니다 — 파이널 서드까지 전진하세요.');
+      if (state.phase !== 'FINAL_THIRD') return fail(t('log.fail.notFinalThird'));
       const zone = detectShotZone(h, state);
-      if (!zone) return fail('유효한 슛 존이 아닙니다. 컷백/하프스페이스/센트럴 D를 만들어 보세요.');
+      if (!zone) return fail(t('log.fail.noShotZone'));
       const res = resolveShot(h, zone, state, rng);
       state.phase = 'SHOT';
       const goalMouth = { x: PITCH_W - 0.5, y: PITCH_H / 2 + rng.range(-3, 3) };
       startAnim({ from: { x: h.x, y: h.y }, to: goalMouth, lofted: false }, 700, () => {
         endAttempt(res.result, { shooter: h, zone, xg: res.xg });
       });
-      logLine(`${h.label}의 슛 — ${zone.ko}!`, 'info');
+      logLine(t('log.shot').replace('{label}', h.label).replace('{zone}', getLang() === 'en' ? (zone.en ?? zone.ko) : zone.ko), 'info');
       return { ok: true };
     },
   };
@@ -849,8 +1083,8 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
     }
     if (!best) return null;
     const { actionId, mate, winBonus } = best;
-    if (winBonus > 0.3) return `→ ${mate.label}으로 열린 공간 마감 기회!`;
-    if (actionId === 'pass_space' && bestScore > 0.7) return `→ ${mate.label} 앞 공간으로 패스`;
+    if (winBonus > 0.3) return t('log.hint.windowFinish').replace('{label}', mate.label);
+    if (actionId === 'pass_space' && bestScore > 0.7) return t('log.hint.spaceAhead').replace('{label}', mate.label);
     return null;
   }
 
@@ -868,7 +1102,8 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
       }
       if (state.status !== 'live' || anim) return { ok: false, rejected: true };
       // 전환 국면 동안은 일반 액션을 막는다 — 카운터프레스/후퇴만 가능(E1).
-      if (state.transition) return { ok: false, rejected: true, message: '전환 국면 — 카운터프레스/후퇴를 선택하세요.' };
+      if (state.transition) return { ok: false, rejected: true, message: t('log.reject.transition') };
+      if (state.matchDecision) return { ok: false, rejected: true, message: t('log.reject.decision') };
       const fn = actions[actionId];
       if (!fn) return { ok: false, rejected: true };
       // Snapshot render positions as animation start, and default every
@@ -882,7 +1117,7 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
       logSituationEvents(prepareSituations(state, actionId));
       state.lastTacticalFactors = tacticalFactors(state, actionId);
       // Buildup clock: dawdling lets the press settle — with fair warning.
-      if (state.turn === 12) logLine('너무 오래 끌고 있습니다 — 2턴 뒤부터 압박이 가속됩니다.', 'warn');
+      if (state.turn === 12) logLine(t('log.clock.dawdle'), 'warn');
       if (state.turn > 14) addPressure(5);
       const result = fn(targetId, point);
       if (result.rejected) state.turn--;
@@ -983,6 +1218,10 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
         state.transition.msLeft -= dtMs;
         if (state.transition.msLeft <= 0) resolveTransition('cp_retreat');
       }
+      if (state.defensivePress && state.status === 'live') {
+        state.defensivePress.msLeft -= dtMs;
+        if (state.defensivePress.msLeft <= 0) resolveDefensivePress('dp_drop');
+      }
       if (!anim) return false;
       anim.t += dtMs;
       const t = clamp(anim.t / anim.duration, 0, 1);
@@ -1028,7 +1267,7 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
         level: p,
         ring: clamp((p - 0.25) / 0.75, 0, 1),
         vignette: clamp((p - 0.5) / 0.5, 0, 1) * 0.4,
-        shout: p >= 0.92 ? '빨리 빨리!' : p >= 0.78 ? '빨리!' : null,
+        shout: p >= 0.92 ? t('log.shout.urgent') : p >= 0.78 ? t('log.shout.hurry') : null,
         holderThreat: press.holderThreat(state),
       };
     },
@@ -1097,8 +1336,8 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
       const top = results.slice(0, limit);
       if (top[0]) {
         const { action, target, score } = top[0];
-        if (action === 'pass_space') top[0].why = `${target.label} 앞 공간으로 패스`;
-        else top[0].why = `${target.label}에게 안전 연결 (score ${score.toFixed(2)})`;
+        if (action === 'pass_space') top[0].why = t('log.why.spaceAhead').replace('{label}', target.label);
+        else top[0].why = t('log.why.safeLink').replace('{label}', target.label).replace('{x}', score.toFixed(2));
       }
       return top;
     },
@@ -1114,19 +1353,45 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
         const resolved = resolveCounterRisk(state);
         if (resolved.length) {
           state.facts.situationsResolved += resolved.length;
-          logLine('역습 경고 대응 — 풀백이 자리를 지키며 후방 균형을 회복했습니다.', 'success');
+          logLine(t('log.counterResolved'), 'success');
         }
       }
       if (!silent && state.status === 'live') {
-        logLine(`${{ front: '전방', mid: '중원', back: '후방' }[group]} → ${INTENT_KO[group][intent]} — 상대가 다시 읽기 전까지가 기회입니다.`, 'info');
+        const groupLabel = t({ front: 'dr.front', mid: 'dr.mid', back: 'dr.back' }[group]);
+        const intentLabel = t(`log.intent.${group}.${intent}`);
+        logLine(t('log.lineIntent.change').replace('{group}', groupLabel).replace('{intent}', intentLabel), 'info');
       }
       return true;
+    },
+
+    openPressingMode,
+
+    advanceOpponentBuildUp(options = {}) {
+      if (!possessionTurnoverLoop) return { ok: false, rejected: true };
+      const disposition = options.disposition ?? opponentBuildDisposition;
+      const step = applyOpponentBuildStep({ state }, {
+        ...options,
+        disposition,
+        rng: options.rng ?? (disposition ? rng.next : undefined),
+      });
+      if (step?.stalled) {
+        const regain = applyPossessionEvent({ state }, 'press_regain', { at: step.at, regainSide: 'us' });
+        if (regain) {
+          logLine(t('log.oppStall'), 'success');
+          return { ...step, regained: true, regain };
+        }
+      }
+      return step ?? { ok: false, rejected: true };
     },
 
     chooseSituationOption(choiceId) {
       // 카운터프레스 전환 창의 선택은 별도 경로로 처리(E1).
       if (state.transition) {
         if (choiceId === 'cp_press' || choiceId === 'cp_retreat') return resolveTransition(choiceId);
+        return { ok: false, rejected: true };
+      }
+      if (state.defensivePress) {
+        if (choiceId === 'dp_press' || choiceId === 'dp_cut' || choiceId === 'dp_drop') return resolveDefensivePress(choiceId);
         return { ok: false, rejected: true };
       }
       if (state.status !== 'live') return { ok: false, rejected: true };

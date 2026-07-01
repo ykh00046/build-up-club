@@ -17,16 +17,27 @@
     * { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
       /* 방송(broadcast) 테마 — Build-Up Club 디자인 리스킨 (틸→코발트 블루) */
-      --bg: #0a0e14;
-      --panel: #0e1822;
-      --panel-2: #18222e;
-      --line: #1c2733;
-      --text: #eef3f7;
-      --text-muted: #8a99a8;
+      /* v2 리프트: 더 깊은 명암 + 입체감(패널 대비↑·테두리↑·그림자 토큰) */
+      --bg: #070b11;           /* 더 깊은 베이스 */
+      --panel: #111e2b;        /* 배경 대비↑ → 카드가 떠 보임 */
+      --panel-2: #1b2b3b;
+      --line: #28394c;         /* 테두리 가시성↑ → 윤곽이 또렷 */
+      --text: #eef4f9;
+      --text-muted: #8b9bac;
       --accent: #4d8bff;       /* 코발트 블루 (주 액센트) */
+      --accent-2: #57e3c4;     /* 보조 액센트 (전진·성공 강조) */
       --warn: #ffc24b;         /* 골드 (경제·강조) */
       --danger: #ff5a6e;       /* 방송 레드 (LIVE·위험) */
       --teal: #34d6c2;         /* 보조 (수비 바 등) */
+      --energy: #19e9c0;       /* 일렉트릭 에너지 (CTA·라이브·강조 글로우) */
+      /* 입체 + 글로우 토큰 (대담한 방송) */
+      --elev-1: 0 6px 20px -8px rgba(0,0,0,0.55);
+      --elev-2: 0 28px 64px -20px rgba(0,0,0,0.7), 0 2px 0 0 rgba(255,255,255,0.04) inset;
+      --hairline: 0 0 0 1px rgba(255,255,255,0.04) inset;
+      --surface: linear-gradient(180deg, var(--panel-2), var(--panel));
+      --glow-accent: 0 0 0 1px rgba(77,139,255,0.5), 0 8px 30px -6px rgba(77,139,255,0.55);
+      --glow-energy: 0 0 0 1px rgba(25,233,192,0.55), 0 10px 34px -6px rgba(25,233,192,0.5);
+      --skew: -11deg;          /* 방송 그래픽 사선 */
     }
     html, body { height: 100%; background: var(--bg); color: var(--text); font-family: 'Saira', ui-sans-serif, system-ui, "Pretendard Variable", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif; }
     body { display: grid; grid-template-rows: auto 1fr; min-height: 100vh; }
@@ -38,20 +49,21 @@
     .scenario-picker select { background: var(--panel-2); color: var(--text); border: 1px solid var(--line); border-radius: 4px; padding: 4px 8px; font-size: 12px; cursor: pointer; }
     .scenario-picker select:hover { border-color: var(--accent); }
 
-    main { display: grid; grid-template-columns: 1fr 300px; gap: 12px; padding: 12px; min-height: 0; }
+    /* 피치-퍼스트: 단일 컬럼(피치 풀폭). 정보 패널은 온디맨드 드로어로 분리. */
+    main { display: grid; grid-template-columns: 1fr; gap: 12px; padding: 12px; min-height: 0; }
 
     .pitch-wrap { position: relative; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; min-height: 0; }
-    .pitch-bar { padding: 8px 12px; border-bottom: 1px solid var(--line); display: flex; gap: 14px; align-items: center; font-size: 12px; color: var(--text-muted); }
+    .pitch-bar { padding: 5px 12px; border-bottom: 1px solid var(--line); display: flex; gap: 12px; align-items: center; font-size: 12px; color: var(--text-muted); }
     .phase-chip { background: var(--panel-2); padding: 4px 10px; border-radius: 4px; color: var(--text); letter-spacing: 0.5px; font-weight: 600; font-family: 'Saira Condensed', sans-serif; transition: color 0.3s ease, background 0.3s ease; }
     .phase-chip[data-phase="PROGRESSION"] { color: var(--warn); }
     .phase-chip[data-phase="FINAL_THIRD"], .phase-chip[data-phase="SHOT"] { color: var(--accent); }
     /* 매치 스코어버그(방송 매치업 바) */
-    .scorebug { display: flex; align-items: center; justify-content: center; gap: 16px; padding: 8px 14px; background: linear-gradient(180deg, var(--panel), var(--panel-2)); border-bottom: 1px solid var(--line); flex-shrink: 0; }
+    .scorebug { display: inline-flex; align-items: center; gap: 9px; flex-shrink: 0; }
     .scorebug[hidden] { display: none; }
     .sb-team { display: flex; align-items: center; gap: 9px; }
-    .sb-name { font-family: 'Saira Condensed', sans-serif; font-weight: 800; font-size: 16px; letter-spacing: 0.5px; }
+    .sb-name { font-family: 'Saira Condensed', sans-serif; font-weight: 800; font-size: 13.5px; letter-spacing: 0.5px; text-transform: uppercase; }
     .sb-opp .sb-name { color: #9fb0bd; }
-    .sb-shield { width: 26px; height: 30px; position: relative; flex-shrink: 0; filter: drop-shadow(0 3px 7px rgba(0, 0, 0, 0.5)); }
+    .sb-shield { width: 19px; height: 22px; position: relative; flex-shrink: 0; filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.5)); }
     .sb-shield i { position: absolute; inset: 0; clip-path: polygon(8% 0,92% 0,100% 16%,100% 60%,50% 100%,0 60%,0 16%); background: linear-gradient(150deg, var(--us-kit, var(--accent)), #1f4fd0); }
     .sb-shield-opp i { background: linear-gradient(150deg, var(--danger), #b03048); }
     .sb-shield b { position: absolute; inset: 2px; clip-path: polygon(8% 0,92% 0,100% 16%,100% 60%,50% 100%,0 60%,0 16%); background: linear-gradient(160deg, #0e1b24, #0a141c); display: grid; place-items: center; font-family: 'Saira Condensed', sans-serif; font-weight: 800; font-size: 10px; color: var(--us-kit, var(--accent)); }
@@ -73,10 +85,18 @@
     @keyframes pressure-pulse { 50% { opacity: 0.55; } }
     .pitch-bar label { display: flex; gap: 4px; align-items: center; cursor: pointer; user-select: none; }
     .pitch-bar input[type=checkbox] { accent-color: var(--accent); }
-    .canvas-wrap { flex: 1; min-height: 0; position: relative; }
+    .canvas-wrap { flex: 1; min-height: 0; position: relative; overflow: hidden; }
+    /* 읽기 칩 — 피치 위 작은 상시 정보(상대·노림). 탭하면 전체 정보 드로어 소환. */
+    .read-chip { position: absolute; left: 12px; bottom: 12px; z-index: 9; display: inline-flex; align-items: center; gap: 8px; background: rgba(9,13,19,0.84); border: 1px solid var(--line); border-radius: 999px; padding: 7px 14px; font-size: 12px; font-weight: 600; color: var(--text); cursor: pointer; backdrop-filter: blur(7px); -webkit-backdrop-filter: blur(7px); box-shadow: var(--elev-1); transition: border-color 0.15s, transform 0.12s; }
+    .read-chip:hover { border-color: var(--accent); transform: translateY(-1px); }
+    .read-chip .rc-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--energy); box-shadow: 0 0 8px var(--energy); flex-shrink: 0; }
+    .read-chip .rc-arrow { color: var(--text-muted); }
+    .read-chip #rc-target { color: var(--accent); font-weight: 800; }
+    .read-chip .rc-more { color: var(--text-muted); font-size: 13px; margin-left: 2px; }
+    .read-chip[hidden] { display: none; }
     canvas { display: block; width: 100%; height: 100%; cursor: crosshair; }
 
-    .mission-strip { padding: 10px 12px; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 10px; background: rgba(77, 139, 255, 0.045); }
+    .mission-strip { padding: 5px 12px; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 10px; background: rgba(77, 139, 255, 0.045); }
     .mission-kicker { color: var(--accent); font-size: 10px; font-weight: 800; letter-spacing: 1.2px; white-space: nowrap; }
     .situation-strip { padding: 9px 12px; border-bottom: 1px solid rgba(255, 194, 75,.25); display: flex; align-items: center; gap: 10px; background: rgba(255, 194, 75,.08); color: var(--text-muted); font-size: 12px; }
     .situation-strip[hidden] { display: none; }
@@ -85,8 +105,10 @@
     .situation-actions:empty { display: none; }
     .situation-actions button { background: var(--panel-2); border: 1px solid rgba(255, 194, 75,.4); color: var(--warn); padding: 5px 8px; border-radius: 5px; font-size: 11px; font-weight: 700; cursor: pointer; }
     .situation-actions button:hover { border-color: var(--accent); color: var(--accent); }
-    .situation-strip[data-kind="counter_risk"] { border-color: rgba(255, 90, 110,.35); background: rgba(255, 90, 110,.09); }
-    .situation-strip[data-kind="counter_risk"] strong { color: var(--danger); }
+    .situation-strip[data-kind="counter_risk"],
+    .situation-strip[data-kind="defensive_press"] { border-color: rgba(255, 90, 110,.35); background: rgba(255, 90, 110,.09); }
+    .situation-strip[data-kind="counter_risk"] strong,
+    .situation-strip[data-kind="defensive_press"] strong { color: var(--danger); }
     #objective-text { font-size: 12.5px; line-height: 1.4; }
     #btn-guide { margin-left: auto; flex: 0 0 auto; background: transparent; border: 1px solid var(--line); color: var(--text-muted); padding: 5px 9px; border-radius: 5px; cursor: pointer; }
     #btn-guide:hover { border-color: var(--accent); color: var(--accent); }
@@ -99,7 +121,7 @@
     .coach-actions { display: flex; justify-content: flex-end; margin-top: 9px; }
     .coach-actions button { background: transparent; border: 0; color: var(--accent); font-size: 11.5px; cursor: pointer; }
 
-    .actionbar { padding: 10px 14px; border-top: 1px solid var(--line); display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+    .actionbar { padding: 10px 14px; border-top: 1px solid var(--line); display: flex; gap: 6px; flex-wrap: wrap; align-items: center; position: relative; z-index: 12; background: var(--panel); }
     .actionbar .btn { background: var(--panel-2); border: 1px solid var(--line); color: var(--text); padding: 7px 11px; border-radius: 5px; font-size: 12.5px; cursor: pointer; min-height: 34px; }
     .actionbar .btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
     .actionbar .btn.armed { border-color: var(--accent); color: var(--accent); box-shadow: 0 0 0 1px rgba(77, 139, 255, 0.35) inset; }
@@ -117,27 +139,27 @@
     .actionbar:not(.adv-collapsed) .action-more { color: var(--accent); border-color: var(--accent); }
     .actionbar:not(.adv-collapsed) .action-more::after { content: ' ▴'; }
     .actionbar.guide-stage1 .action-more { display: none; }
+    /* 전환 국면(상황 선택 우선) — 일반 액션은 흐리게, 상황 선택을 주 액션처럼 키운다 */
+    .actionbar.decision-active .btn { opacity: 0.28; }
+    .situation-strip .situation-actions button { padding: 8px 14px; font-size: 12.5px; font-weight: 800; min-height: 34px; }
+    .situation-strip[data-kind="counter_risk"] .situation-actions button,
+    .situation-strip[data-kind="defensive_press"] .situation-actions button,
+    .situation-strip[data-kind="transition"] .situation-actions button { border-color: var(--danger); color: var(--danger); animation: glow 1.2s ease-in-out infinite; }
+    .transition-actions { display: none; width: 100%; gap: 8px; align-items: center; padding: 8px 10px; background: rgba(255, 194, 75, 0.08); border: 1px solid rgba(255, 194, 75, 0.28); border-radius: 8px; }
+    .transition-actions:not(:empty) { display: flex; }
+    .transition-actions button { flex: 1; min-height: 38px; background: rgba(17, 23, 31, 0.95); border: 1px solid var(--warn); color: var(--warn); border-radius: 6px; font-size: 12.5px; font-weight: 900; cursor: pointer; }
+    .transition-actions[data-kind="transition"] button:first-child,
+    .transition-actions[data-kind="defensive_press"] button:first-child { border-color: var(--danger); color: var(--danger); animation: glow 1.2s ease-in-out infinite; }
+    .transition-actions button:hover { filter: brightness(1.08); }
     .actionbar .btn.shot-ready { border-color: var(--warn); color: var(--warn); animation: glow 1.2s ease-in-out infinite; }
     @keyframes glow { 50% { box-shadow: 0 0 8px rgba(255, 194, 75, 0.5); } }
     .actionbar .hint { margin-left: auto; color: var(--text-muted); font-size: 11px; font-style: italic; max-width: 320px; }
-    /* Desktop: the in-board action ring IS the visual input — the bottom bar
-       would be a duplicate. The buttons stay focusable for keyboard/screen-
-       reader users (visually hidden, revealed on focus — QA Major 5), and a
-       shortcut legend replaces them for sighted players. */
     .actionbar .keys { display: none; }
     @media (min-width: 901px) {
-      .actionbar .btn {
-        position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0;
-        border: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap;
-      }
-      .actionbar .btn:focus-visible {
-        position: static; width: auto; height: auto; margin: 0;
-        padding: 7px 11px; border: 1px solid var(--accent); overflow: visible;
-        clip-path: none; color: var(--accent);
-      }
-      .actionbar { padding: 7px 14px; }
-      .actionbar .hint { margin-left: 0; max-width: none; font-size: 11.5px; }
-      .actionbar .keys { display: inline; margin-left: auto; color: var(--text-muted); font-size: 10.5px; letter-spacing: 0.3px; white-space: nowrap; }
+      .actionbar { padding: 8px 14px; }
+      .actionbar .btn { min-height: 32px; padding: 6px 10px; }
+      .actionbar .hint { margin-left: auto; max-width: 340px; font-size: 11.5px; }
+      .actionbar .keys { display: inline; width: 100%; color: var(--text-muted); font-size: 10.5px; letter-spacing: 0.3px; white-space: nowrap; }
     }
 
     /* Collapsible side sections — only the live essentials stay open. */
@@ -167,7 +189,7 @@
     .opp-plan { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--line); color: var(--text-muted); line-height: 1.45; }
     .opp-plan-k { color: var(--danger); font-weight: 700; margin-right: 6px; }
     .intent-row { display: flex; align-items: center; gap: 5px; padding: 3px 0; }
-    .intent-row .k { color: var(--text-muted); width: 34px; flex-shrink: 0; }
+    .intent-row .k { color: var(--text-muted); width: 56px; flex-shrink: 0; white-space: nowrap; }
     .intent-row button { flex: 1; background: var(--panel); border: 1px solid var(--line); color: var(--text-muted); padding: 5px 4px; border-radius: 4px; font-size: 11px; cursor: pointer; }
     .intent-row button:hover { border-color: var(--accent); }
     .intent-row button.active { border-color: var(--accent); color: var(--accent); background: rgba(77, 139, 255, 0.08); font-weight: 700; }
@@ -195,9 +217,9 @@
     .archive-item .meta { font-size: 10px; opacity: 0.7; display: block; }
 
     /* outcome card */
-    #outcome-overlay { position: fixed; inset: 0; background: rgba(5, 8, 12, 0.72); display: flex; align-items: center; justify-content: center; z-index: 50; opacity: 0; visibility: hidden; pointer-events: none; transition: opacity 0.4s ease, visibility 0.4s; }
+    #outcome-overlay { position: fixed; inset: 0; background: rgba(5, 8, 12, 0.72); overflow-y: auto; z-index: 50; opacity: 0; visibility: hidden; pointer-events: none; transition: opacity 0.4s ease, visibility 0.4s; }
     #outcome-overlay.visible { opacity: 1; visibility: visible; pointer-events: auto; }
-    .outcome-card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 26px 30px; max-width: 460px; width: calc(100% - 40px); display: flex; flex-direction: column; gap: 12px; transform: translateY(20px); transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
+    .outcome-card { margin: 24px auto; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 26px 30px; max-width: 460px; width: calc(100% - 40px); display: flex; flex-direction: column; gap: 12px; transform: translateY(20px); transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
     #outcome-overlay.visible .outcome-card { transform: translateY(0); animation: card-appear 0.5s cubic-bezier(0.16, 1, 0.3, 1); }
     #outcome-overlay[data-tone="goal"] .oc-headline { color: var(--accent); }
     #outcome-overlay[data-tone="goal"] .outcome-card { box-shadow: 0 0 60px rgba(77, 139, 255, 0.12), 0 0 120px rgba(77, 139, 255, 0.05); }
@@ -211,9 +233,21 @@
     .tr-row { display: grid; grid-template-columns: 86px 1fr; gap: 8px; align-items: start; font-size: 11.5px; line-height: 1.4; }
     .tr-row span { color: var(--accent); font-weight: 800; }
     .tr-row b { color: var(--text); font-weight: 600; }
+    .tr-next { margin: 13px 0; padding: 14px 16px; background: linear-gradient(135deg, rgba(87,227,196,0.15), rgba(87,227,196,0.035)); border: 1px solid rgba(87,227,196,0.42); border-radius: 12px; box-shadow: var(--hairline); text-align: left; }
+    .tr-next-k { display: block; color: var(--accent-2); font-size: 11px; font-weight: 800; letter-spacing: 0.8px; text-transform: uppercase; margin-bottom: 6px; }
+    .tr-next-k::before { content: '◎ '; }
+    .tr-next strong { font-size: 14.5px; font-weight: 700; line-height: 1.55; }
+    /* 상세 리포트 — 접이식(온디맨드). 평소엔 요약만, 펼치면 지표·분석. */
+    .tr-details { margin-top: 4px; text-align: left; }
+    .tr-details > summary { list-style: none; cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 9px 12px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 9px; color: var(--text-muted); font-size: 11.5px; font-weight: 700; letter-spacing: 0.4px; }
+    .tr-details > summary::-webkit-details-marker { display: none; }
+    .tr-details > summary::after { content: '▾'; transition: transform 0.2s; }
+    .tr-details[open] > summary::after { transform: rotate(180deg); }
+    .tr-details > summary:hover { border-color: var(--accent); color: var(--text); }
+    .tr-details-body { display: flex; flex-direction: column; gap: 8px; padding: 11px 2px 2px; }
     /* 결과 지표 스트립 (E2): 패킹·xT·xG·지배력 */
     .tr-metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 2px; }
-    .tm-cell { display: flex; flex-direction: column; align-items: center; gap: 1px; background: rgba(77, 139, 255,.07); border: 1px solid rgba(77, 139, 255,.16); border-radius: 6px; padding: 5px 4px; cursor: help; }
+    .tm-cell { display: flex; flex-direction: column; align-items: center; gap: 2px; background: linear-gradient(180deg, var(--panel-2), var(--panel)); border: 1px solid var(--line); box-shadow: var(--hairline); border-radius: 8px; padding: 7px 4px; cursor: help; }
     .tm-cell i { color: var(--text-muted); font-size: 9.5px; font-weight: 700; font-style: normal; letter-spacing: .3px; }
     .tm-cell b { color: var(--accent); font-size: 15px; font-weight: 800; font-family: 'Saira Condensed', sans-serif; }
     /* 만든 우위 한 줄 (E3) */
@@ -286,7 +320,7 @@
     .title-hero .kicker { display: inline-block; background: var(--accent); color: #06122b; font-family: 'Saira Condensed', sans-serif; font-weight: 800; font-size: 14px; letter-spacing: 2.5px; padding: 6px 14px; transform: skewX(-12deg); margin-bottom: 20px; }
     .title-hero .kicker span { display: inline-block; transform: skewX(12deg); }
     .title-hero h1 { font-family: 'Saira Condensed', sans-serif; font-size: clamp(56px, 8vw, 120px); font-weight: 800; letter-spacing: 1px; line-height: .86; text-transform: uppercase; margin: 0 0 22px; text-shadow: 0 6px 30px rgba(0,0,0,.6); }
-    .title-hero h1 em { font-style: normal; color: var(--accent); text-shadow: 0 0 38px rgba(77, 139, 255, 0.5); }
+    .title-hero h1 em { font-style: italic; color: var(--energy); text-shadow: 0 0 44px rgba(25,233,192,0.6), 0 0 12px rgba(25,233,192,0.4); }
     .title-hero p { color: rgba(238, 243, 247, 0.82); font-size: 18px; line-height: 1.5; margin: 0 0 28px; max-width: 540px; }
     .title-cta-row { display: flex; align-items: center; gap: 18px; }
     #btn-kickoff { background: var(--accent); color: #06122b; border: none; font-family: 'Saira Condensed', sans-serif; padding: 16px 44px; border-radius: 5px; font-size: 22px; font-weight: 800; letter-spacing: 2px; cursor: pointer; animation: cta-pulse 2.4s ease-in-out infinite; transition: filter 0.2s ease; }
@@ -323,6 +357,17 @@
     .tactics-back { margin-left: auto; background: var(--panel-2); border: 1px solid var(--line); color: var(--text-muted); border-radius: 6px; padding: 6px 12px; font-size: 12px; cursor: pointer; white-space: nowrap; }
     .tactics-back:hover { border-color: var(--accent); color: var(--accent); }
     .tactics-scenario-title { color: var(--text-muted); font-size: 12px; text-align: right; }
+    .tactics-plan { display: flex; align-items: center; gap: 12px; margin: 14px 0 4px; padding: 12px 14px; background: rgba(93,214,197,0.07); border: 1px solid rgba(93,214,197,0.32); border-radius: 8px; }
+    .tactics-plan .tp-k { color: var(--accent); font-size: 10px; font-weight: 800; letter-spacing: 1.2px; text-transform: uppercase; white-space: nowrap; }
+    .tactics-plan strong { font-size: 14px; font-weight: 700; line-height: 1.4; }
+    .tactics-adv-toggle { margin-left: auto; background: transparent; border: 1px solid var(--line); color: var(--text-muted); padding: 6px 11px; border-radius: 6px; font-size: 12px; cursor: pointer; white-space: nowrap; }
+    .tactics-adv-toggle:hover { border-color: var(--accent); color: var(--accent); }
+    #tactics-overlay.simplified .tactics-difficulty,
+    #tactics-overlay.simplified .tactics-intents,
+    #tactics-overlay.simplified .tactics-scout { display: none; }
+    #tactics-overlay.simplified .tactics-wrap { gap: 12px; }
+    #tactics-overlay.simplified .tactics-body { grid-template-columns: minmax(240px, 300px) 1fr; align-items: start; }
+    #tactics-overlay.simplified .tactics-intel { min-height: 100%; }
     .tactics-body { display: grid; grid-template-columns: 320px 1fr; gap: 20px; }
     .tactics-section-label {
       font-size: 10px; color: var(--text-muted); letter-spacing: 0.8px;
@@ -358,7 +403,7 @@
       display: flex; gap: 7px; font-size: 11.5px; line-height: 1.5;
     }
     .tactics-scout .ts-k {
-      flex-shrink: 0; width: 42px; color: var(--text-muted);
+      flex-shrink: 0; width: 64px; color: var(--text-muted);
       font-size: 10.5px; font-weight: 700;
     }
     .tactics-scout-style span:last-child { color: var(--text); }
@@ -388,7 +433,7 @@
     .tactics-diff-desc { font-size: 11px; color: var(--text-muted); }
     .tactics-intents { background: var(--panel-2); border-radius: 6px; padding: 12px; }
     .tactics-intent-row { display: flex; align-items: center; gap: 5px; padding: 3px 0; }
-    .tactics-intent-k { color: var(--text-muted); width: 34px; flex-shrink: 0; font-size: 12px; }
+    .tactics-intent-k { color: var(--text-muted); width: 58px; flex-shrink: 0; font-size: 12px; white-space: nowrap; }
     .tactics-intent-btn {
       flex: 1; background: var(--panel); border: 1px solid var(--line);
       color: var(--text-muted); padding: 5px 4px; border-radius: 4px; font-size: 11px; cursor: pointer;
@@ -414,6 +459,9 @@
     @media (max-width: 680px) {
       .tactics-wrap { max-height: calc(100dvh - 20px); padding-bottom: 14px; }
       .tactics-body { grid-template-columns: 1fr; }
+      #tactics-overlay.simplified .tactics-body { grid-template-columns: 1fr; }
+      .tactics-plan { align-items: flex-start; flex-wrap: wrap; }
+      .tactics-plan strong { width: 100%; }
       .tactics-scenario-title { display: none; }
       .tactics-footer {
         position: sticky; bottom: -14px; z-index: 3;
@@ -427,12 +475,28 @@
       .tactics-scout { gap: 4px; margin-top: 8px; padding-top: 8px; }
       .tactics-scout-style, .tactics-scout-weak, .tactics-scout-caution,
       .tactics-scout-trap, .tactics-scout-rec, .tactics-scout-train { font-size: 11px; line-height: 1.42; }
-      .tactics-scout .ts-k { width: 38px; font-size: 10px; }
+      .tactics-scout .ts-k { width: 58px; font-size: 10px; }
     }
 
-    /* 모바일 드로어 컨트롤 — 데스크톱에선 숨김 */
+    /* 드로어 컨트롤 — 기본 숨김(각 breakpoint에서 노출) */
     .drawer-toggle, .drawer-close { display: none; }
     #drawer-backdrop { display: none; }
+
+    /* ── 데스크톱(≥901px): 온디맨드 우측 드로어 (피치-퍼스트) ───────────────────── */
+    @media (min-width: 901px) {
+      .drawer-toggle { display: inline-flex; align-items: center; gap: 5px; margin-left: auto; background: var(--panel-2); border: 1px solid rgba(77,139,255,0.5); color: var(--accent); border-radius: 7px; padding: 5px 13px; font-size: 12px; font-weight: 700; letter-spacing: 0.3px; cursor: pointer; transition: background 0.15s; }
+      .drawer-toggle:hover { background: rgba(77,139,255,0.14); }
+      #drawer-backdrop { display: block; position: fixed; inset: 0; background: rgba(5,8,12,0.5); backdrop-filter: blur(2px); z-index: 38; opacity: 0; pointer-events: none; transition: opacity 0.24s; }
+      #drawer-backdrop.show { opacity: 1; pointer-events: auto; }
+      aside {
+        position: fixed; top: 0; right: 0; bottom: 0; left: auto; z-index: 40;
+        width: min(390px, 94vw); border-radius: 0; border-width: 0 0 0 1px;
+        box-shadow: -18px 0 50px rgba(0,0,0,0.55);
+        transform: translateX(102%); transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      }
+      aside.drawer-open { transform: translateX(0); }
+      .drawer-close { display: flex; align-items: center; justify-content: space-between; width: 100%; background: var(--panel-2); border: 1px solid var(--line); color: var(--text); border-radius: 7px; padding: 10px 13px; font-size: 13px; font-weight: 700; cursor: pointer; margin-bottom: 8px; position: sticky; top: 0; }
+    }
 
     @media (max-width: 900px) {
       /* ISSUE-003: aside(상대·전술)를 하단 시트로 빼 페이지를 짧게 유지하고, 액션바는 하단 고정.
@@ -455,9 +519,10 @@
       .actionbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; flex-shrink: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; overflow: visible; background: var(--panel); border-top: 1px solid var(--line); box-shadow: 0 -6px 16px rgba(0,0,0,0.34); padding-bottom: max(10px, env(safe-area-inset-bottom)); }
       .actionbar .btn { min-height: 44px; width: 100%; padding-inline: 5px; }
       .actionbar .hint { display: block; grid-column: 1 / -1; grid-row: 1; margin: 0 0 3px; max-width: none; min-height: 24px; }
+      .transition-actions { grid-column: 1 / -1; }
       /* 터치 타깃 ≥44px (WCAG 2.5.5) — 브리핑·허브에서 매 경기 누르는 버튼들 */
       .diff-btn, .shape-btn, .sp-btn, .tactics-intent-btn, .role-btn,
-      .situation-actions button { min-height: 44px; }
+      .situation-actions button, .transition-actions button { min-height: 44px; }
       .tactics-intent-btn { padding: 7px 10px; }
 
       /* 상단 드로어 토글 */
@@ -480,27 +545,42 @@
     /* ─── Career: Club Hub ─────────────────────────────────────────────────── */
     #hub-overlay {
       position: fixed; inset: 0; z-index: 78;
+      /* 전술실/플러드라이트 분위기 — 위 스포트라이트 + 아래 피치 글로우 + 방 깊이 */
       background:
-        radial-gradient(1200px 600px at 15% -10%, rgba(77, 139, 255,0.10), transparent 60%),
-        linear-gradient(160deg, #0c1219 0%, #0b0f14 70%);
+        radial-gradient(820px 440px at 50% -8%, rgba(120,162,224,0.16), transparent 60%),
+        radial-gradient(1300px 760px at 50% 118%, rgba(25,233,192,0.06), transparent 60%),
+        linear-gradient(180deg, #0b1219 0%, #080d13 52%, #05080c 100%);
       display: flex; align-items: flex-start; justify-content: center; overflow-y: auto;
       opacity: 0; visibility: hidden; pointer-events: none; transition: opacity 0.4s ease, visibility 0.4s;
     }
+    /* 미세한 전술판(피치) 모티프 — 중앙 서클 + 하프라인을 분필처럼 아주 옅게 */
+    #hub-overlay::before {
+      content: ''; position: absolute; inset: 0; z-index: 0; pointer-events: none; opacity: 0.5;
+      background:
+        radial-gradient(circle at 50% 15%, transparent 95px, rgba(180,210,240,0.05) 96px, rgba(180,210,240,0.05) 97px, transparent 98px),
+        linear-gradient(90deg, transparent calc(50% - 0.5px), rgba(180,210,240,0.04) calc(50% - 0.5px), rgba(180,210,240,0.04) calc(50% + 0.5px), transparent calc(50% + 0.5px));
+    }
+    /* 비네팅 — 가장자리를 어둡게 해 중앙 콘텐츠에 집중(무대 조명) */
+    #hub-overlay::after {
+      content: ''; position: absolute; inset: 0; z-index: 0; pointer-events: none;
+      background: radial-gradient(125% 85% at 50% 38%, transparent 56%, rgba(0,0,0,0.45) 100%);
+    }
+    #hub-overlay .hub-wrap { position: relative; z-index: 1; }
     #hub-overlay.visible { opacity: 1; visibility: visible; pointer-events: auto; }
     .hub-wrap { width: min(880px, calc(100% - 24px)); margin: clamp(16px, 5vh, 56px) 0; display: flex; flex-direction: column; gap: 14px; transform: translateY(20px); transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
     #hub-overlay.visible .hub-wrap { transform: translateY(0); }
     .hub-head { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
     .hub-club { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 220px; }
     .hub-badge { width: 46px; height: 46px; border-radius: 11px; display: grid; place-items: center; font-size: 20px; color: #06201b; font-weight: 800; box-shadow: 0 6px 18px rgba(0,0,0,0.4); flex-shrink: 0; }
-    .hub-name { font-family: 'Saira Condensed', sans-serif; font-size: 21px; font-weight: 800; letter-spacing: 0.3px; cursor: pointer; background: none; border: 0; padding: 0; margin: 0; color: inherit; text-align: left; display: inline-flex; align-items: center; gap: 6px; }
+    .hub-name { font-family: 'Saira Condensed', sans-serif; font-size: 26px; font-weight: 800; letter-spacing: 0.4px; text-transform: uppercase; cursor: pointer; background: none; border: 0; padding: 0; margin: 0; color: inherit; text-align: left; display: inline-flex; align-items: center; gap: 6px; }
     .hub-name::after { content: '✎'; font-size: 12px; color: var(--text-muted); font-weight: 400; }
     .hub-name:hover, .hub-name:focus-visible { color: var(--accent); }
     .hub-name:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
     .hub-sub { color: var(--text-muted); font-size: 12.5px; margin-top: 2px; }
     .hub-stats { display: flex; gap: 8px; }
-    .hub-stat { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 7px 12px; text-align: right; min-width: 74px; }
-    .hub-stat .k { display: block; color: var(--text-muted); font-size: 10px; letter-spacing: 0.5px; text-transform: uppercase; }
-    .hub-stat .v { display: block; color: var(--text); font-size: 16px; font-weight: 800; font-family: 'Saira Condensed', sans-serif; font-feature-settings: 'tnum'; }
+    .hub-stat { position: relative; background: var(--surface); border: 1px solid var(--line); border-radius: 9px; padding: 8px 14px; text-align: right; min-width: 78px; box-shadow: var(--hairline); }
+    .hub-stat .k { display: block; color: var(--text-muted); font-size: 10px; letter-spacing: 0.8px; text-transform: uppercase; }
+    .hub-stat .v { display: block; color: var(--text); font-size: 20px; font-weight: 800; font-family: 'Saira Condensed', sans-serif; font-feature-settings: 'tnum'; line-height: 1.05; }
     #hub-lang { background: var(--panel); border: 1px solid var(--line); color: var(--text-muted); border-radius: 7px; padding: 8px 12px; font-size: 12px; cursor: pointer; align-self: flex-start; }
     #hub-lang:hover { border-color: var(--accent); color: var(--accent); }
 
@@ -511,11 +591,44 @@
     .hub-promote-bar i::after { content: ''; position: absolute; top: 0; left: -100%; width: 60%; height: 100%; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.18), transparent); animation: gauge-shimmer 2.5s ease-in-out infinite; }
     #hub-promote-label { display: block; margin-top: 7px; font-size: 12px; color: var(--text-muted); }
 
+    /* ── 포메이션 보드 (허브 = 전술실 주인공) ───────────────────────────── */
+    .formation-board { position: relative; background: linear-gradient(180deg, #0c1a17, #091411); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px 16px; box-shadow: var(--elev-1); }
+    .fb-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 11px; }
+    .fb-title { font-family: 'Saira Condensed', sans-serif; font-weight: 800; font-size: 13px; letter-spacing: 2px; color: var(--text-muted); }
+    .fb-shape { font-family: 'Saira Condensed', sans-serif; font-weight: 800; font-size: 17px; color: var(--energy); letter-spacing: 0.5px; }
+    .fb-pitch { position: relative; width: 100%; height: 344px; border-radius: 10px; overflow: hidden;
+      background:
+        repeating-linear-gradient(0deg, rgba(255,255,255,0.013) 0 30px, transparent 30px 60px),
+        radial-gradient(130% 80% at 50% 0%, rgba(25,233,192,0.07), transparent 62%),
+        linear-gradient(180deg, #103029, #0a1d18);
+      border: 1px solid rgba(120,200,180,0.16); }
+    .fb-pitch::before { content: ''; position: absolute; inset: 9px; border: 1.5px solid rgba(200,230,220,0.16); border-radius: 3px; pointer-events: none;
+      background:
+        radial-gradient(circle at 50% 50%, transparent 30px, rgba(200,230,220,0.14) 31px, rgba(200,230,220,0.14) 32px, transparent 33px),
+        linear-gradient(180deg, transparent calc(50% - 0.75px), rgba(200,230,220,0.13) calc(50% - 0.75px), rgba(200,230,220,0.13) calc(50% + 0.75px), transparent calc(50% + 0.75px)); }
+    .fb-dot { position: absolute; width: 17px; height: 17px; border-radius: 50%; transform: translate(-50%, -50%);
+      background: radial-gradient(circle at 35% 30%, #7dffe6, var(--energy));
+      box-shadow: 0 0 11px rgba(25,233,192,0.6), 0 2px 4px rgba(0,0,0,0.55); border: 1px solid rgba(255,255,255,0.45);
+      transition: left 0.45s cubic-bezier(0.16,1,0.3,1), top 0.45s cubic-bezier(0.16,1,0.3,1); }
+    .fb-dot.us.gk { background: radial-gradient(circle at 35% 30%, #ffe49a, var(--warn)); box-shadow: 0 0 11px rgba(255,194,75,0.55), 0 2px 4px rgba(0,0,0,0.55); }
+    .fb-dot.opp { background: radial-gradient(circle at 35% 30%, #ff9aa6, var(--danger)); box-shadow: 0 0 10px rgba(255,90,110,0.5), 0 2px 4px rgba(0,0,0,0.55); border-color: rgba(255,255,255,0.4); }
+    .fb-side-label { position: absolute; left: 12px; z-index: 3; font-family: 'Saira Condensed', sans-serif; font-weight: 800; font-size: 10.5px; letter-spacing: 1.2px; padding: 3px 9px; border-radius: 5px; background: rgba(7,11,17,0.62); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); }
+    .fb-side-label.opp { top: 10px; color: var(--danger); }
+    .fb-side-label.us { bottom: 10px; color: var(--energy); }
+    .fb-chips { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 12px; }
+    @media (max-width: 560px) { .fb-chips { grid-template-columns: repeat(2, 1fr); } }
+    .fb-chip { flex: 1; background: var(--panel-2); border: 1px solid var(--line); color: var(--text-muted); border-radius: 9px; padding: 9px 6px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 3px; transition: border-color 0.15s, color 0.15s, background 0.15s; }
+    .fb-chip > span:first-child { font-family: 'Saira Condensed', sans-serif; font-weight: 700; font-size: 13px; letter-spacing: 0.5px; }
+    .fb-chip .fb-chip-sub { font-size: 10.5px; font-weight: 600; color: var(--text-muted); font-feature-settings: 'tnum'; }
+    .fb-chip:hover { border-color: var(--accent); color: var(--text); }
+    .fb-chip.on { border-color: var(--energy); color: var(--energy); background: rgba(25,233,192,0.08); box-shadow: 0 0 16px -5px var(--energy); }
+    .fb-chip.on .fb-chip-sub { color: var(--text); }
+
     /* ── 탭 + 패널 (순차 공개의 뼈대) ───────────────────────────── */
     .hub-tabs { display: flex; gap: 4px; background: var(--panel); border: 1px solid var(--line); border-radius: 11px; padding: 4px; }
-    .hub-tab { flex: 1; position: relative; background: none; border: 0; color: var(--text-muted); font-family: 'Saira Condensed', sans-serif; font-size: 14px; font-weight: 700; letter-spacing: 0.4px; padding: 10px 0; border-radius: 8px; cursor: pointer; transition: background 0.15s, color 0.15s; }
+    .hub-tab { flex: 1; position: relative; background: none; border: 0; color: var(--text-muted); font-family: 'Saira Condensed', sans-serif; font-size: 15px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; padding: 11px 0; border-radius: 8px; cursor: pointer; transition: background 0.15s, color 0.15s; }
     .hub-tab:hover { color: var(--text); }
-    .hub-tab.on { background: var(--panel-2); color: var(--accent); box-shadow: inset 0 0 0 1px rgba(77, 139, 255,0.28); }
+    .hub-tab.on { background: linear-gradient(180deg, rgba(77,139,255,0.28), rgba(77,139,255,0.10)); color: #d4e3ff; box-shadow: inset 0 0 0 1px rgba(77,139,255,0.55), 0 0 18px -4px rgba(77,139,255,0.6); }
     .hub-tab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     .tab-dot { position: absolute; top: 7px; right: calc(50% - 26px); width: 7px; height: 7px; border-radius: 50%; background: var(--warn); box-shadow: 0 0 0 2px var(--panel-2), 0 0 8px var(--warn); animation: dot-pulse 1.6s ease-in-out infinite; }
     .tab-dot[hidden] { display: none; }
@@ -569,17 +682,18 @@
     .hub-prestige .cb-v { color: var(--warn); }
 
     @keyframes hub-cta-glow { 0%, 100% { box-shadow: 0 0 0 1px rgba(77, 139, 255,0.12) inset, 0 0 15px rgba(77, 139, 255,0.06); } 50% { box-shadow: 0 0 0 1px rgba(77, 139, 255,0.25) inset, 0 0 25px rgba(77, 139, 255,0.1); } }
-    @keyframes hub-play-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(77, 139, 255, 0.4); } 50% { box-shadow: 0 0 16px 3px rgba(77, 139, 255, 0.18); } }
-    .hub-cta { display: flex; align-items: center; gap: 14px; background: var(--panel); border: 1px solid var(--accent); border-radius: 11px; padding: 14px 16px; flex-wrap: wrap; animation: hub-cta-glow 4s ease-in-out infinite; }
+    @keyframes hub-play-pulse { 0%, 100% { box-shadow: 0 6px 18px -4px rgba(25,233,192,0.5), inset 0 1px 0 rgba(255,255,255,0.45); } 50% { box-shadow: 0 6px 26px 1px rgba(25,233,192,0.7), inset 0 1px 0 rgba(255,255,255,0.45); } }
+    .hub-cta { position: relative; overflow: hidden; display: flex; align-items: center; gap: 14px; background: var(--surface); border: 1px solid rgba(25,233,192,0.42); border-radius: 13px; padding: 16px 18px 16px 22px; flex-wrap: wrap; box-shadow: var(--elev-1); }
+    .hub-cta::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 5px; background: var(--energy); box-shadow: 0 0 18px 1px var(--energy); }
     .hub-next { flex: 1; min-width: 200px; display: flex; flex-direction: column; gap: 4px; }
     .hub-next-k { color: var(--text-muted); font-size: 10.5px; letter-spacing: 1px; text-transform: uppercase; }
-    .hub-next-opp { font-family: 'Saira Condensed', sans-serif; font-size: 18px; font-weight: 800; }
+    .hub-next-opp { font-family: 'Saira Condensed', sans-serif; font-size: 23px; font-weight: 800; letter-spacing: 0.3px; text-transform: uppercase; }
     .hub-next-odds { display: flex; gap: 8px; margin-top: 2px; font-size: 11.5px; }
     .hub-next-odds .od { color: var(--text-muted); }
     .hub-next-odds .od.w { color: var(--accent); }
     .hub-next-odds .od.l { color: var(--danger); }
-    #hub-play { background: var(--accent); color: #06201b; border: none; border-radius: 8px; padding: 14px 26px; font-size: 15px; font-weight: 800; letter-spacing: 0.5px; cursor: pointer; white-space: nowrap; animation: hub-play-pulse 2.5s ease-in-out infinite; transition: transform 0.2s, filter 0.2s; }
-    #hub-play:hover { filter: brightness(1.1); transform: scale(1.02); }
+    #hub-play { background: linear-gradient(135deg, var(--energy), #0cc6a3); color: #042019; border: none; border-radius: 9px; padding: 15px 32px; font-family: 'Saira Condensed', sans-serif; font-size: 19px; font-weight: 800; font-style: italic; letter-spacing: 1px; text-transform: uppercase; cursor: pointer; white-space: nowrap; box-shadow: var(--glow-energy); animation: hub-play-pulse 2.5s ease-in-out infinite; transition: transform 0.2s, filter 0.2s; }
+    #hub-play:hover { filter: brightness(1.08); transform: translateY(-2px) scale(1.02); }
 
     .hub-toast { position: fixed; left: 50%; top: 18px; transform: translateX(-50%); z-index: 90; background: rgba(17, 23, 31, 0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid var(--accent); color: var(--text); border-radius: 9px; padding: 11px 18px; font-size: 13px; box-shadow: 0 10px 30px rgba(0,0,0,0.45); opacity: 0; transition: opacity 0.4s, top 0.4s; pointer-events: none; }
     .hub-toast.show { opacity: 1; top: 26px; }
@@ -603,9 +717,14 @@
     @keyframes chip-in { from { opacity: 0; transform: translateY(6px) scale(0.92); } to { opacity: 1; transform: translateY(0) scale(1); } }
     .xp-pop { animation: xp-pop 0.45s cubic-bezier(0.16, 1, 0.3, 1); }
     .eff-chip.chip-in { animation: chip-in 0.35s ease-out; }
-    #career-result { position: fixed; inset: 0; z-index: 82; background: rgba(5,8,12,0.8); display: flex; align-items: center; justify-content: center; opacity: 0; visibility: hidden; pointer-events: none; transition: opacity 0.4s ease, visibility 0.4s; }
+    #career-result { position: fixed; inset: 0; z-index: 82; background: rgba(5,8,12,0.8); overflow-y: auto; opacity: 0; visibility: hidden; pointer-events: none; transition: opacity 0.4s ease, visibility 0.4s; }
     #career-result.visible { opacity: 1; visibility: visible; pointer-events: auto; }
-    .cr-card { width: min(440px, calc(100% - 36px)); background: var(--panel); border: 1px solid var(--line); border-radius: 13px; padding: 26px 28px; display: flex; flex-direction: column; gap: 14px; text-align: center; transform: translateY(20px); transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
+    .cr-card { position: relative; overflow: hidden; width: min(440px, calc(100% - 36px)); margin: 24px auto; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 30px 28px 24px; display: flex; flex-direction: column; gap: 14px; text-align: center; box-shadow: var(--elev-2); transform: translateY(20px); transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
+    /* 톤 컬러 상단 액센트 바 + 헤더 글로우 (승/무/패 한눈에) */
+    .cr-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; background: var(--accent); }
+    #career-result[data-tone="w"] .cr-card::before { background: linear-gradient(90deg, transparent, var(--accent), transparent); box-shadow: 0 0 24px 2px var(--accent); }
+    #career-result[data-tone="d"] .cr-card::before { background: linear-gradient(90deg, transparent, var(--warn), transparent); box-shadow: 0 0 24px 2px var(--warn); }
+    #career-result[data-tone="l"] .cr-card::before { background: linear-gradient(90deg, transparent, var(--danger), transparent); }
     #career-result.visible .cr-card { transform: translateY(0); animation: card-appear 0.5s cubic-bezier(0.16, 1, 0.3, 1); }
     #career-result[data-tone="w"] .cr-result { color: var(--accent); }
     #career-result[data-tone="d"] .cr-result { color: var(--warn); }
@@ -764,7 +883,7 @@
     /* 허브 패널 프리미엄 음영(상단 하이라이트 + 드롭) */
     .hub-stat, .hub-promote, .hub-mission, .hub-cta, .event-card { box-shadow: 0 5px 14px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.06); }
     /* 주요 CTA 버튼 광택 + 글로우 */
-    #hub-play, #btn-kickoff, #cr-continue, #btn-tactics-kickoff {
+    #btn-kickoff, #cr-continue, #btn-tactics-kickoff {
       background-image: linear-gradient(180deg, rgba(255,255,255,0.22), rgba(255,255,255,0) 60%);
       box-shadow: 0 7px 20px rgba(77, 139, 255,0.38), inset 0 1px 0 rgba(255,255,255,0.45);
     }
@@ -840,130 +959,141 @@
 </head>
 <body>
   <header>
-    <div class="title">빌드업 클럽<small>압박을 깨고, 클럽을 키워라</small></div>
+    <div class="title"><span data-i18n="app.title">빌드업 클럽</span><small data-i18n="app.tag">압박을 깨고, 클럽을 키워라</small></div>
     <div class="right">
-      <button class="btn" id="btn-hub" style="background:var(--panel-2);border:1px solid var(--line);color:var(--text);padding:5px 12px;border-radius:4px;font-size:12px;cursor:pointer;">← 클럽 허브</button>
+      <button class="btn" id="btn-hub" data-i18n="board.backHub" style="background:var(--panel-2);border:1px solid var(--line);color:var(--text);padding:5px 12px;border-radius:4px;font-size:12px;cursor:pointer;">← 클럽 허브</button>
       <span id="current-cell" hidden>A1</span>
-      <button class="btn" id="btn-retry" style="background:var(--panel-2);border:1px solid var(--line);color:var(--text);padding:5px 10px;border-radius:4px;font-size:12px;cursor:pointer;">다시 도전</button>
+      <button class="btn" id="btn-retry" data-i18n="board.retry" style="background:var(--panel-2);border:1px solid var(--line);color:var(--text);padding:5px 10px;border-radius:4px;font-size:12px;cursor:pointer;">다시 도전</button>
     </div>
   </header>
 
   <main>
     <div class="pitch-wrap">
-      <div class="scorebug" id="scorebug" hidden>
-        <span class="sb-team sb-us"><span class="sb-shield" id="sb-us-shield"><i></i><b id="sb-us-init">BC</b></span><span class="sb-name" id="sb-us-name">내 클럽</span></span>
-        <span class="sb-vs" id="sb-vs">VS</span>
-        <span class="sb-team sb-opp"><span class="sb-name" id="sb-opp-name">상대</span><span class="sb-shield sb-shield-opp"><i></i><b id="sb-opp-init">OP</b></span></span>
-      </div>
       <div class="pitch-bar">
+        <div class="scorebug" id="scorebug" hidden>
+          <span class="sb-team sb-us"><span class="sb-shield" id="sb-us-shield"><i></i><b id="sb-us-init">BC</b></span><span class="sb-name" id="sb-us-name">내 클럽</span></span>
+          <span class="sb-vs" id="sb-vs">VS</span>
+          <span class="sb-team sb-opp"><span class="sb-name" id="sb-opp-name">상대</span><span class="sb-shield sb-shield-opp"><i></i><b id="sb-opp-init">OP</b></span></span>
+        </div>
+        <span class="sep"></span>
         <span class="phase-chip" id="phase-chip" data-phase="BUILDUP">BUILDUP</span>
         <span class="sep"></span>
-        <span>턴: <strong id="turn-count">0</strong></span>
+        <span><span data-i18n="board.turn">턴</span>: <strong id="turn-count">0</strong></span>
         <span class="sep"></span>
-        <span class="pressure-wrap" title="압박 — 가득 차면 블록이 안정화되어 공격이 끝납니다">압박
-          <span id="pressure-gauge" role="progressbar" aria-label="상대 압박" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i id="pressure-fill"></i></span>
+        <span class="pressure-wrap" data-i18n-title="board.pressTip" title="압박 — 가득 차면 블록이 안정화되어 공격이 끝납니다"><span data-i18n="board.press">압박</span>
+          <span id="pressure-gauge" role="progressbar" data-i18n-aria="aria.pressure" aria-label="상대 압박" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i id="pressure-fill"></i></span>
         </span>
         <span class="sep"></span>
-        <span class="meter-wrap" title="모멘텀 — 좋은 선택을 이어가면 위험이 줄어듭니다">모멘텀
+        <span class="meter-wrap" data-i18n-title="board.momentumTip" title="모멘텀 — 좋은 선택을 이어가면 위험이 줄어듭니다"><span data-i18n="board.momentum">모멘텀</span>
           <span class="meter"><i id="momentum-fill" class="mfill-mo"></i></span>
         </span>
-        <span class="meter-wrap" title="피로 — 전진·침투·강한 돌파를 쓸수록 공격적 액션이 위험해집니다">피로
+        <span class="meter-wrap" data-i18n-title="board.fatigueTip" title="피로 — 전진·침투·강한 돌파를 쓸수록 공격적 액션이 위험해집니다"><span data-i18n="board.fatigue">피로</span>
           <span class="meter"><i id="fatigue-fill" class="mfill-fa"></i></span>
         </span>
         <span id="adapt-warn" class="adapt-warn" hidden></span>
         <details class="view-menu">
-          <summary>보기 ⚙</summary>
+          <summary data-i18n="board.view">보기 ⚙</summary>
           <div class="toggles">
-            <label><input type="checkbox" id="toggle-channels" checked> 채널 그리드</label>
-            <label><input type="checkbox" id="toggle-shadows"> 커버 섀도우</label>
-            <label><input type="checkbox" id="toggle-superiority"> 우위 구역</label>
-            <label><input type="checkbox" id="toggle-labels" checked> 선수 라벨</label>
-            <label><input type="checkbox" id="toggle-sound" checked> 사운드</label>
+            <label><input type="checkbox" id="toggle-channels" checked> <span data-i18n="board.channels">채널 그리드</span></label>
+            <label><input type="checkbox" id="toggle-shadows"> <span data-i18n="board.shadows">커버 섀도우</span></label>
+            <label><input type="checkbox" id="toggle-superiority"> <span data-i18n="board.superiority">우위 구역</span></label>
+            <label><input type="checkbox" id="toggle-labels" checked> <span data-i18n="board.labels">선수 라벨</span></label>
+            <label><input type="checkbox" id="toggle-sound" checked> <span data-i18n="board.sound">사운드</span></label>
           </div>
         </details>
-        <button type="button" id="btn-drawer" class="drawer-toggle" aria-expanded="false" aria-controls="aside-panel">상대·전술 ▾</button>
+        <button type="button" id="btn-drawer" class="drawer-toggle" aria-expanded="false" aria-controls="aside-panel" data-i18n="board.drawer">상대·전술 ▾</button>
       </div>
       <div class="mission-strip" aria-live="polite">
         <span class="mission-kicker">CURRENT OBJECTIVE</span>
-        <strong id="objective-text">압박을 끌어낸 뒤 첫 라인을 통과하세요.</strong>
-        <button id="btn-guide" type="button" aria-controls="coach-card">플레이 가이드</button>
+        <strong id="objective-text" data-i18n="board.objectiveDefault">압박을 끌어낸 뒤 첫 라인을 통과하세요.</strong>
+        <button id="btn-guide" type="button" aria-controls="coach-card" data-i18n="board.guide">플레이 가이드</button>
       </div>
       <div id="match-situation" class="situation-strip" role="status" aria-live="polite" hidden>
-        <strong id="situation-title">상황 변화</strong>
+        <strong id="situation-title" data-i18n="board.situation">상황 변화</strong>
         <span id="situation-detail"></span>
         <div id="situation-actions" class="situation-actions"></div>
       </div>
       <div id="coach-card" class="coach-card" hidden>
         <span class="coach-step">첫 플레이 · 1/3</span>
-        <strong class="coach-title">압박을 먼저 움직이세요</strong>
-        <p class="coach-copy">기다리기, 운반, 짧은 패스로 상대가 튀어나오게 만드세요.</p>
-        <div class="coach-actions"><button id="btn-guide-dismiss" type="button">전체 전술 보기</button></div>
+        <strong class="coach-title" data-i18n="coach.s1.title">압박을 먼저 움직이세요</strong>
+        <p class="coach-copy" data-i18n="coach.s1.copy">기다리기, 운반, 짧은 패스로 상대가 튀어나오게 만드세요.</p>
+        <div class="coach-actions"><button id="btn-guide-dismiss" type="button" data-i18n="coach.viewAll">전체 전술 보기</button></div>
       </div>
       <div class="canvas-wrap">
-        <canvas id="pitch" role="application" aria-label="11대11 전술 보드 — 방향키로 받을 동료 선택, Enter로 패스, 1~9 액션, Space 기다리기" tabindex="0"></canvas>
+        <canvas id="pitch" role="application" data-i18n-aria="aria.board" aria-label="11대11 전술 보드 — 방향키로 받을 동료 선택, Enter로 패스, 1~9 액션, Space 기다리기" tabindex="0"></canvas>
         <div id="kb-announce" class="sr-only" aria-live="assertive"></div>
+        <button type="button" id="read-chip" class="read-chip" aria-controls="aside-panel">
+          <span class="rc-dot"></span>
+          <span id="rc-opp" data-i18n="dr.oppStateDefault">기본 압박</span>
+          <span class="rc-arrow">→</span>
+          <b id="rc-target">—</b>
+          <span class="rc-more" aria-hidden="true">ⓘ</span>
+        </button>
       </div>
       <div class="actionbar">
-        <button class="btn" data-action="carry" aria-keyshortcuts="4" title="공을 운반 — 공을 달면 물리적으로 느려집니다">운반</button>
+        <button class="btn" data-action="carry" aria-keyshortcuts="4" data-i18n="act.carry" data-i18n-title="act.carryTip" title="공을 운반 — 공을 달면 물리적으로 느려집니다">운반</button>
         <div class="pass-group">
-          <button class="btn" id="btn-pass" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="pass-menu" title="패스 — 발밑(선수 선택) 또는 공간·로빙(지점 클릭)">패스 ▾</button>
+          <button class="btn" id="btn-pass" type="button" data-i18n="act.pass" data-i18n-title="act.passTip" title="패스 — 동료 클릭=발밑, 빈 공간 클릭=공간">패스</button>
           <div id="pass-menu" class="pass-menu" role="menu" hidden>
-            <button class="btn" data-action="to_feet" role="menuitem" aria-keyshortcuts="1" title="동료 발밑으로 정확히 — 선수를 선택">발밑</button>
-            <button class="btn" data-action="pass_space" role="menuitem" aria-keyshortcuts="2" title="공간·로빙 — 지점을 클릭하면 가까운 동료가 받습니다. 멀수록 위험">공간·로빙</button>
+            <button class="btn" data-action="to_feet" role="menuitem" aria-keyshortcuts="1" data-i18n="act.toFeet" data-i18n-title="act.toFeetTip" title="동료 발밑으로 정확히 — 선수를 선택">발밑</button>
+            <button class="btn" data-action="pass_space" role="menuitem" aria-keyshortcuts="2" data-i18n="act.passSpace" data-i18n-title="act.passSpaceTip" title="공간·로빙 — 지점을 클릭하면 가까운 동료가 받습니다. 멀수록 위험">공간·로빙</button>
           </div>
         </div>
-        <button class="btn" data-action="hold" aria-keyshortcuts="3 Space" title="공을 잡고 압박을 유인 — 상대가 튀어나오면 등 뒤가 열립니다">기다리기</button>
-        <button class="btn btn-shoot" data-action="shoot" title="현재 슛 존에서 마무리" aria-keyshortcuts="9">슈팅</button>
-        <span class="hint">패스 ▾에서 발밑·공간을 고르세요.</span>
-        <span class="keys" aria-hidden="true">Space 기다리기 · 1 발밑 · 2 공간 · 4 운반 · 9 슛 · R 다시</span>
+        <button class="btn" data-action="hold" aria-keyshortcuts="3 Space" data-i18n="act.hold" data-i18n-title="act.holdTip" title="공을 잡고 압박을 유인 — 상대가 튀어나오면 등 뒤가 열립니다">기다리기</button>
+        <button class="btn" data-action="press_mode" aria-keyshortcuts="5" data-i18n="act.press" data-i18n-title="act.pressTip" title="상대 소유 상황을 만들고 압박으로 공을 빼앗습니다">압박</button>
+        <button class="btn btn-shoot" data-action="shoot" data-i18n="act.shoot" data-i18n-title="act.shootTip" title="현재 슛 존에서 마무리" aria-keyshortcuts="9">슈팅</button>
+        <button class="btn action-more" id="btn-action-more" type="button" aria-expanded="false" data-i18n="act.more">고급</button>
+        <div id="transition-actions" class="transition-actions" aria-live="polite"></div>
+        <span class="hint" data-i18n="act.barHint">패스 ▾에서 발밑·공간을 고르세요.</span>
+        <span class="keys" aria-hidden="true" data-i18n="act.keys">Space 기다리기 · 1 발밑 · 2 공간 · 4 운반 · 5 압박 · 9 슛 · R 다시</span>
       </div>
     </div>
 
     <div id="drawer-backdrop"></div>
     <aside id="aside-panel">
-      <button type="button" id="btn-drawer-close" class="drawer-close" aria-label="드로어 닫기"><span>상대 정보 · 전술</span><span>✕</span></button>
+      <button type="button" id="btn-drawer-close" class="drawer-close" data-i18n-aria="aria.drawerClose" aria-label="드로어 닫기"><span data-i18n="board.drawerClose">상대 정보 · 전술</span><span>✕</span></button>
       <div class="section">
-        <h3>매치 모먼트</h3>
+        <h3 data-i18n="dr.moment">매치 모먼트</h3>
         <div class="briefing" id="scn-title" style="font-weight:700; margin-bottom:6px;">—</div>
-        <div class="row"><span class="k">상대 상태</span><span class="v" id="opp-adapt">기본 압박</span></div>
-        <div class="row"><span class="k">추천 마무리</span><span class="v" id="scn-target">—</span></div>
+        <div class="row"><span class="k" data-i18n="dr.oppState">상대 상태</span><span class="v" id="opp-adapt" data-i18n="dr.oppStateDefault">기본 압박</span></div>
+        <div class="row"><span class="k" data-i18n="dr.recShot">추천 마무리</span><span class="v" id="scn-target">—</span></div>
         <div class="row tactic-factors-row" id="tactic-factors-row" hidden>
-          <span class="k">위험 요소</span>
+          <span class="k" data-i18n="dr.riskFactors">위험 요소</span>
           <span class="v" id="tactic-factors">—</span>
         </div>
       </div>
       <div class="section">
-        <h3>우리 전략 <small style="text-transform:none;letter-spacing:0;">경기 중 변경 가능</small></h3>
+        <h3><span data-i18n="dr.ourStrategy">우리 전략</span> <small style="text-transform:none;letter-spacing:0;" data-i18n="dr.changeable">경기 중 변경 가능</small></h3>
         <div class="intent-row" data-group="front">
-          <span class="k">전방</span>
-          <button data-intent="pin" title="최전방에 머물며 상대 백라인을 밀어냄 — 라인 사이 공간이 벌어집니다">라인 밀어내기</button>
-          <button data-intent="drop" title="내려와 빌드업을 도움 — 출구가 늘지만 상대 압박 라인이 올라옵니다">내려와 연결</button>
+          <span class="k" data-i18n="dr.front">전방</span>
+          <button data-intent="pin" data-i18n="dr.pin" data-i18n-title="dr.pinTip" title="최전방에 머물며 상대 백라인을 밀어냄 — 라인 사이 공간이 벌어집니다">라인 밀어내기</button>
+          <button data-intent="drop" data-i18n="dr.drop" data-i18n-title="dr.dropTip" title="내려와 빌드업을 도움 — 출구가 늘지만 상대 압박 라인이 올라옵니다">내려와 연결</button>
         </div>
         <div class="intent-row" data-group="mid">
-          <span class="k">중원</span>
-          <button data-intent="between" title="전진 위치를 유지하며 라인 사이에서 받습니다">라인 사이</button>
-          <button data-intent="support" title="내려와 수적 우위 — 압박 탈출이 쉬워집니다">빌드업 보조</button>
+          <span class="k" data-i18n="dr.mid">중원</span>
+          <button data-intent="between" data-i18n="dr.between" data-i18n-title="dr.betweenTip" title="전진 위치를 유지하며 라인 사이에서 받습니다">라인 사이</button>
+          <button data-intent="support" data-i18n="dr.support" data-i18n-title="dr.supportTip" title="내려와 수적 우위 — 압박 탈출이 쉬워집니다">빌드업 보조</button>
         </div>
         <div class="intent-row" data-group="back">
-          <span class="k">후방</span>
-          <button data-intent="overlap" title="풀백이 높이 전진 — 측면 공격 옵션이 생깁니다">풀백 전진</button>
-          <button data-intent="hold" title="풀백이 남아 리셋 출구를 보장합니다">후방 안정</button>
+          <span class="k" data-i18n="dr.back">후방</span>
+          <button data-intent="overlap" data-i18n="dr.overlap" data-i18n-title="dr.overlapTip" title="풀백이 높이 전진 — 측면 공격 옵션이 생깁니다">풀백 전진</button>
+          <button data-intent="hold" data-i18n="dr.hold" data-i18n-title="dr.holdTip" title="풀백이 남아 리셋 출구를 보장합니다">후방 안정</button>
         </div>
       </div>
       <div class="section">
-        <h3>전술 기록</h3>
-        <div id="tactical-log" aria-live="polite"><div class="log-empty">아직 기록이 없습니다</div></div>
+        <h3 data-i18n="dr.log">전술 기록</h3>
+        <div id="tactical-log" aria-live="polite"><div class="log-empty" data-i18n="dr.logEmpty">아직 기록이 없습니다</div></div>
       </div>
       <details class="fold">
-        <summary>브리핑 · 매치 정보</summary>
+        <summary data-i18n="dr.briefMatchInfo">브리핑 · 매치 정보</summary>
         <div class="fold-body">
           <div class="briefing" id="scn-briefing">—</div>
-          <div class="opp-plan"><span class="opp-plan-k">상대 전략</span><span id="scn-opp-plan">—</span></div>
-          <div class="row" style="margin-top:8px;"><span class="k">상대 형태</span><span class="v" id="scn-opp">—</span></div>
-          <div class="row"><span class="k">방식</span><span class="v" id="scn-scheme">—</span></div>
-          <div class="row"><span class="k">강도</span><span class="v" id="scn-intensity">—</span></div>
-          <div class="row"><span class="k">밀집도</span><span class="v" id="scn-compact">—</span></div>
-          <div class="row"><span class="k">빌드업 형태</span><span class="v" id="scn-our">—</span></div>
+          <div class="opp-plan"><span class="opp-plan-k" data-i18n="dr.oppStrategy">상대 전략</span><span id="scn-opp-plan">—</span></div>
+          <div class="row" style="margin-top:8px;"><span class="k" data-i18n="dr.oppShape">상대 형태</span><span class="v" id="scn-opp">—</span></div>
+          <div class="row"><span class="k" data-i18n="dr.method">방식</span><span class="v" id="scn-scheme">—</span></div>
+          <div class="row"><span class="k" data-i18n="dr.intensity">강도</span><span class="v" id="scn-intensity">—</span></div>
+          <div class="row"><span class="k" data-i18n="dr.compactness">밀집도</span><span class="v" id="scn-compact">—</span></div>
+          <div class="row"><span class="k" data-i18n="dr.buildShape">빌드업 형태</span><span class="v" id="scn-our">—</span></div>
         </div>
       </details>
       <details class="fold">
@@ -972,7 +1102,7 @@
           <div class="archive-controls">
             <label>필터:
               <select id="archive-filter">
-                <option value="ALL">전체</option>
+                <option value="ALL" data-i18n="sel.all">전체</option>
                 <option value="A1">A1</option>
                 <option value="A2">A2</option>
                 <option value="B1">B1</option>
@@ -991,10 +1121,10 @@
       <div class="select-head">
         <div>
           <span class="select-kicker"><span>SELECT THE MOMENT</span></span>
-          <h2 id="select-title">오늘의 빌드업 모먼트</h2>
-          <p class="select-sub">상대 블록을 어디서 무너뜨릴지 고른다. 마무리 존이 곧 너의 작전이다.</p>
+          <h2 id="select-title" data-i18n="sel.title">오늘의 빌드업 모먼트</h2>
+          <p class="select-sub" data-i18n="sel.sub">상대 블록을 어디서 무너뜨릴지 고른다. 마무리 존이 곧 너의 작전이다.</p>
         </div>
-        <button id="btn-select-close">← 허브</button>
+        <button id="btn-select-close" data-i18n="sel.back">← 허브</button>
       </div>
       <div id="select-grid" class="select-grid"></div>
     </div>
@@ -1009,10 +1139,10 @@
     <div class="title-hero">
       <div class="kicker"><span>TACTICAL FOOTBALL CLUB</span></div>
       <h1 id="title-heading">BUILD&#8209;UP<br><em>CLUB</em></h1>
-      <p>압박을 깨고 클럽을 키워라. 매 경기는 한 번의 결정적 빌드업 모먼트 — 이겨서 선수를 강화하고, 디비전을 올라 1부 우승까지.</p>
+      <p data-i18n="title.tagline">압박을 깨고 클럽을 키워라. 매 경기는 한 번의 결정적 빌드업 모먼트 — 이겨서 선수를 강화하고, 디비전을 올라 1부 우승까지.</p>
       <div class="title-cta-row">
-        <button id="btn-kickoff">킥오프 ▸</button>
-        <span class="enter-hint">아무 곳이나 눌러 시작</span>
+        <button id="btn-kickoff" data-i18n="cta.kickoff">킥오프 ▸</button>
+        <span class="enter-hint" data-i18n="title.enterHint">아무 곳이나 눌러 시작</span>
       </div>
     </div>
   </div>
@@ -1021,12 +1151,12 @@
   <div id="tutorial-overlay" class="overlay" role="dialog" aria-modal="true" aria-labelledby="tutorial-title" aria-hidden="true" data-dismissible="false" tabindex="-1">
     <div class="tut-wrap">
       <div class="tut-step-tag" id="tutorial-step-tag">1 / 4</div>
-      <h2 class="tut-title" id="tutorial-title">환영합니다</h2>
+      <h2 class="tut-title" id="tutorial-title" data-i18n="tut.welcome">환영합니다</h2>
       <p class="tut-body" id="tutorial-body">—</p>
       <div class="tut-dots" id="tutorial-dots"></div>
       <div class="tut-actions">
-        <button type="button" id="tutorial-skip">건너뛰기</button>
-        <button type="button" id="tutorial-next" class="tut-next">다음 →</button>
+        <button type="button" id="tutorial-skip" data-i18n="tut.skip">건너뛰기</button>
+        <button type="button" id="tutorial-next" class="tut-next" data-i18n="tut.next">다음 →</button>
       </div>
     </div>
   </div>
@@ -1038,27 +1168,35 @@
         <div class="hub-club">
           <span class="hub-badge" id="hub-badge">⚽</span>
           <div>
-            <button type="button" class="hub-name" id="hub-name" aria-label="클럽 이름 변경" title="클럽 이름 변경">My Club</button>
+            <button type="button" class="hub-name" id="hub-name" data-i18n-aria="hub.editName" data-i18n-title="hub.editName" aria-label="클럽 이름 변경" title="클럽 이름 변경">My Club</button>
             <div class="hub-sub"><span id="hub-div">5부 리그</span> · <span id="hub-record">0승 0무 0패</span></div>
           </div>
         </div>
         <div class="hub-stats">
-          <div class="hub-stat"><span class="k">자금</span><span class="v" id="hub-cash">0</span></div>
-          <div class="hub-stat"><span class="k">팬</span><span class="v" id="hub-fans">0</span></div>
-          <div class="hub-stat"><span class="k">전력 <small id="hub-atk" style="color:var(--warn)"></small>/<small id="hub-def" style="color:#5aa9f0"></small></span><span class="v" id="hub-ovr">0</span></div>
+          <div class="hub-stat"><span class="k" data-i18n="hub.cash">자금</span><span class="v" id="hub-cash">0</span></div>
+          <div class="hub-stat"><span class="k" data-i18n="hub.fans">팬</span><span class="v" id="hub-fans">0</span></div>
+          <div class="hub-stat"><span class="k"><span data-i18n="hub.ovrShort">전력</span> <small id="hub-atk" style="color:var(--warn)"></small>/<small id="hub-def" style="color:#5aa9f0"></small></span><span class="v" id="hub-ovr">0</span></div>
         </div>
         <button id="hub-lang">EN</button>
       </div>
 
-      <div class="hub-tabs" role="tablist" aria-label="허브 메뉴">
-        <button class="hub-tab on" id="tab-match" role="tab" aria-selected="true" aria-controls="hub-panel-match" data-tab="match">경기</button>
-        <button class="hub-tab" id="tab-squad" role="tab" aria-selected="false" aria-controls="hub-panel-squad" data-tab="squad">스쿼드</button>
-        <button class="hub-tab" id="tab-club" role="tab" aria-selected="false" aria-controls="hub-panel-club" data-tab="club">클럽<i class="tab-dot" id="tab-club-dot" hidden></i></button>
+      <div class="hub-tabs" role="tablist" data-i18n-aria="hub.menu" aria-label="허브 메뉴">
+        <button class="hub-tab on" id="tab-match" role="tab" aria-selected="true" aria-controls="hub-panel-match" data-tab="match" data-i18n="hub.tabMatch">경기</button>
+        <button class="hub-tab" id="tab-squad" role="tab" aria-selected="false" aria-controls="hub-panel-squad" data-tab="squad" data-i18n="hub.tabSquad">스쿼드</button>
+        <button class="hub-tab" id="tab-club" role="tab" aria-selected="false" aria-controls="hub-panel-club" data-tab="club"><span data-i18n="hub.tabClub">클럽</span><i class="tab-dot" id="tab-club-dot" hidden></i></button>
       </div>
 
       <div class="hub-panels">
         <!-- 경기: 다음 상대를 향한 준비만 -->
         <section class="hub-panel on" id="hub-panel-match" role="tabpanel" aria-labelledby="tab-match">
+          <div class="formation-board" id="formation-board">
+            <div class="fb-head">
+              <span class="fb-title" data-i18n="hub.formation">FORMATION</span>
+              <span class="fb-shape" id="fb-shape-name">—</span>
+            </div>
+            <div class="fb-pitch" id="fb-pitch" aria-hidden="true"></div>
+            <div class="fb-chips" id="fb-chips" role="group" data-i18n-aria="hub.formation"></div>
+          </div>
           <div class="hub-mission" id="hub-mission"></div>
           <div class="hub-promote">
             <div class="hub-promote-bar"><i id="hub-promote-fill"></i></div>
@@ -1092,11 +1230,11 @@
       <!-- 영속 CTA: 어느 탭에서도 바로 경기 -->
       <div class="hub-cta">
         <div class="hub-next">
-          <span class="hub-next-k">다음 상대</span>
+          <span class="hub-next-k" data-i18n="hub.nextOpp">다음 상대</span>
           <span class="hub-next-opp" id="hub-next-opp">—</span>
           <span class="hub-next-odds" id="hub-next-odds"></span>
         </div>
-        <button id="hub-play">다음 경기 →</button>
+        <button id="hub-play" data-i18n="hub.play">다음 경기 →</button>
       </div>
     </div>
   </div>
@@ -1116,10 +1254,10 @@
       <div class="cr-training" id="cr-training" hidden></div>
       <div class="cr-notes" id="cr-notes" hidden></div>
       <div class="cr-rewards">
-        <div class="cr-reward"><span class="k" id="cr-earn-k">수익</span><span class="v" id="cr-earn">+0</span></div>
-        <div class="cr-reward"><span class="k" id="cr-pts-k">승점</span><span class="v pos" id="cr-pts">+0</span></div>
+        <div class="cr-reward"><span class="k" id="cr-earn-k" data-i18n="res.earn">수익</span><span class="v" id="cr-earn">+0</span></div>
+        <div class="cr-reward"><span class="k" id="cr-pts-k" data-i18n="res.points">승점</span><span class="v pos" id="cr-pts">+0</span></div>
       </div>
-      <button id="cr-continue">클럽으로 →</button>
+      <button id="cr-continue" data-i18n="res.back">클럽으로 →</button>
     </div>
   </div>
 
@@ -1134,14 +1272,14 @@
   </div>
 
   <!-- ─── Career: 클럽 철학(장기 분기) ──────────────────────────────────── -->
-  <div id="philo-overlay" role="dialog" aria-modal="true" aria-label="클럽 철학" aria-hidden="true" data-dismissible="true" tabindex="-1">
+  <div id="philo-overlay" role="dialog" aria-modal="true" data-i18n-aria="philo.title" aria-label="클럽 철학" aria-hidden="true" data-dismissible="true" tabindex="-1">
     <div class="philo-wrap">
       <div class="philo-head">
-        <h2>클럽 철학</h2>
+        <h2 data-i18n="philo.title">클럽 철학</h2>
         <span class="philo-points" id="philo-points">0 P</span>
-        <button type="button" id="philo-close" aria-label="닫기">✕</button>
+        <button type="button" id="philo-close" data-i18n-aria="philo.close" aria-label="닫기">✕</button>
       </div>
-      <p class="philo-intro" id="philo-intro">정체성을 골라 퍼크를 해금하세요. 선택은 전술 매치와 결과에 영구 반영됩니다.</p>
+      <p class="philo-intro" id="philo-intro" data-i18n="philo.intro">정체성을 골라 퍼크를 해금하세요. 선택은 전술 매치와 결과에 영구 반영됩니다.</p>
       <div class="philo-list" id="philo-list"></div>
       <div class="philo-perks" id="philo-perks"></div>
     </div>
@@ -1154,8 +1292,8 @@
       <div class="oc-facts">—</div>
       <div class="oc-report"></div>
       <div class="oc-buttons">
-        <button class="oc-retry">다시 도전</button>
-        <button class="oc-next">다음 매치 모먼트 →</button>
+        <button class="oc-retry" data-i18n="board.retry">다시 도전</button>
+        <button class="oc-next" data-i18n="oc.next">다음 매치 모먼트 →</button>
       </div>
     </div>
   </div>
@@ -1165,13 +1303,18 @@
       <div class="tactics-head">
         <span class="tactics-prematch"><span>PRE-MATCH</span></span>
         <span class="tactics-cell" id="tactics-cell">A1</span>
-        <h2 id="tactics-heading">전술 브리핑</h2>
+        <h2 id="tactics-heading" data-i18n="brief.heading">전술 브리핑</h2>
         <span class="tactics-scenario-title" id="tactics-scenario-title">—</span>
-        <button type="button" id="btn-tactics-back" class="tactics-back" hidden>← 모먼트</button>
+        <button type="button" id="btn-tactics-back" class="tactics-back" hidden data-i18n="brief.back">← 모먼트</button>
+      </div>
+      <div class="tactics-plan" id="tactics-plan">
+        <span class="tp-k" data-i18n="brief.recPlan">추천 플랜</span>
+        <strong id="tactics-plan-text">—</strong>
+        <button type="button" id="btn-tactics-adv" class="tactics-adv-toggle" aria-expanded="false" data-i18n="brief.adv">고급 설정 ▾</button>
       </div>
       <div class="tactics-body">
         <div class="tactics-left">
-          <div class="tactics-section-label">대형</div>
+          <div class="tactics-section-label" data-i18n="brief.formation">대형</div>
           <div id="tactics-formation" class="tactics-formation"></div>
           <div class="tactics-shape-labels">
             <span class="tactics-us-label" id="tactics-our-shape">—</span>
@@ -1181,74 +1324,74 @@
         </div>
         <div class="tactics-right">
           <div class="tactics-intel">
-            <div class="tactics-section-label">상대 전술</div>
+            <div class="tactics-section-label" data-i18n="brief.oppTactics">상대 전술</div>
             <div class="tactics-scheme-line" id="tactics-scheme-line">—</div>
             <div class="tactics-opp-plan-text" id="tactics-opp-plan-text">—</div>
-            <div class="tactics-edge-line">우리가 만들 우위: <strong id="tactics-edge-text">—</strong></div>
-            <div class="tactics-target-line">추천 마무리: <strong id="tactics-target-shot">—</strong></div>
+            <div class="tactics-edge-line"><span data-i18n="brief.ourEdge">우리가 만들 우위</span>: <strong id="tactics-edge-text">—</strong></div>
+            <div class="tactics-target-line"><span data-i18n="brief.recShot">추천 마무리</span>: <strong id="tactics-target-shot">—</strong></div>
             <div class="tactics-scout" id="tactics-scout">
-              <div class="tactics-scout-label">상대 스카우팅</div>
-              <div class="tactics-scout-style"><span class="ts-k">성향</span><span id="tactics-scout-style">—</span></div>
-              <div class="tactics-scout-weak"><span class="ts-k">약점</span><span id="tactics-scout-weak">—</span></div>
-              <div class="tactics-scout-caution"><span class="ts-k">주의</span><span id="tactics-scout-caution">—</span></div>
-              <div class="tactics-scout-trap"><span class="ts-k">덫</span><span id="tactics-scout-trap">—</span></div>
-              <div class="tactics-scout-rec"><span class="ts-k">추천</span><span id="tactics-scout-rec">—</span></div>
+              <div class="tactics-scout-label" data-i18n="brief.scouting">상대 스카우팅</div>
+              <div class="tactics-scout-style"><span class="ts-k" data-i18n="brief.style">성향</span><span id="tactics-scout-style">—</span></div>
+              <div class="tactics-scout-weak"><span class="ts-k" data-i18n="brief.weakness">약점</span><span id="tactics-scout-weak">—</span></div>
+              <div class="tactics-scout-caution"><span class="ts-k" data-i18n="brief.caution">주의</span><span id="tactics-scout-caution">—</span></div>
+              <div class="tactics-scout-trap"><span class="ts-k" data-i18n="brief.trap">덫</span><span id="tactics-scout-trap">—</span></div>
+              <div class="tactics-scout-rec"><span class="ts-k" data-i18n="brief.rec">추천</span><span id="tactics-scout-rec">—</span></div>
               <div class="tactics-scout-train" id="tactics-scout-train" hidden>
-                <span class="ts-k">활성 훈련</span>
+                <span class="ts-k" data-i18n="brief.activeTraining">활성 훈련</span>
                 <span class="tactics-scout-train-list" id="tactics-scout-train-list">—</span>
               </div>
             </div>
           </div>
           <div class="tactics-difficulty">
-            <div class="tactics-section-label">난이도</div>
+            <div class="tactics-section-label" data-i18n="brief.difficulty">난이도</div>
             <div class="tactics-diff-btns">
-              <button class="diff-btn" data-difficulty="mid">쉬움</button>
-              <button class="diff-btn active" data-difficulty="high">표준</button>
-              <button class="diff-btn" data-difficulty="vhigh">어려움</button>
+              <button class="diff-btn" data-difficulty="mid" data-i18n="brief.diffEasy">쉬움</button>
+              <button class="diff-btn active" data-difficulty="high" data-i18n="brief.diffStd">표준</button>
+              <button class="diff-btn" data-difficulty="vhigh" data-i18n="brief.diffHard">어려움</button>
             </div>
             <div class="tactics-diff-desc" id="tactics-diff-desc">전방 압박 — 빠른 판단이 필요합니다</div>
           </div>
           <div class="tactics-difficulty">
-            <div class="tactics-section-label">빌드업 셰이프</div>
+            <div class="tactics-section-label" data-i18n="brief.shape">빌드업 셰이프</div>
             <div class="tactics-diff-btns">
-              <button class="shape-btn active" data-shape="balanced" title="살리다 3-2 — 안정적 첫 줄 빌드업">균형</button>
-              <button class="shape-btn" data-shape="control" title="인버티드 풀백 — 중앙 통제·역습 차단">통제</button>
-              <button class="shape-btn" data-shape="attack" title="3-2-5 전진 — 전방 위협·배후 노출">공격</button>
+              <button class="shape-btn active" data-shape="balanced" data-i18n="brief.shapeBalanced" title="살리다 3-2 — 안정적 첫 줄 빌드업">균형</button>
+              <button class="shape-btn" data-shape="control" data-i18n="brief.shapeControl" title="인버티드 풀백 — 중앙 통제·역습 차단">통제</button>
+              <button class="shape-btn" data-shape="attack" data-i18n="brief.shapeAttack" title="3-2-5 전진 — 전방 위협·배후 노출">공격</button>
             </div>
             <div class="tactics-diff-desc" id="tactics-shape-desc">안정적 첫 줄 빌드업 — 보정 중립</div>
           </div>
           <div class="tactics-difficulty">
-            <div class="tactics-section-label">세트피스 딜리버리</div>
+            <div class="tactics-section-label" data-i18n="brief.setpiece">세트피스 딜리버리</div>
             <div class="tactics-diff-btns">
-              <button class="sp-btn active" data-delivery="inswing">인스윙</button>
-              <button class="sp-btn" data-delivery="outswing">아웃스윙</button>
-              <button class="sp-btn" data-delivery="short">숏코너</button>
+              <button class="sp-btn active" data-delivery="inswing" data-i18n="brief.inswing">인스윙</button>
+              <button class="sp-btn" data-delivery="outswing" data-i18n="brief.outswing">아웃스윙</button>
+              <button class="sp-btn" data-delivery="short" data-i18n="brief.shortCorner">숏코너</button>
             </div>
             <div class="tactics-diff-desc" id="tactics-sp-desc">골 쪽 회전으로 GK 압박 — 대인·게겐에 강함</div>
           </div>
           <div class="tactics-intents">
             <div class="tactics-section-label">시작 대형 <small style="text-transform:none;font-weight:400;letter-spacing:0;color:var(--text-muted);">— 경기 중 변경 가능</small></div>
             <div class="tactics-intent-row" data-tgroup="front">
-              <span class="tactics-intent-k">전방</span>
-              <button class="tactics-intent-btn active" data-tintent="pin" title="최전방에 머물며 상대 백라인을 밀어냄">라인 밀어내기</button>
-              <button class="tactics-intent-btn" data-tintent="drop" title="내려와 빌드업을 도움">내려와 연결</button>
+              <span class="tactics-intent-k" data-i18n="dr.front">전방</span>
+              <button class="tactics-intent-btn active" data-tintent="pin" data-i18n="dr.pin" title="최전방에 머물며 상대 백라인을 밀어냄">라인 밀어내기</button>
+              <button class="tactics-intent-btn" data-tintent="drop" data-i18n="dr.drop" title="내려와 빌드업을 도움">내려와 연결</button>
             </div>
             <div class="tactics-intent-row" data-tgroup="mid">
-              <span class="tactics-intent-k">중원</span>
-              <button class="tactics-intent-btn active" data-tintent="between" title="전진 위치를 유지하며 라인 사이에서 받습니다">라인 사이</button>
-              <button class="tactics-intent-btn" data-tintent="support" title="내려와 수적 우위">빌드업 보조</button>
+              <span class="tactics-intent-k" data-i18n="dr.mid">중원</span>
+              <button class="tactics-intent-btn active" data-tintent="between" data-i18n="dr.between" title="전진 위치를 유지하며 라인 사이에서 받습니다">라인 사이</button>
+              <button class="tactics-intent-btn" data-tintent="support" data-i18n="dr.support" title="내려와 수적 우위">빌드업 보조</button>
             </div>
             <div class="tactics-intent-row" data-tgroup="back">
-              <span class="tactics-intent-k">후방</span>
-              <button class="tactics-intent-btn" data-tintent="overlap" title="풀백이 높이 전진">풀백 전진</button>
-              <button class="tactics-intent-btn active" data-tintent="hold" title="풀백이 남아 리셋 출구를 보장합니다">후방 안정</button>
+              <span class="tactics-intent-k" data-i18n="dr.back">후방</span>
+              <button class="tactics-intent-btn" data-tintent="overlap" data-i18n="dr.overlap" title="풀백이 높이 전진">풀백 전진</button>
+              <button class="tactics-intent-btn active" data-tintent="hold" data-i18n="dr.hold" title="풀백이 남아 리셋 출구를 보장합니다">후방 안정</button>
             </div>
           </div>
         </div>
       </div>
       <div class="tactics-footer">
         <span class="tactics-hint-text" id="tactics-hint">—</span>
-        <button id="btn-tactics-kickoff">킥오프 ▸</button>
+        <button id="btn-tactics-kickoff" data-i18n="cta.kickoff">킥오프 ▸</button>
       </div>
     </div>
   </div>

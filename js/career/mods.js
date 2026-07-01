@@ -23,9 +23,9 @@ function clamp(v, lo, hi) { return v < lo ? lo : v > hi ? hi : v; }
 //  - control  : 인버티드 풀백/더블피벗 — 중앙 통제·레스트 디펜스(실점↓), 마무리 살짝↓
 //  - attack   : 3-2-5 전진 — 전방 위협(마무리·xG↑), 배후 노출로 실점↑
 export const BUILD_SHAPES = {
-  balanced: { key: 'balanced', label: '균형', sub: '살리다 3-2', desc: '안정적 첫 줄 빌드업 — 보정 중립', builder: null, mods: {} },
-  control: { key: 'control', label: '통제', sub: '인버티드 풀백', desc: '중앙 통제·역습 차단(실점↓), 마무리 살짝↓', builder: buildDoublePivot23, mods: { passAdd: 0.02, shotMul: 0.95, concedeMul: 0.93 } },
-  attack: { key: 'attack', label: '공격', sub: '3-2-5 전진', desc: '전방 위협·xG↑, 배후 노출로 실점↑', builder: build433Ours, mods: { shotAdd: 0.05, xgMul: 1.05, concedeMul: 1.10 } },
+  balanced: { key: 'balanced', label: { ko: '균형', en: 'Balanced' }, sub: { ko: '살리다 3-2', en: 'Salida 3-2' }, desc: { ko: '안정적 첫 줄 빌드업 — 보정 중립', en: 'Stable first-line build-up — neutral modifiers' }, builder: null, mods: {} },
+  control: { key: 'control', label: { ko: '통제', en: 'Control' }, sub: { ko: '인버티드 풀백', en: 'Inverted full-backs' }, desc: { ko: '압박 저항·역습 차단(실점 크게↓), 마무리 살짝↓ — 단단히 결과 지키기', en: 'Press-resistant & counter cover (concede much↓), finishing slightly↓ — grind out results' }, builder: buildDoublePivot23, mods: { passAdd: 0.05, shotMul: 0.95, concedeMul: 0.80 } },
+  attack: { key: 'attack', label: { ko: '공격', en: 'Attack' }, sub: { ko: '3-2-5 전진', en: '3-2-5 high' }, desc: { ko: '전방 위협·xG↑, 배후 노출로 실점↑', en: 'Front-line threat & xG↑, exposed behind so concede↑' }, builder: build433Ours, mods: { shotAdd: 0.05, xgMul: 1.05, concedeMul: 1.10 } },
 };
 
 // 선택한 셰이프의 트레이드오프를 setup에 반영(킥오프 직전 호출). setup을 직접 수정.
@@ -38,6 +38,18 @@ export function applyShape(setup, key) {
   setup.xgMul = (setup.xgMul || 1) * (m.xgMul || 1);
   setup.shapeConcedeMul = m.concedeMul || 1;
   setup.shape = key;
+  return setup;
+}
+
+// 포메이션별 고유 mods를 setup에 적용 (applyShape와 동일 필드 규약, 임의 mods 객체).
+// 8개 포메이션이 각자 공/수 트레이드오프를 갖도록 — 아키타입 공유 대체.
+export function applyFormationMods(setup, mods) {
+  if (!setup || !mods) return setup;
+  const m = mods;
+  setup.passBoost = clamp(setup.passBoost + (m.passAdd || 0), 0, 0.32);
+  setup.shotBoost = clamp((setup.shotBoost + (m.shotAdd || 0)) * (m.shotMul || 1), 0, 0.6);
+  setup.xgMul = (setup.xgMul || 1) * (m.xgMul || 1);
+  setup.shapeConcedeMul = m.concedeMul || 1;
   return setup;
 }
 

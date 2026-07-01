@@ -1,10 +1,15 @@
 import { ACTION_LABELS } from './tactics.js';
+import { SHOT_ZONES } from './shots.js';
 import { josa } from '../util/josa.js';
+import { t, getLang } from '../career/i18n.js';
 
-const INTENT_LABELS = {
-  front: { pin: '전방 고정', drop: '전방 내려와 연결' },
-  mid: { between: '중원 라인 사이', support: '중원 빌드업 보조' },
-  back: { overlap: '풀백 전진', hold: '후방 안정' },
+// Valid line-intent combinations → their i18n key. The map doubles as the
+// validity filter (invalid group/intent pairs resolve to undefined and drop),
+// while the display value is resolved through t() so it follows the language.
+const INTENT_KEYS = {
+  front: { pin: 'rep.intent.front.pin', drop: 'rep.intent.front.drop' },
+  mid: { between: 'rep.intent.mid.between', support: 'rep.intent.mid.support' },
+  back: { overlap: 'rep.intent.back.overlap', hold: 'rep.intent.back.hold' },
 };
 
 function topAction(history = []) {
@@ -15,38 +20,47 @@ function topAction(history = []) {
 
 function joinIntents(lineIntents = {}) {
   return Object.entries(lineIntents)
-    .map(([group, intent]) => INTENT_LABELS[group]?.[intent])
+    .map(([group, intent]) => INTENT_KEYS[group]?.[intent])
     .filter(Boolean)
+    .map((key) => t(key))
     .join(' · ');
 }
 
 function pickWorked(state) {
   const f = state.facts || {};
   const helpful = (state.lastTacticalFactors || []).filter((x) => x.multiplier < 1);
-  if (f.situationsResolved > 0) return `상황 대응 ${f.situationsResolved}회로 상대 변화를 다시 흔들었습니다.`;
-  if (f.windowsUsed > 0) return `열린 공간을 ${f.windowsUsed}회 활용해 압박 뒤를 공략했습니다.`;
-  if (f.linesBroken > 0) return `라인 ${f.linesBroken}개를 통과하며 전진 구조는 만들었습니다.`;
-  if ((state.scanFactor || 0) >= 0.5) return '스캔으로 압박을 미리 읽어 전진이 안정적이었습니다.'; // E7
+  if ((f.defensivePressWins || 0) > 0) return t('rep.worked.press').replace('{n}', String(f.defensivePressWins));
+  if (f.situationsResolved > 0) return t('rep.worked.situations').replace('{n}', String(f.situationsResolved));
+  if (f.windowsUsed > 0) return t('rep.worked.windows').replace('{n}', String(f.windowsUsed));
+  if (f.linesBroken > 0) return t('rep.worked.lines').replace('{n}', String(f.linesBroken));
+  if ((state.scanFactor || 0) >= 0.5) return t('rep.worked.scan'); // E7
   if (helpful[0]) return helpful[0].label;
-  return joinIntents(state.lineIntents) || '전술 구조를 유지했습니다.';
+  return joinIntents(state.lineIntents) || t('rep.worked.structure');
 }
 
 function pickRead(state) {
   const active = state.situations?.active || [];
   const costly = (state.lastTacticalFactors || []).filter((x) => x.multiplier > 1);
-  if (active.length) return `${josa(active.at(-1).title, '이', '가')} 해결되지 않은 채 남았습니다.`;
-  if (state.adaptRead) return `${ACTION_LABELS[state.adaptRead] ?? state.adaptRead} 반복을 상대가 읽기 시작했습니다.`;
+  if (active.length) {
+    const title = t(`sit.${active.at(-1).id}.title`);
+    return getLang() === 'en'
+      ? t('rep.read.situation').replace('{x}', title)
+      : `${josa(title, '이', '가')} 해결되지 않은 채 남았습니다.`;
+  }
+  if (state.adaptRead) return t('rep.read.adapt').replace('{x}', ACTION_LABELS[state.adaptRead] ?? state.adaptRead);
   if (costly[0]) return costly[0].label;
   const top = topAction(state.actionHistory);
-  if (top && top[1] >= 2) return `${ACTION_LABELS[top[0]] ?? top[0]} 비중이 높았습니다. 다음엔 한 번 변주가 필요합니다.`;
-  return '상대에게 뚜렷하게 읽힌 패턴은 없었습니다.';
+  if (top && top[1] >= 2) return t('rep.read.overused').replace('{x}', ACTION_LABELS[top[0]] ?? top[0]);
+  return t('rep.read.none');
 }
 
 function pickDecisive(outcome, state) {
-  const zone = outcome?.zoneId ? ` · 슛 존 ${outcome.zoneId}` : '';
+  const zoneDef = outcome?.zoneId ? SHOT_ZONES.find((z) => z.id === outcome.zoneId) : null;
+  const zoneName = zoneDef ? (getLang() === 'en' ? zoneDef.en : zoneDef.ko) : (outcome?.zoneId ?? '');
+  const zone = outcome?.zoneId ? t('rep.decisive.zone').replace('{x}', zoneName) : '';
   const xg = outcome?.xg != null ? ` · xG ${Math.round(outcome.xg * 100)}%` : '';
-  const tone = outcome?.tone === 'goal' ? '득점' : outcome?.tone === 'near' ? '찬스' : '공격 종료';
-  return `${tone}${zone}${xg} · ${state.turn}턴`;
+  const tone = outcome?.tone === 'goal' ? t('rep.tone.goal') : outcome?.tone === 'near' ? t('rep.tone.near') : t('rep.tone.end');
+  return `${tone}${zone}${xg}${t('rep.decisive.turn').replace('{n}', String(state.turn))}`;
 }
 
 function clampUnit(v) { return v < 0 ? 0 : v > 1 ? 1 : v; }
@@ -75,10 +89,10 @@ function buildMetrics(state, outcome) {
 // 만든 우위 분류 (E3, research §2.3). facts로부터 어떤 우위를 만들었는지 읽어
 // 결과를 우위 언어로 설명한다. 질적(유인→전환 고립) > 위치(라인 사이/배후) > 수적.
 function classifySuperiority(f = {}) {
-  if ((f.baits || 0) >= 2 && (f.switches || 0) >= 1) return '질적 우위 — 유인 후 전환으로 약측 1v1 고립';
-  if ((f.linesBroken || 0) >= 2 || (f.windowsUsed || 0) >= 1) return '위치 우위 — 라인 사이·배후를 점유';
-  if ((f.situationsResolved || 0) >= 1 || (f.runs || 0) >= 2 || (f.switches || 0) >= 1) return '수적 우위 — 상황·침투로 국지적 과부하';
-  return '뚜렷한 우위는 만들지 못했습니다';
+  if ((f.baits || 0) >= 2 && (f.switches || 0) >= 1) return t('rep.sup.qual');
+  if ((f.linesBroken || 0) >= 2 || (f.windowsUsed || 0) >= 1) return t('rep.sup.pos');
+  if ((f.situationsResolved || 0) >= 1 || (f.runs || 0) >= 2 || (f.switches || 0) >= 1) return t('rep.sup.num');
+  return t('rep.sup.none');
 }
 
 // 수비 전환 노출 읽기 (E1, research §3.1). 볼을 잃었을 때 역습 위험을, 통제 신호
@@ -86,22 +100,37 @@ function classifySuperiority(f = {}) {
 function classifyTransition(state, outcome) {
   const f = state.facts || {};
   const tone = outcome?.tone;
-  if ((f.counterpressWins || 0) > 0) return `카운터프레스 ${f.counterpressWins}회 성공 — 5초 안에 되찾아 재공격`;
-  if (tone === 'goal' || tone === 'near') return '전환 안정 — 마무리 국면까지 도달, 레스트 어택 확보';
+  if ((f.defensivePressWins || 0) > 0) return t('rep.trans.press').replace('{n}', String(f.defensivePressWins));
+  if ((f.counterpressWins || 0) > 0) return t('rep.trans.counter').replace('{n}', String(f.counterpressWins));
+  if (tone === 'goal' || tone === 'near') return t('rep.trans.stable');
   const controlled = (f.situationsResolved || 0) >= 1 || (f.linesBroken || 0) >= 2 || state.lineIntents?.back === 'hold';
-  if (controlled) return '전환 노출 중간 — 통제된 상실, 카운터프레스 5초 안에 회복 가능';
-  return '전환 노출 높음 — 무리한 전개 후 역습 위험. 다음엔 후방 안정으로 레스트 디펜스를 먼저 갖추세요';
+  if (controlled) return t('rep.trans.mid');
+  return t('rep.trans.high');
 }
 
 function pickNext(state, outcome) {
   const active = state.situations?.active || [];
-  if (active.some((s) => s.id === 'pressure_surge')) return '압박 강화가 보이면 기다리기보다 빠른 원터치 발밑 연결로 첫 압박선을 바로 벗기세요.';
-  if (active.some((s) => s.id === 'flank_lock')) return '전환이 읽히면 중앙 조합으로 수비를 다시 모은 뒤 약측을 여세요.';
-  if (active.some((s) => s.id === 'counter_risk')) return '풀백 전진 후 공격이 막히면 후방 안정으로 역습 리스크를 먼저 줄이세요.';
-  if (state.adaptRead) return `${ACTION_LABELS[state.adaptRead] ?? state.adaptRead}를 한 번 쉬고 다른 루트로 시작하세요.`;
-  if (outcome?.tone === 'fail') return '다음 시도는 전진보다 출구 확보를 먼저 보고, 첫 패스 전 압박수를 한 번 더 움직이세요.';
-  if (outcome?.tone === 'near') return '찬스까지는 만들었습니다. 마지막 패스 직전 슛 각도와 압박 거리를 한 번 더 확인하세요.';
-  return '성공 루트가 보였습니다. 같은 구조를 반복하기 전 한 번 다른 액션으로 상대 적응을 늦추세요.';
+  if (active.some((s) => s.id === 'pressure_surge')) return t('rep.next.pressure');
+  if (active.some((s) => s.id === 'flank_lock')) return t('rep.next.flank');
+  if (active.some((s) => s.id === 'counter_risk')) return t('rep.next.counter');
+  if (state.adaptRead) return t('rep.next.adapt').replace('{x}', ACTION_LABELS[state.adaptRead] ?? state.adaptRead);
+  if (outcome?.tone === 'fail') {
+    // 실패 원인을 직격해 신규 유저가 "왜 졌는지"를 1패에 배우게 한다.
+    const kind = outcome?.kind;
+    const tailored = {
+      intercepted: 'rep.next.intercepted',
+      tackled: 'rep.next.tackled',
+      trapped: 'rep.next.trapped',
+      collapsed: 'rep.next.collapsed',
+      press_broken: 'rep.next.pressbroken',
+    }[kind];
+    if (tailored) return t(tailored);
+    // 서두름: 압박을 유인(bait)하지 않고 일찍 잃은 경우.
+    if ((state.turn ?? 99) <= 2 && (state.facts?.baits || 0) === 0) return t('rep.next.rushed');
+    return t('rep.next.fail');
+  }
+  if (outcome?.tone === 'near') return t('rep.next.near');
+  return t('rep.next.success');
 }
 
 export function buildTacticalReport(state, outcome) {
