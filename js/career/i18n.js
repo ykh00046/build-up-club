@@ -182,7 +182,6 @@ const DICT = {
     'coach.s3.title': '열린 슛 존에서 끝내세요',
     'coach.s3.copy': '슈팅 버튼이 주황색으로 빛나면 좋은 기회입니다 — 마무리하세요. 흐릿하면 더 좋은 각을 만드세요.',
     // ── 액션바: 패스 버튼 무장 상태 ──
-    'act.passFeet': '패스: 발밑 ▾', 'act.passSpaceArmed': '패스: 공간 ▾',
     // ── 힌트 (액션바) ──
     'hint.toFeet': '동료를 클릭하면 발밑, 빈 공간을 클릭하면 공간 패스 — 피치 안에서 자동 판별.',
     'hint.passSpace': '공간을 클릭하세요 — 가까운 동료가 받습니다. 멀수록(진한 색) 위험합니다.',
@@ -624,7 +623,6 @@ const DICT = {
     'coach.s3.title': 'Finish from an open shot zone',
     'coach.s3.copy': 'When the shoot button glows orange, it\'s a good chance — finish it. If it\'s dim, work a better angle.',
     // ── Action bar: pass button armed states ──
-    'act.passFeet': 'Pass: to feet ▾', 'act.passSpaceArmed': 'Pass: space ▾',
     // ── Hints (action bar) ──
     'hint.toFeet': 'Click a teammate for feet, empty space for a space pass — the pitch decides.',
     'hint.passSpace': 'Click a space — the nearest teammate runs onto it. Farther (darker) is riskier.',
