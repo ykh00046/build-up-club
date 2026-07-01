@@ -28,7 +28,10 @@ export const BUILD_SHAPES = {
   attack: { key: 'attack', label: { ko: '공격', en: 'Attack' }, sub: { ko: '3-2-5 전진', en: '3-2-5 high' }, desc: { ko: '전방 위협·xG↑, 배후 노출로 실점↑', en: 'Front-line threat & xG↑, exposed behind so concede↑' }, builder: build433Ours, mods: { shotAdd: 0.05, xgMul: 1.05, concedeMul: 1.10 } },
 };
 
-// 선택한 셰이프의 트레이드오프를 setup에 반영(킥오프 직전 호출). setup을 직접 수정.
+// 선택한 셰이프의 트레이드오프를 setup에 반영. NOTE: 런타임 킥오프 경로는 이제
+// applyFormationMods(FORMATION_MODS)를 쓰며 이 함수를 호출하지 않는다. 현재 유일
+// 소비처는 build-shape-test.mjs(구 3-셰이프 데이터 검증) — 구 시스템 은퇴 시 테스트를
+// FORMATION_MODS로 이관하면 함께 제거 가능. (감사 2026, 중복/미반영 정리)
 export function applyShape(setup, key) {
   const shape = BUILD_SHAPES[key];
   if (!setup || !shape) return setup;

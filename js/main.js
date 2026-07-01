@@ -25,7 +25,7 @@ import { prefersReducedMotion } from './util/motion.js';
 import * as analytics from './util/analytics.js';
 // ─── Career layer (idle-football-club 메타 + 통합 글루) ───────────────────────
 import * as Club from './career/club.js';
-import { applyClubBoost, resolveScoreline, BUILD_SHAPES, applyShape, applyFormationMods, applySetPiece } from './career/mods.js';
+import { applyClubBoost, resolveScoreline, BUILD_SHAPES, applyFormationMods, applySetPiece } from './career/mods.js';
 import { build433Ours, build442Ours, build4231Ours, build352Ours, build343Ours, build4312Ours, build532Ours, build451Ours } from './data/formations.js';
 import { DELIVERIES, DEFAULT_DELIVERY, bestDeliveryFor, deliveryBonus } from './data/setpieces.js';
 import { initHub, renderHub, nextMatchInfo } from './career/hub.js';

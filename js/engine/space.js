@@ -188,7 +188,7 @@ export function landingZoneFor(runner, depth = 12) {
 //   BACK:   marked goal-side, forward passing nearly impossible
 //
 // Decision (at reception moment):
-//   moving=true (into_space / bounce run-out) → always FACING
+//   moving=true (pass_space / bounce run-out) → always FACING
 //   nearest outfield defender ≤3.5m AND goal-side → BACK
 //   nearest outfield defender ≤5.5m            → HALF
 //   otherwise                                   → FACING

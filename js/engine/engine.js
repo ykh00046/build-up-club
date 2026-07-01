@@ -774,7 +774,10 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
     const fromPos = { x: from.x, y: from.y };
     const broken = linesBroken(fromPos, target, opps());
     state.facts.linesBroken += broken;
-    state.lastPassFromByline = fromPos.x > 90 && (fromPos.y < 16 || fromPos.y > PITCH_H - 16) && Math.abs(target.y - PITCH_H / 2) < 14;
+    // 바이라인 컷백 판정은 pass_space 경로(아래)와 술어를 일치시킨다 — 수신 지점이
+    // 박스 안(x>88)일 때만. (shots.js가 슈터 x도 재검사하므로 동작 불변, 정합성만 확보.)
+    state.lastPassFromByline = fromPos.x > 90 && (fromPos.y < 16 || fromPos.y > PITCH_H - 16)
+      && Math.abs(target.y - PITCH_H / 2) < 14 && target.x > 88;
     state.lastPassLofted = useLofted;
     // A header chance needs a CROSS — wide origin, central box arrival. A
     // central chip is not a cross (Major 3).
