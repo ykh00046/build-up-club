@@ -11,7 +11,6 @@
 import { activeTrainingEffects, attackOVR, defenseOVR, teamOVR, oppBaseOVR, POSITIONS, club } from './club.js';
 import { philoMods } from './philosophy.js';
 import { activeIdentityLevel, scanFactor } from './identity.js';
-import { buildSalida32, buildDoublePivot23, build433Ours } from '../data/formations.js';
 import { deliveryBonus } from '../data/setpieces.js';
 import { roleMods } from '../data/roles.js';
 
@@ -22,30 +21,15 @@ function clamp(v, lo, hi) { return v < lo ? lo : v > hi ? hi : v; }
 //  - balanced : 살리다 3-2 — 첫 줄 안정, 보정 중립(기본)
 //  - control  : 인버티드 풀백/더블피벗 — 중앙 통제·레스트 디펜스(실점↓), 마무리 살짝↓
 //  - attack   : 3-2-5 전진 — 전방 위협(마무리·xG↑), 배후 노출로 실점↑
+// 아키타입 표시 라벨/설명(선택 포메이션 → FORMATION_ARCHETYPE → 이 텍스트). 트레이드오프
+// 수치는 이제 formations.js의 FORMATION_MODS가 소유하며, 여기선 UI 문구만 제공한다.
 export const BUILD_SHAPES = {
-  balanced: { key: 'balanced', label: { ko: '균형', en: 'Balanced' }, sub: { ko: '살리다 3-2', en: 'Salida 3-2' }, desc: { ko: '안정적 첫 줄 빌드업 — 보정 중립', en: 'Stable first-line build-up — neutral modifiers' }, builder: null, mods: {} },
-  control: { key: 'control', label: { ko: '통제', en: 'Control' }, sub: { ko: '인버티드 풀백', en: 'Inverted full-backs' }, desc: { ko: '압박 저항·역습 차단(실점 크게↓), 마무리 살짝↓ — 단단히 결과 지키기', en: 'Press-resistant & counter cover (concede much↓), finishing slightly↓ — grind out results' }, builder: buildDoublePivot23, mods: { passAdd: 0.05, shotMul: 0.95, concedeMul: 0.80 } },
-  attack: { key: 'attack', label: { ko: '공격', en: 'Attack' }, sub: { ko: '3-2-5 전진', en: '3-2-5 high' }, desc: { ko: '전방 위협·xG↑, 배후 노출로 실점↑', en: 'Front-line threat & xG↑, exposed behind so concede↑' }, builder: build433Ours, mods: { shotAdd: 0.05, xgMul: 1.05, concedeMul: 1.10 } },
+  balanced: { key: 'balanced', label: { ko: '균형', en: 'Balanced' }, sub: { ko: '살리다 3-2', en: 'Salida 3-2' }, desc: { ko: '안정적 첫 줄 빌드업 — 보정 중립', en: 'Stable first-line build-up — neutral modifiers' } },
+  control: { key: 'control', label: { ko: '통제', en: 'Control' }, sub: { ko: '인버티드 풀백', en: 'Inverted full-backs' }, desc: { ko: '압박 저항·역습 차단(실점 크게↓), 마무리 살짝↓ — 단단히 결과 지키기', en: 'Press-resistant & counter cover (concede much↓), finishing slightly↓ — grind out results' } },
+  attack: { key: 'attack', label: { ko: '공격', en: 'Attack' }, sub: { ko: '3-2-5 전진', en: '3-2-5 high' }, desc: { ko: '전방 위협·xG↑, 배후 노출로 실점↑', en: 'Front-line threat & xG↑, exposed behind so concede↑' } },
 };
 
-// 선택한 셰이프의 트레이드오프를 setup에 반영. NOTE: 런타임 킥오프 경로는 이제
-// applyFormationMods(FORMATION_MODS)를 쓰며 이 함수를 호출하지 않는다. 현재 유일
-// 소비처는 build-shape-test.mjs(구 3-셰이프 데이터 검증) — 구 시스템 은퇴 시 테스트를
-// FORMATION_MODS로 이관하면 함께 제거 가능. (감사 2026, 중복/미반영 정리)
-export function applyShape(setup, key) {
-  const shape = BUILD_SHAPES[key];
-  if (!setup || !shape) return setup;
-  const m = shape.mods;
-  setup.passBoost = clamp(setup.passBoost + (m.passAdd || 0), 0, 0.32);
-  setup.shotBoost = clamp((setup.shotBoost + (m.shotAdd || 0)) * (m.shotMul || 1), 0, 0.6);
-  setup.xgMul = (setup.xgMul || 1) * (m.xgMul || 1);
-  setup.shapeConcedeMul = m.concedeMul || 1;
-  setup.shape = key;
-  return setup;
-}
-
-// 포메이션별 고유 mods를 setup에 적용 (applyShape와 동일 필드 규약, 임의 mods 객체).
-// 8개 포메이션이 각자 공/수 트레이드오프를 갖도록 — 아키타입 공유 대체.
+// 포메이션별 고유 mods를 setup에 적용 (FORMATION_MODS[key]를 받아 킥오프 직전 반영).
 export function applyFormationMods(setup, mods) {
   if (!setup || !mods) return setup;
   const m = mods;
@@ -136,7 +120,7 @@ export function matchSetup(oppOVR) {
   };
 }
 
-// 선택한 세트피스 딜리버리를 setup에 반영(킥오프 직전, applyShape와 같은 패턴). E5.
+// 선택한 세트피스 딜리버리를 setup에 반영(킥오프 직전, applyFormationMods와 같은 패턴). E5.
 export function applySetPiece(setup, delivery, scheme) {
   if (!setup) return setup;
   setup.delivery = delivery || null;

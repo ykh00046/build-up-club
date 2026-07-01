@@ -314,3 +314,29 @@ export function build442Man(marks) {
     D({ id: 'opp-gk', role: 'GK', num: 1,  label: 'GK',  x: 100, y: 34, line: 'gk',   jumpiness: 0,   leash: 4, traits: { keeping: .8 } }),
   ];
 }
+
+// ── 플레이어 포메이션 선택 설정 ─────────────────────────────────────────────
+// 라이브 포메이션 설정(importable 모듈로 — main.js/테스트 공용). 8개 포메이션
+// 각각의 빌더·공수 트레이드오프·빌드업 아키타입. (이전엔 main.js 로컬 const라
+// node import 불가 → 테스트가 구 BUILD_SHAPES를 검증하던 미반영 해소.)
+export const FORMATION_BUILDERS = {
+  f433: build433Ours, f442: build442Ours, f4231: build4231Ours, f352: build352Ours,
+  f343: build343Ours, f4312: build4312Ours, f532: build532Ours, f451: build451Ours,
+};
+// 포메이션별 고유 공/수 트레이드오프 mods (concedeMul: 낮을수록 수비적).
+export const FORMATION_MODS = {
+  f433:  { passAdd: 0.02, shotAdd: 0.02, xgMul: 1.02, concedeMul: 1.00 },  // 4-3-3 균형-공격
+  f442:  { shotAdd: 0.04, xgMul: 1.03, concedeMul: 1.05 },                 // 4-4-2 투톱 직선
+  f4231: { passAdd: 0.04, concedeMul: 0.92 },                              // 4-2-3-1 더블피벗 통제
+  f352:  { passAdd: 0.03, shotAdd: 0.02, concedeMul: 1.06 },               // 3-5-2 폭·측면 노출
+  f343:  { shotAdd: 0.05, xgMul: 1.05, concedeMul: 1.12 },                 // 3-4-3 최공격·배후 노출
+  f4312: { passAdd: 0.03, shotAdd: 0.03, xgMul: 1.03, concedeMul: 1.02 },  // 4-3-1-2 중앙 과부하
+  f532:  { passAdd: 0.02, shotMul: 0.92, concedeMul: 0.78 },               // 5-3-2 최수비 블록
+  f451:  { passAdd: 0.03, shotMul: 0.90, concedeMul: 0.85 },               // 4-5-1 컴팩트 견고
+};
+// 포메이션 → 빌드업 아키타입(표시용 셰이프 라벨/설명 연결).
+export const FORMATION_ARCHETYPE = {
+  f343: 'attack', f352: 'attack',           // 3-4-3 / 3-5-2 — 전진·공격
+  f532: 'control', f451: 'control',         // 5-3-2 / 4-5-1 — 수비·통제
+  f433: 'balanced', f442: 'balanced', f4231: 'balanced', f4312: 'balanced',
+};
