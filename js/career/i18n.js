@@ -91,7 +91,7 @@ const DICT = {
     'act.holdTip': '공을 잡고 압박을 유인 — 상대가 튀어나오면 등 뒤가 열립니다',
     'act.pressTip': '상대 소유 상황을 만들고 압박으로 공을 빼앗습니다',
     'act.shootTip': '현재 슛 존에서 마무리',
-    'act.barHint': '패스 ▾에서 발밑·공간을 고르세요.',
+    'act.barHint': '동료 클릭=발밑 · 빈 공간 클릭=공간 패스 · 볼 주변 링에서 기다리기/운반/압박/슛',
     'act.keys': 'Space 기다리기 · 1 발밑 · 2 공간 · 4 운반 · 5 압박 · 9 슛 · R 다시',
     // ── 드로어: 매치 모먼트 / 우리 전략 / 전술 기록 ──
     'dr.moment': '매치 모먼트', 'dr.oppState': '상대 상태', 'dr.oppStateDefault': '기본 압박',
@@ -174,7 +174,7 @@ const DICT = {
     'scheme.midblock': '미드블록 (중앙 3선 컴팩트)',
     'scheme.lowblock': '로우블록 (박스 앞 밀집 수비)',
     // ── 보드 링 라벨 ──
-    'ring.hold': '기다리기', 'ring.carry': '운반', 'ring.space': '공간', 'ring.shoot': '슈팅',
+    'ring.hold': '기다리기', 'ring.carry': '운반', 'ring.space': '공간', 'ring.shoot': '슈팅', 'ring.press': '압박',
     // ── 액션 이름 (키보드·안내) ──
     'actko.to_feet': '발밑 패스', 'actko.pass_space': '공간 패스', 'actko.carry': '운반',
     'actko.hold': '기다리기', 'actko.press_mode': '압박', 'actko.shoot': '슈팅',
@@ -536,7 +536,7 @@ const DICT = {
     'act.holdTip': 'Hold the ball to bait the press — when they jump out, space opens behind',
     'act.pressTip': 'Force an opponent-possession moment and win the ball back by pressing',
     'act.shootTip': 'Finish from the current shot zone',
-    'act.barHint': 'Pick to-feet or space from Pass ▾.',
+    'act.barHint': 'Click a teammate = to feet · empty space = space pass · ring around the ball: hold/carry/press/shoot',
     'act.keys': 'Space Hold · 1 To feet · 2 Space · 4 Carry · 5 Press · 9 Shoot · R Retry',
     // ── Drawer: match moment / our strategy / tactical log ──
     'dr.moment': 'Match moment', 'dr.oppState': 'Opponent state', 'dr.oppStateDefault': 'Base press',
@@ -619,7 +619,7 @@ const DICT = {
     'scheme.midblock': 'Mid-block (compact central three lines)',
     'scheme.lowblock': 'Low block (packed defence in front of the box)',
     // ── In-board ring labels ──
-    'ring.hold': 'Hold', 'ring.carry': 'Carry', 'ring.space': 'Space', 'ring.shoot': 'Shoot',
+    'ring.hold': 'Hold', 'ring.carry': 'Carry', 'ring.space': 'Space', 'ring.shoot': 'Shoot', 'ring.press': 'Press',
     // ── Action names (keyboard / announce) ──
     'actko.to_feet': 'Pass to feet', 'actko.pass_space': 'Pass into space', 'actko.carry': 'Carry',
     'actko.hold': 'Hold', 'actko.press_mode': 'Press', 'actko.shoot': 'Shoot',

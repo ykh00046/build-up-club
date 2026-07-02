@@ -566,24 +566,16 @@ const coachCard = document.getElementById('coach-card');
 let guideDismissed = false;
 let renderedGuideKey = null;
 try { guideDismissed = localStorage.getItem(GUIDE_KEY) === 'done'; } catch { /* private mode */ }
-// Short labels for the in-board ring around the holder.
+// Short labels for the in-board ring around the holder — 링이 유일한 조작면이므로
+// 압박(press_mode)도 포함(액션바 삭제, 2026-07).
 const RING_LABELS = {
   hold: 'ring.hold', carry: 'ring.carry', pass_space: 'ring.space', shoot: 'ring.shoot',
+  press_mode: 'ring.press',
 };
 let ringHover = null;
 
-// 고급 액션 접기/펼치기 — 기본 4개만 노출해 첫 화면을 단순하게. 선택은 저장.
 const actionbarEl = document.querySelector('.actionbar');
-const ADV_KEY = 'beat-the-block:adv:v1';
-const moreBtn = document.getElementById('btn-action-more');
-function setAdvExpanded(expanded) {
-  if (!actionbarEl || !moreBtn) return;
-  actionbarEl.classList.toggle('adv-collapsed', !expanded);
-  moreBtn.setAttribute('aria-expanded', expanded ? 'true' : 'false');
-  try { localStorage.setItem(ADV_KEY, expanded ? 'open' : 'closed'); } catch { /* private */ }
-}
-try { if (localStorage.getItem(ADV_KEY) === 'open') setAdvExpanded(true); } catch { /* private */ }
-moreBtn?.addEventListener('click', () => setAdvExpanded(actionbarEl.classList.contains('adv-collapsed')));
+// (구 "고급 접기/More" 토글은 액션바 삭제와 함께 제거 — 링은 항상 전체 액션 노출.)
 
 function activateAction(id) {
   if (engine.state.status !== 'live' || engine.busy) return;
@@ -701,7 +693,6 @@ function selectAction(id) {
     passBtn.classList.toggle('armed', isPass);
     passBtn.textContent = t('act.pass');   // 단일 패스 — 유형은 피치 클릭으로 판별
   }
-  setPassMenu(false);
   const hints = {
     to_feet: t('hint.toFeet'),
     pass_space: t('hint.passSpace'),
@@ -716,18 +707,9 @@ function selectAction(id) {
   updateTacticalFactors(id);
 }
 
-// 패스 서브메뉴(발밑/공간) 토글. getElementById로 조회해 초기화 순서(TDZ) 안전.
-function setPassMenu(open) {
-  const menu = document.getElementById('pass-menu');
-  if (menu) menu.hidden = !open;
-  document.getElementById('btn-pass')?.setAttribute('aria-expanded', open ? 'true' : 'false');
-}
+// (구 패스 서브메뉴 setPassMenu는 액션바 삭제와 함께 제거 — 유형은 피치 클릭이 판별.)
 document.getElementById('btn-pass')?.addEventListener('click', () => {
   selectAction('to_feet');   // 패스 모드 arm — 유형은 피치 클릭으로 자동 판별(동료=발밑/빈 공간=공간)
-});
-document.addEventListener('click', (e) => {
-  const menu = document.getElementById('pass-menu');
-  if (menu && !menu.hidden && !e.target.closest('.pass-group')) setPassMenu(false);
 });
 
 // 매치 중 factor 툴팁 — roadmap P5. 선택한 action 의 위험도에 영향을 주는
@@ -1700,10 +1682,10 @@ function loop(ts) {
     keyboardTargetId: kbTargetId,
     passOptions,
     runDestinations,
-    // Input is single-surface (UI 개편): desktop = in-board ring only (the
-    // bottom bar buttons are display:none >900px), mobile = bottom bar only.
-    // 900 matches the CSS breakpoint so the two never show together.
-    actionRing: ringLive && window.innerWidth > 900
+    // Input is single-surface(2026-07 액션바 삭제): 모든 뷰포트에서 피치 링이 유일한
+    // 조작면. 링 항목의 enabled/armed/guide-lock 상태는 비표시 [data-action] 상태
+    // 모델에서 읽는다.
+    actionRing: ringLive
       ? actionButtons
         // U8: guide-stage locks apply to the ring too, not just the bar.
         .filter((b) => RING_LABELS[b.dataset.action] && !b.classList.contains('guide-locked'))

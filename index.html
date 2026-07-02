@@ -127,27 +127,15 @@
     .actionbar .btn.armed { border-color: var(--accent); color: var(--accent); box-shadow: 0 0 0 1px rgba(77, 139, 255, 0.35) inset; }
     .actionbar .btn:disabled { opacity: 0.35; cursor: default; }
     .actionbar .btn.guide-locked { display: none; }
-    /* 패스 2단 메뉴(발밑/공간) */
-    .pass-group { position: relative; display: inline-flex; }
-    .pass-menu { position: absolute; bottom: calc(100% + 6px); left: 0; display: flex; flex-direction: column; gap: 4px; background: var(--panel); border: 1px solid var(--line); border-radius: 7px; padding: 5px; box-shadow: 0 8px 24px rgba(0,0,0,0.45); z-index: 5; min-width: 132px; }
-    .pass-menu[hidden] { display: none; }
-    .pass-menu .btn { width: 100%; text-align: left; }
-    /* 고급 액션 접기 — 기본 4개 + '고급' 토글만 노출, 평면 구조라 모바일 그리드 유지 */
-    .actionbar.adv-collapsed .btn.adv { display: none; }
-    .actionbar .action-more { color: var(--text-muted); font-weight: 600; }
-    .actionbar .action-more::after { content: ' ▾'; font-size: 10px; }
-    .actionbar:not(.adv-collapsed) .action-more { color: var(--accent); border-color: var(--accent); }
-    .actionbar:not(.adv-collapsed) .action-more::after { content: ' ▴'; }
-    .actionbar.guide-stage1 .action-more { display: none; }
-    /* 전환 국면(상황 선택 우선) — 일반 액션은 흐리게, 상황 선택을 주 액션처럼 키운다 */
-    .actionbar.decision-active .btn { opacity: 0.28; }
+    /* (구 패스 2단 메뉴·고급 접기 CSS는 액션바 삭제와 함께 제거 — 2026-07) */
     .situation-strip .situation-actions button { padding: 8px 14px; font-size: 12.5px; font-weight: 800; min-height: 34px; }
     .situation-strip[data-kind="counter_risk"] .situation-actions button,
     .situation-strip[data-kind="defensive_press"] .situation-actions button,
     .situation-strip[data-kind="transition"] .situation-actions button { border-color: var(--danger); color: var(--danger); animation: glow 1.2s ease-in-out infinite; }
-    .transition-actions { display: none; width: 100%; gap: 8px; align-items: center; padding: 8px 10px; background: rgba(255, 194, 75, 0.08); border: 1px solid rgba(255, 194, 75, 0.28); border-radius: 8px; }
+    /* 결정 창 — 피치 하단 중앙 오버레이(액션바 삭제 후 이동, 2026-07). */
+    .transition-actions { display: none; position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 11; width: min(560px, calc(100% - 24px)); gap: 8px; align-items: center; padding: 10px 12px; background: rgba(12, 16, 22, 0.94); border: 1px solid rgba(255, 194, 75, 0.5); border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
     .transition-actions:not(:empty) { display: flex; }
-    .transition-actions button { flex: 1; min-height: 38px; background: rgba(17, 23, 31, 0.95); border: 1px solid var(--warn); color: var(--warn); border-radius: 6px; font-size: 12.5px; font-weight: 900; cursor: pointer; }
+    .transition-actions button { flex: 1; min-height: 42px; background: rgba(17, 23, 31, 0.95); border: 1px solid var(--warn); color: var(--warn); border-radius: 8px; font-size: 13px; font-weight: 900; cursor: pointer; }
     .transition-actions[data-kind="transition"] button:first-child,
     .transition-actions[data-kind="defensive_press"] button:first-child { border-color: var(--danger); color: var(--danger); animation: glow 1.2s ease-in-out infinite; }
     .transition-actions button:hover { filter: brightness(1.08); }
@@ -1037,6 +1025,8 @@
       <div class="canvas-wrap">
         <canvas id="pitch" role="application" data-i18n-aria="aria.board" aria-label="11대11 전술 보드 — 방향키로 받을 동료 선택, Enter로 패스, 1~9 액션, Space 기다리기" tabindex="0"></canvas>
         <div id="kb-announce" class="sr-only" aria-live="assertive"></div>
+        <!-- 결정 창(카운터프레스/수비압박) — 액션바 삭제로 피치 하단 중앙 오버레이로 이동. -->
+        <div id="transition-actions" class="transition-actions" aria-live="polite"></div>
         <button type="button" id="read-chip" class="read-chip" aria-controls="aside-panel">
           <span class="rc-dot"></span>
           <span id="rc-opp" data-i18n="dr.oppStateDefault">기본 압박</span>
@@ -1046,20 +1036,19 @@
         </button>
       </div>
       <div class="actionbar">
-        <button class="btn" data-action="carry" aria-keyshortcuts="4" data-i18n="act.carry" data-i18n-title="act.carryTip" title="공을 운반 — 공을 달면 물리적으로 느려집니다">운반</button>
-        <div class="pass-group">
+        <!-- 액션 버튼 UI 제거(2026-07 사용자 결정) — 피치 링이 유일한 조작면.
+             아래 버튼들은 비표시 상태 모델: 링/키보드가 disabled·armed·guide-lock을
+             이 [data-action] 요소들에서 읽는다(refreshActionAvailability가 기록). -->
+        <div class="action-state" hidden aria-hidden="true">
+          <button class="btn" data-action="carry" aria-keyshortcuts="4" data-i18n="act.carry" data-i18n-title="act.carryTip" title="공을 운반 — 공을 달면 물리적으로 느려집니다">운반</button>
           <button class="btn" id="btn-pass" type="button" data-i18n="act.pass" data-i18n-title="act.passTip" title="패스 — 동료 클릭=발밑, 빈 공간 클릭=공간">패스</button>
-          <div id="pass-menu" class="pass-menu" role="menu" hidden>
-            <button class="btn" data-action="to_feet" role="menuitem" aria-keyshortcuts="1" data-i18n="act.toFeet" data-i18n-title="act.toFeetTip" title="동료 발밑으로 정확히 — 선수를 선택">발밑</button>
-            <button class="btn" data-action="pass_space" role="menuitem" aria-keyshortcuts="2" data-i18n="act.passSpace" data-i18n-title="act.passSpaceTip" title="공간·로빙 — 지점을 클릭하면 가까운 동료가 받습니다. 멀수록 위험">공간·로빙</button>
-          </div>
+          <button class="btn" data-action="to_feet" aria-keyshortcuts="1" data-i18n="act.toFeet" data-i18n-title="act.toFeetTip" title="동료 발밑으로 정확히 — 선수를 선택">발밑</button>
+          <button class="btn" data-action="pass_space" aria-keyshortcuts="2" data-i18n="act.passSpace" data-i18n-title="act.passSpaceTip" title="공간·로빙 — 지점을 클릭하면 가까운 동료가 받습니다. 멀수록 위험">공간·로빙</button>
+          <button class="btn" data-action="hold" aria-keyshortcuts="3 Space" data-i18n="act.hold" data-i18n-title="act.holdTip" title="공을 잡고 압박을 유인 — 상대가 튀어나오면 등 뒤가 열립니다">기다리기</button>
+          <button class="btn" data-action="press_mode" aria-keyshortcuts="5" data-i18n="act.press" data-i18n-title="act.pressTip" title="상대 소유 상황을 만들고 압박으로 공을 빼앗습니다">압박</button>
+          <button class="btn btn-shoot" data-action="shoot" data-i18n="act.shoot" data-i18n-title="act.shootTip" title="현재 슛 존에서 마무리" aria-keyshortcuts="9">슈팅</button>
         </div>
-        <button class="btn" data-action="hold" aria-keyshortcuts="3 Space" data-i18n="act.hold" data-i18n-title="act.holdTip" title="공을 잡고 압박을 유인 — 상대가 튀어나오면 등 뒤가 열립니다">기다리기</button>
-        <button class="btn" data-action="press_mode" aria-keyshortcuts="5" data-i18n="act.press" data-i18n-title="act.pressTip" title="상대 소유 상황을 만들고 압박으로 공을 빼앗습니다">압박</button>
-        <button class="btn btn-shoot" data-action="shoot" data-i18n="act.shoot" data-i18n-title="act.shootTip" title="현재 슛 존에서 마무리" aria-keyshortcuts="9">슈팅</button>
-        <button class="btn action-more" id="btn-action-more" type="button" aria-expanded="false" data-i18n="act.more">고급</button>
-        <div id="transition-actions" class="transition-actions" aria-live="polite"></div>
-        <span class="hint" data-i18n="act.barHint">패스 ▾에서 발밑·공간을 고르세요.</span>
+        <span class="hint" data-i18n="act.barHint">동료 클릭=발밑 · 빈 공간=공간 패스 · 볼 주변 링에서 기다리기/운반/압박/슛</span>
         <span class="keys" aria-hidden="true" data-i18n="act.keys">Space 기다리기 · 1 발밑 · 2 공간 · 4 운반 · 5 압박 · 9 슛 · R 다시</span>
       </div>
     </div>
