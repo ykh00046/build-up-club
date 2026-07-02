@@ -592,6 +592,17 @@
     #hub-promote-label { display: block; margin-top: 7px; font-size: 12px; color: var(--text-muted); }
 
     /* ── 포메이션 보드 (허브 = 전술실 주인공) ───────────────────────────── */
+    /* 매치 프로그램 스트립 — 상대명·압박 셰이프·공략 포인트를 보드 위에서 먼저 읽는다. */
+    .hub-scout { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; background: var(--panel-2); border: 1px solid var(--line); border-radius: 12px; padding: 11px 15px; margin-bottom: 10px; }
+    .hs-main { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+    .hs-k { color: var(--text-muted); font-size: 10.5px; letter-spacing: 1px; text-transform: uppercase; }
+    .hs-name { font-family: 'Saira Condensed', sans-serif; font-size: 19px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.3px; }
+    .hs-shape { font-size: 11px; font-weight: 700; color: var(--danger); border: 1px solid rgba(255,90,110,0.45); border-radius: 999px; padding: 2px 9px; white-space: nowrap; }
+    .hs-weak { display: flex; align-items: baseline; gap: 8px; font-size: 12px; color: var(--text-muted); max-width: 52%; }
+    .hs-weak b { color: var(--accent); font-size: 10.5px; letter-spacing: 1px; text-transform: uppercase; white-space: nowrap; }
+    @media (max-width: 700px) { .hs-weak { max-width: 100%; } }
+    .fb-headr { display: flex; align-items: baseline; gap: 10px; }
+    .fb-mods { font-size: 11px; color: var(--text-muted); font-feature-settings: 'tnum'; white-space: nowrap; }
     .formation-board { position: relative; background: linear-gradient(180deg, #0c1a17, #091411); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px 16px; box-shadow: var(--elev-1); }
     .fb-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 11px; }
     .fb-title { font-family: 'Saira Condensed', sans-serif; font-weight: 800; font-size: 13px; letter-spacing: 2px; color: var(--text-muted); }
@@ -1193,10 +1204,19 @@
       <div class="hub-panels">
         <!-- 경기: 다음 상대를 향한 준비만 -->
         <section class="hub-panel on" id="hub-panel-match" role="tabpanel" aria-labelledby="tab-match">
+          <!-- 매치 프로그램: 상대를 먼저 보여주고 → 아래 보드에서 포메이션으로 대응한다. -->
+          <div class="hub-scout" id="hub-scout">
+            <div class="hs-main">
+              <span class="hs-k" data-i18n="hub.nextOpp">다음 상대</span>
+              <span class="hs-name" id="hs-name">—</span>
+              <span class="hs-shape" id="hs-shape"></span>
+            </div>
+            <div class="hs-weak"><b data-i18n="hub.oppWeak">공략 포인트</b><span id="hs-weak">—</span></div>
+          </div>
           <div class="formation-board" id="formation-board">
             <div class="fb-head">
               <span class="fb-title" data-i18n="hub.formation">FORMATION</span>
-              <span class="fb-shape" id="fb-shape-name">—</span>
+              <span class="fb-headr"><span class="fb-shape" id="fb-shape-name">—</span><span class="fb-mods" id="fb-mods"></span></span>
             </div>
             <div class="fb-pitch" id="fb-pitch" aria-hidden="true"></div>
             <div class="fb-chips" id="fb-chips" role="group" data-i18n-aria="hub.formation"></div>

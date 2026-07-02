@@ -1470,6 +1470,7 @@ function renderFormationBoard(key) {
     fbDots(opp, 'opp') + fbDots(f, 'us');
   const nameEl = document.getElementById('fb-shape-name');
   if (nameEl) nameEl.textContent = `${f.shape} · ${loc(f.desc)}`;
+  setText('fb-mods', formationModsSummary(key));   // 선택 효과(공격/실점) 즉시 표시
   for (const c of document.querySelectorAll('.fb-chip')) c.classList.toggle('on', c.dataset.formation === key);
 }
 function initFormationBoard() {
@@ -1487,11 +1488,24 @@ function initFormationBoard() {
   if (!isFormationUnlocked(currentFormation, Club.club)) currentFormation = 'f433';
   renderFormationBoard(currentFormation);
 }
-// 허브 진입 시 동기화: 다음 상대의 실제 압박 셰이프 + 해금 상태(경기/승수 갱신 반영).
+// 선택 포메이션의 공/수 트레이드오프 요약 — "이 선택이 뭘 바꾸나"를 숫자로.
+function formationModsSummary(key) {
+  const m = FORMATION_MODS[key] || {};
+  const atk = Math.round(((m.passAdd || 0) + (m.shotAdd || 0) + ((m.shotMul || 1) - 1) + ((m.xgMul || 1) - 1)) * 100);
+  const con = Math.round(((m.concedeMul || 1) - 1) * 100);
+  const sign = (v) => (v > 0 ? '+' : '') + v + '%';
+  return `${t('hub.modAtk')} ${sign(atk)} · ${t('hub.modCon')} ${sign(con)}`;
+}
+// 허브 진입 시 동기화: 다음 상대의 실제 압박 셰이프 + 해금 상태(경기/승수 갱신 반영)
+// + 매치 프로그램 스트립(상대명·셰이프·공략 포인트).
 function syncFormationBoard() {
   const info = nextMatchInfo();
   oppFormation = SCHEME_FORMATION[info?.scenario?.scheme] ?? 'f442';
   oppShapeLabel = info?.scenario?.oppShapeName ? loc(info.scenario.oppShapeName) : null;
+  setText('hs-name', info?.oppName ?? '—');
+  setText('hs-shape', oppShapeLabel ?? '');
+  const sc = SCOUTING[info?.scenario?.scheme];
+  setText('hs-weak', sc?.weakness ? loc(sc.weakness) : '—');
   initFormationBoard();
 }
 initFormationBoard();
