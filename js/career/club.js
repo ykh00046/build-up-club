@@ -108,6 +108,12 @@ export function normalizeState(raw = {}) {
   for (const key of ['cash', 'fans', 'stadiumLvl', 'divIdx', 'points', 'matchday', 'legacy', 'champions', 'totalEarned', 'runEarned', 'boostUntil', 'lastSeen', 'lastMatchIncome', 'streakW', 'philoPoints']) {
     next[key] = finiteOr(next[key], base[key]);
   }
+  // 핵심 수치 하한/상한(감사 H5): 손상·조작 세이브의 음수/폭주 값이 그대로 수용돼
+  // 수입 공식(fans×stadiumLvl)에 영구 반영되던 구멍. 정상 플레이 범위엔 무영향.
+  for (const key of ['cash', 'fans', 'legacy', 'philoPoints', 'points', 'totalEarned', 'runEarned']) {
+    next[key] = Math.max(0, next[key]);
+  }
+  next.stadiumLvl = Math.max(1, Math.min(60, Math.floor(next.stadiumLvl)));
   // 세트피스 코치(E5): 0~SETPIECE_COACH_MAX 정수로 보정(손상/구버전 세이브 방어).
   next.setPieceCoach = Math.max(0, Math.min(SETPIECE_COACH_MAX, Math.floor(finiteOr(next.setPieceCoach, 0))));
   // 선수 롤(E8): 문자열 보장, 누락 시 'none'(구버전 세이브 호환). 유효성은 roleMods가 폴백.
@@ -353,7 +359,13 @@ export function load() {
   let raw = null;
   try { raw = localStorage.getItem(SAVE_KEY); } catch (e) { return 0; }
   if (!raw) return 0;
-  try { Object.assign(club, normalizeState(JSON.parse(raw))); } catch (e) { return 0; }
+  try { Object.assign(club, normalizeState(JSON.parse(raw))); } catch (e) {
+    // 손상 세이브(감사 H5): 이전엔 조용히 새 상태로 리셋됐고 다음 save()가 원본을
+    // 덮어써 복구 불가능한 데이터 손실이었다. 원본 blob을 백업 키로 보존해 수동
+    // 복구 여지를 남긴다(덮어쓰기 전 1회 스냅샷).
+    try { localStorage.setItem(SAVE_KEY + '.corrupt', raw); } catch (e2) { /* ignore */ }
+    return 0;
+  }
   return awayGain(Date.now() - club.lastSeen);
 }
 

@@ -211,10 +211,13 @@ export function resolveScoreline(perf, setup, rngNext, pmods = philoMods()) {
   // 실점: 상대 공격 vs 수비, 지배력만큼 감소, 철학 concedeMul, fail이면 가산(역습 relief 반영).
   const oppAtk = setup.oppOVR * 0.5;
   let concedeP = clamp(oppAtk / (oppAtk + setup.def * 1.5), 0.05, 0.85);
-  concedeP *= (pmods.concedeMul || 1);
-  concedeP *= (trainingScore.concedeMul || 1);
-  concedeP *= (setup.shapeConcedeMul || 1);   // 빌드업 셰이프 트레이드오프 (E6)
-  concedeP *= (setup.roleConcedeMul || 1);     // 선수 롤 트레이드오프 (E8, 레지스타)
+  // 수비 선택지 중첩 캡(감사 H4): 철학×훈련×셰이프×롤 실점 배수의 곱에 하한 0.55.
+  // concedeMul은 실점 확률을 직접 곱하는데 공격 mods는 캡에 눌린 간접 효과라,
+  // 무제한 중첩 시 수비 올인(5-3-2+게겐 트리+레지스타)이 '항상 정답'이 되는 메타
+  // 붕괴가 생긴다. 지배력(경기 중 획득)은 별도 유지. rng 미소비 — 시퀀스 불변.
+  const concedeStack = Math.max(0.55,
+    (pmods.concedeMul || 1) * (trainingScore.concedeMul || 1) * (setup.shapeConcedeMul || 1) * (setup.roleConcedeMul || 1));
+  concedeP *= concedeStack;
   concedeP *= (1 - dominance * 0.35);
   // 수비 전환(E1, §3.1): 볼 상실 시 역습 노출. 단, 지배력이 높았다면 레스트 디펜스가
   // 갖춰져 카운터프레스로 회복 — 통제된 상실일수록 역습 페널티가 줄어든다.

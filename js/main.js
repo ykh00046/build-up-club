@@ -219,6 +219,18 @@ function newAttempt() {
   renderLog(engine);
 }
 
+// 커리어 재도전 게이트(감사 H1): 무제한 R 리셋은 "골 날 때까지 재시도 → 승리만 정산"
+// 경제 익스플로잇이자, 정산 후 R로 같은 매치데이를 재정산하는 이중 보상 통로였다.
+// 커리어 경기당 재도전 1회 — 학습 루프는 남기고 파밍은 막는다. 자유 플레이는 무제한.
+let careerRetriesLeft = 1;
+function retryAttempt() {
+  if (careerActive) {
+    if (careerRetriesLeft <= 0) { toast(t('match.retryOut')); return; }
+    careerRetriesLeft--;
+  }
+  newAttempt();
+}
+
 function nextCell() {
   const order = Object.keys(SCENARIOS);
   const idx = order.indexOf(scenario.cell);
@@ -469,6 +481,10 @@ for (const row of document.querySelectorAll('.tactics-intent-row')) {
 
 document.getElementById('btn-tactics-kickoff')?.addEventListener('click', () => {
   Object.assign(chosenIntents, tacticsIntents);
+  careerRetriesLeft = 1;   // 커리어 재도전은 경기당 1회(감사 H1)
+  // 난이도 오버라이드를 셋업에도 반영 — 엔진(intensityOverride)과 저장/정산 데이터가
+  // 서로 다른 강도를 기록하던 이중화 해소(감사 F3.6).
+  if (currentSetup) currentSetup.intensity = chosenDifficulty;
   // 포메이션별 고유 트레이드오프를 이번 경기 셋업에 반영(커리어 정산·엔진 부스트 공유).
   if (currentSetup) applyFormationMods(currentSetup, FORMATION_MODS[chosenFormation]);
   // 세트피스 딜리버리를 셋업에 반영(상대 마킹 상성 → 정산 세트피스 채널). E5.
@@ -479,7 +495,7 @@ document.getElementById('btn-tactics-kickoff')?.addEventListener('click', () => 
   canvas.focus();
 });
 
-document.getElementById('btn-retry')?.addEventListener('click', newAttempt);
+document.getElementById('btn-retry')?.addEventListener('click', retryAttempt);
 
 // ─── line intents (우리 전략) ─────────────────────────────────────────────────
 // The player's chosen strategy survives retries and scenario switches.
@@ -654,7 +670,7 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); kbCycleTarget(1); return; }
   if (e.key === 'Enter') { e.preventDefault(); kbExecute(); return; }
   if (e.code === 'Space') { e.preventDefault(); activateAction('hold'); return; }
-  if (e.key === 'r' || e.key === 'R') { newAttempt(); return; }
+  if (e.key === 'r' || e.key === 'R') { retryAttempt(); return; }
   if (e.key === 'Escape') { selectAction('to_feet'); return; }
   const n = parseInt(e.key, 10);
   if (n >= 1 && n <= 9) {
@@ -1117,7 +1133,7 @@ function settleCareerMatch() {
   const f = engine.state.facts || {};
   const tone = out?.tone ?? 'fail';   // goal | near | fail
   const setup = currentSetup || lastMatch?.setup;
-  if (!setup) { showOutcome(engine, newAttempt, () => enterHub()); return; }
+  if (!setup) { showOutcome(engine, retryAttempt, () => enterHub()); return; }
   const seasonGoalCtx = { divIdx: Club.club.divIdx };
   // 수행 품질(압박 유인·라인통과·전환·침투·열린공간 활용 + 슛 xG)을 스코어로.
   const perf = {
@@ -1358,7 +1374,11 @@ function toast(html) {
 
 function setText(id, v) { const el = document.getElementById(id); if (el) el.textContent = v; }
 
-initHub({ onPlay: startMatch, onLang: () => { applyStaticI18n(); bindScenarioPanels(scenario); }, onUpgrade: () => {} });
+initHub({ onPlay: startMatch, onLang: () => {
+  applyStaticI18n();
+  bindScenarioPanels(scenario);
+  initFormationBoard();   // 허브 포메이션 보드(칩 설명/라벨)도 새 언어로 재구성 (감사 U5)
+}, onUpgrade: () => {} });
 
 // ─── Mobile drawer: 상대 정보·전술 (접이식 하단 시트, ISSUE-003) ───────────────
 const asidePanel = document.getElementById('aside-panel');
