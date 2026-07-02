@@ -1596,24 +1596,20 @@ function updateTacticalHud(s) {
   if (situationEl) {
     situationEl.hidden = !situation;
     if (situation) {
+      // 상단 스트립은 맥락(제목+설명)만 — 선택 버튼은 피치 오버레이(#transition-actions)
+      // 한 곳에만 그린다(중복 버튼 정리, 2026-07).
       situationEl.dataset.kind = situation.id;
       document.getElementById('situation-title').textContent = situation.title;
       document.getElementById('situation-detail').textContent = situation.detail;
-      const actions = document.getElementById('situation-actions');
-      if (actions) {
-        const key = s.matchDecision
-          ? `${s.matchDecision.id}:${s.matchDecision.choices.map((choice) => choice.id).join('|')}`
-          : '';
-        if (key !== renderedSituationActionKey) {
-          renderedSituationActionKey = key;
-          renderSituationActions(actions, s.matchDecision);
-          renderSituationActions(transitionActions, s.matchDecision);
-        }
+      const key = s.matchDecision
+        ? `${s.matchDecision.id}:${s.matchDecision.choices.map((choice) => choice.id).join('|')}`
+        : '';
+      if (key !== renderedSituationActionKey) {
+        renderedSituationActionKey = key;
+        renderSituationActions(transitionActions, s.matchDecision);
       }
     } else {
       delete situationEl.dataset.kind;
-      const actions = document.getElementById('situation-actions');
-      if (actions) actions.innerHTML = '';
       if (transitionActions) {
         transitionActions.innerHTML = '';
         delete transitionActions.dataset.kind;
