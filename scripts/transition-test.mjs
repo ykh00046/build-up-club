@@ -41,9 +41,16 @@ if (e1) {
 const e2 = openTransition(50);
 if (e2) { const r = e2.chooseSituationOption('cp_retreat'); ok(r.ok && e2.state.status === 'over' && !e2.state.transition, '후퇴 → 공격 종료'); }
 
-// 3) 5초 초과 → 자동 후퇴 종료
+// 3) 결정 창은 턴제 — 시간이 흘러도 자동 소멸하지 않고 입력을 기다린다.
+//    (구 5초 자동 후퇴는 백그라운드 탭 dtMs 한 방에 창이 증발 + 숙고형 플레이어가
+//     자동 결정을 반복 경험하는 문제로 제거, 2026-07.)
 const e3 = openTransition(120);
-if (e3) { e3.update(5200); ok(e3.state.status === 'over' && !e3.state.transition, '5초 초과 → 자동 후퇴'); }
+if (e3) {
+  e3.update(60000);   // 1분 방치
+  ok(e3.state.status === 'live' && !!e3.state.transition, '결정 창은 시간 경과에도 유지(턴제)');
+  const r3 = e3.chooseSituationOption('cp_retreat');
+  ok(r3.ok && e3.state.status === 'over', '유지된 창도 명시적 선택으로 정상 해소');
+}
 
 // 4) 카운터프레스 — 성공/실패 양쪽 관측 + 상태 정합 (시드 다양화)
 let rec = 0, failp = 0, stateOk = true;

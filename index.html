@@ -767,7 +767,8 @@
     .cr-notes[hidden] { display: none; }
 
     /* ─── Career: 변주 이벤트 모달 ──────────────────────────────────────────── */
-    #event-overlay { position: fixed; inset: 0; z-index: 84; background: rgba(5,8,12,0.82); display: none; align-items: center; justify-content: center; }
+    /* 배경 0.82→0.96: 이벤트는 경기 직후 뜨는데 뒤의 끝난 매치 잔상이 비쳐 맥락이 어수선했다. */
+    #event-overlay { position: fixed; inset: 0; z-index: 84; background: rgba(5,8,12,0.96); display: none; align-items: center; justify-content: center; }
     #event-overlay.visible { display: flex; }
     .event-card { width: min(440px, calc(100% - 36px)); background: var(--panel); border: 1px solid var(--line); border-radius: 13px; padding: 24px 26px; display: flex; flex-direction: column; gap: 6px; }
     .event-kicker { color: var(--accent); font-size: 10px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; }

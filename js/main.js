@@ -223,16 +223,17 @@ function newAttempt() {
 // 경제 익스플로잇이자, 정산 후 R로 같은 매치데이를 재정산하는 이중 보상 통로였다.
 // 커리어 경기당 재도전 1회 — 학습 루프는 남기고 파밍은 막는다. 자유 플레이는 무제한.
 let careerRetriesLeft = 1;
+let careerSettled = false;   // 이번 매치데이 정산 여부 — 유예 정산의 단일 진실
 function retryAttempt() {
   if (careerActive) {
-    // 정산 후 재도전 금지(실플레이 발견): 커리어는 시도 종료 즉시 정산되므로 그 뒤의
-    // 재도전은 "유령 경기"가 된다 — 정산된 결과 카드가 .visible로 남아 renderPaused가
-    // 엔진 업데이트를 멈추고(busy 영구 고착), 완주하면 같은 매치데이가 이중 정산된다.
-    if (engine?.state?.status === 'over') { toast(t('match.settled')); return; }
-    if (careerRetriesLeft <= 0) { toast(t('match.retryOut')); return; }
+    // 정산 후 재도전 금지: 재도전하면 정산된 결과 카드가 남아 렌더가 멈추는
+    // "유령 경기" + 이중 정산이 된다. (유예 정산 도입으로 정산 전 재도전은 허용.)
+    if (careerSettled) { toast(t('match.settled')); return false; }
+    if (careerRetriesLeft <= 0) { toast(t('match.retryOut')); return false; }
     careerRetriesLeft--;
   }
   newAttempt();
+  return true;
 }
 
 function nextCell() {
@@ -486,6 +487,7 @@ for (const row of document.querySelectorAll('.tactics-intent-row')) {
 document.getElementById('btn-tactics-kickoff')?.addEventListener('click', () => {
   Object.assign(chosenIntents, tacticsIntents);
   careerRetriesLeft = 1;   // 커리어 재도전은 경기당 1회(감사 H1)
+  careerSettled = false;   // 새 매치데이 — 유예 정산 리셋
   // 난이도 오버라이드를 셋업에도 반영 — 엔진(intensityOverride)과 저장/정산 데이터가
   // 서로 다른 강도를 기록하던 이중화 해소(감사 F3.6).
   if (currentSetup) currentSetup.intensity = chosenDifficulty;
@@ -1133,6 +1135,7 @@ function startMatch() {
 
 // 전술 모먼트 종료 → 스코어라인 시뮬 → 정산 → 결과 카드.
 function settleCareerMatch() {
+  careerSettled = true;   // 유예 정산: 이 매치데이는 이제 확정 — 재도전 차단
   const out = engine.state.outcome;
   const f = engine.state.facts || {};
   const tone = out?.tone ?? 'fail';   // goal | near | fail
@@ -1363,7 +1366,14 @@ function showCareerEvent(event) {
 }
 
 // 헤더 "← 클럽 허브": 진행 중 경기를 접고 허브로.
+// 유예 정산과 짝: 시도가 끝났는데(결과를 봤는데) 정산 없이 이탈하면 패배를 지우고
+// 같은 매치데이를 다시 사는 익스플로잇이 된다 → 종료 상태에서의 이탈은 먼저 정산.
 document.getElementById('btn-hub')?.addEventListener('click', () => {
+  if (careerActive && !careerSettled && engine?.state?.status === 'over') {
+    hideOutcome();
+    settleCareerMatch();   // 정산 카드가 뜨고, 거기서 허브로 이어진다
+    return;
+  }
   closeModal(careerResult);
   enterHub();
 });
@@ -1696,8 +1706,13 @@ function loop(ts) {
     else sfx.sting();
     recordAttempt(engine);
     renderLog(engine);
-    if (careerActive) settleCareerMatch();
-    else showOutcome(engine, newAttempt, nextCell);
+    if (careerActive) {
+      // 유예 정산(2026-07 실플레이 판단): 즉시 정산은 커리어를 "사실상 원샷"으로
+      // 만들었다 — 실패를 보기 전엔 재도전할 수 없었으니까. 이제 결과 카드에서
+      // 무엇이 잘못됐는지 본 뒤 재도전(1회) 또는 정산을 선택한다. 최종 시도만 정산.
+      if (careerSettled) settleCareerMatch();   // 방어적 — 정상 경로에선 도달 안 함
+      else showOutcome(engine, retryAttempt, () => settleCareerMatch(), { nextLabel: t('oc.settle') });
+    } else showOutcome(engine, retryAttempt, nextCell);
   }
   // (재스케줄은 loop() 진입부에서 처리 — 여기서 다시 호출하면 프레임당 이중 예약됨)
 }

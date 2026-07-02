@@ -1236,15 +1236,11 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
 
     // Advance animations. Returns true while animating.
     update(dtMs) {
-      // 카운터프레스 5초 카운트다운 (E1): 시간 초과 시 자동 후퇴.
-      if (state.transition && state.status === 'live') {
-        state.transition.msLeft -= dtMs;
-        if (state.transition.msLeft <= 0) resolveTransition('cp_retreat');
-      }
-      if (state.defensivePress && state.status === 'live') {
-        state.defensivePress.msLeft -= dtMs;
-        if (state.defensivePress.msLeft <= 0) resolveDefensivePress('dp_drop');
-      }
+      // 결정 창(카운터프레스/수비압박)은 턴제 — 플레이어 입력으로만 해소된다.
+      // 이전의 실시간 5초 자동 만료는 (a) 턴제 게임의 유일한 실시간 요소라 숙고형
+      // 플레이어가 "자동 후퇴"를 반복 경험했고, (b) 백그라운드 탭 rAF 공백의 큰
+      // dtMs 한 방에 창이 증발하는 버그 클래스였다. (2026-07 실플레이 판단)
+      // 일반 액션은 창이 열린 동안 이미 거부되므로 선택을 미룰 수는 있어도 우회할 수는 없다.
       if (!anim) return false;
       anim.t += dtMs;
       const t = clamp(anim.t / anim.duration, 0, 1);

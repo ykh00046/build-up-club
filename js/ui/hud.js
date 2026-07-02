@@ -105,7 +105,7 @@ export function renderLog(engine) {
 
 // ─── outcome card ────────────────────────────────────────────────────────────
 
-export function showOutcome(engine, onRetry, onNextCell) {
+export function showOutcome(engine, onRetry, onNextCell, { nextLabel = null } = {}) {
   const o = engine.state.outcome;
   if (!o) return;
   const overlay = document.getElementById('outcome-overlay');
@@ -118,11 +118,15 @@ export function showOutcome(engine, onRetry, onNextCell) {
   overlay.dataset.tone = o.tone;
   const retryBtn = overlay.querySelector('.oc-retry');
   openModal(overlay, retryBtn);
-  retryBtn.onclick = () => { closeModal(overlay, false); onRetry(); };
+  // 재도전이 거부될 수 있으므(커리어 재도전 소진 → 토스트) 모달을 먼저 닫지 않는다 —
+  // 진행되면 newAttempt의 hideOutcome이 닫고, 거부되면 카드가 남아 다른 선택을 유도.
+  retryBtn.onclick = () => { if (onRetry() === false) return; hideOutcome(); };
   // U6: the next-moment door is always open — a near miss is exactly when a
   // player wants to try a different tactical problem.
   const nextBtn = overlay.querySelector('.oc-next');
   nextBtn.style.display = '';
+  // 커리어는 "결과 정산 →", 자유 플레이는 기본 라벨로 매번 복원(잔존 방지).
+  nextBtn.textContent = nextLabel ?? t('oc.next');
   nextBtn.onclick = () => { closeModal(overlay, false); onNextCell(); };
   // 골 시 간단한 컨페티 효과.
   if (o.tone === 'goal') spawnConfetti(overlay);
