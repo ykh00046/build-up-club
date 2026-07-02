@@ -13,7 +13,7 @@ import {
 } from './space.js';
 import { createPress } from './press.js';
 import { findSuperiorityZones, superiorityAt } from './superiority.js';
-import { detectShotZone, resolveShot } from './shots.js';
+import { detectShotZone, resolveShot, computeShotXg } from './shots.js';
 import { buildOutcome } from './outcome.js';
 import { applyOpponentBuildStep, applyPossessionEvent } from './possession-adapter.js';
 import { createRng } from './rng.js';
@@ -1196,21 +1196,14 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
     },
 
     // Preview the shot probability for the current holder without rolling.
-    // Uses the identical formula as resolveShot. Returns { zone, xg } or null.
+    // resolveShot과 같은 computeShotXg 단일 소스 — 미리보기=실제 xG 보장.
+    // (이전엔 상수 3개가 어긋나 미리보기가 ~20-25% 과소 표시, 2026-07 감사 C1.)
     previewShot() {
       if (state.phase !== 'FINAL_THIRD') return null;
       const h = holder();
       const zone = detectShotZone(h, state);
       if (!zone) return null;
-      const defenders = opps();
-      const gk = defenders.find((d) => d.line === 'gk');
-      const pressureAtShot = Math.max(
-        receiverPressure(h, defenders),
-        gk ? clamp(1 - dist(h, gk) / 7, 0, 1) * 0.8 : 0,
-      );
-      const affinity = h.traits?.shot?.[zone.id] ?? 0.7;
-      const gkFactor = gk ? clamp(1 - (gk.traits?.keeping ?? 0.75) * clamp(1 - dist(h, gk) / 30, 0.2, 1) * 0.45, 0.5, 1) : 1;
-      const xg = clamp(zone.baseXg * affinity * (1 - pressureAtShot * 0.35) * gkFactor, 0.01, 0.85);
+      const { xg } = computeShotXg(h, zone, opps());
       return { zone, xg };
     },
 

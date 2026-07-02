@@ -86,6 +86,9 @@ function scoutEvent() {
     choices: [
       makeChoice('mf', { ko: '미드필더 영입', en: 'Sign a midfielder' }, { ko: '미드필더 영구 +1', en: 'Midfielder +1 (permanent)' }),
       makeChoice('df', { ko: '수비수 영입', en: 'Sign a defender' }, { ko: '수비수 영구 +1', en: 'Defender +1 (permanent)' }),
+      // 무료 탈출구 — 두 영입 모두 유료라 자금이 없으면 이벤트 모달(비해제형)에
+      // 갇히는 소프트락이 있었다(감사 C6). 이벤트엔 항상 0원 선택지가 있어야 한다.
+      { label: { ko: '제안 거절', en: 'Decline the offer' }, desc: { ko: '비용 없음 — 다음 기회를 기다립니다', en: 'No cost — wait for the next window' }, cost: () => 0, apply: () => true },
     ],
   };
 }

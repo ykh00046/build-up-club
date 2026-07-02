@@ -59,8 +59,11 @@ export function detectShotZone(shooter, context) {
   return null;
 }
 
-export function resolveShot(shooter, zone, state, rng) {
-  const defenders = state.players.filter((p) => p.side === 'opp');
+// Shared xG model — the ONE source both resolveShot and the engine's shot
+// preview use. They had drifted apart (preview GK weights 0.8/0.45, clamp 0.85
+// vs resolution 0.35/0.30/0.92), so the board read understated xG by ~20-25%
+// and steered players away from good shots. Single function = honest preview.
+export function computeShotXg(shooter, zone, defenders) {
   const gk = defenders.find((d) => d.line === 'gk');
   // Pressure includes the rushing GK (P1a): deep in the box the keeper IS the
   // pressure — excluding him made six-yard walk-ins read as "free" shots.
@@ -70,8 +73,13 @@ export function resolveShot(shooter, zone, state, rng) {
   );
   const affinity = shooter.traits?.shot?.[zone.id] ?? 0.7;
   const gkFactor = gk ? clamp(1 - (gk.traits?.keeping ?? 0.75) * clamp(1 - dist(shooter, gk) / 30, 0.2, 1) * 0.30, 0.5, 1) : 1;
-
   const xg = clamp(zone.baseXg * affinity * (1 - pressureAtShot * 0.35) * gkFactor, 0.01, 0.92);
+  return { xg, pressureAtShot };
+}
+
+export function resolveShot(shooter, zone, state, rng) {
+  const defenders = state.players.filter((p) => p.side === 'opp');
+  const { xg, pressureAtShot } = computeShotXg(shooter, zone, defenders);
   const roll = rng.next();
 
   let result;

@@ -419,13 +419,13 @@
     }
     .tactics-difficulty { background: var(--panel-2); border-radius: 6px; padding: 12px; }
     .tactics-diff-btns { display: flex; gap: 6px; margin-bottom: 7px; }
-    .diff-btn, .shape-btn, .sp-btn {
+    .diff-btn, .sp-btn {
       flex: 1; background: var(--panel); border: 1px solid var(--line);
       color: var(--text-muted); padding: 7px 8px; border-radius: 5px;
       font-size: 12.5px; cursor: pointer; transition: border-color .15s, color .15s, box-shadow .15s, background .15s;
     }
-    .diff-btn:hover, .shape-btn:hover, .sp-btn:hover { border-color: var(--accent); color: var(--text); }
-    .diff-btn.active, .shape-btn.active, .sp-btn.active {
+    .diff-btn:hover, .sp-btn:hover { border-color: var(--accent); color: var(--text); }
+    .diff-btn.active, .sp-btn.active {
       border-color: var(--accent); color: var(--accent);
       background: rgba(77, 139, 255, .08); font-weight: 700;
       box-shadow: 0 0 10px rgba(77, 139, 255, 0.08);
@@ -521,7 +521,7 @@
       .actionbar .hint { display: block; grid-column: 1 / -1; grid-row: 1; margin: 0 0 3px; max-width: none; min-height: 24px; }
       .transition-actions { grid-column: 1 / -1; }
       /* 터치 타깃 ≥44px (WCAG 2.5.5) — 브리핑·허브에서 매 경기 누르는 버튼들 */
-      .diff-btn, .shape-btn, .sp-btn, .tactics-intent-btn, .role-btn,
+      .diff-btn, .sp-btn, .tactics-intent-btn, .role-btn,
       .situation-actions button, .transition-actions button { min-height: 44px; }
       .tactics-intent-btn { padding: 7px 10px; }
 
@@ -1162,7 +1162,7 @@
   </div>
 
   <!-- ─── Career: Club Hub ─────────────────────────────────────────────── -->
-  <div id="hub-overlay" role="dialog" aria-modal="true" aria-label="Club Hub" aria-hidden="true">
+  <div id="hub-overlay" role="dialog" aria-modal="true" aria-label="Club Hub" aria-hidden="true" data-dismissible="false">
     <div class="hub-wrap">
       <div class="hub-head">
         <div class="hub-club">
@@ -1242,7 +1242,7 @@
   <div id="hub-toast" class="hub-toast" aria-live="polite"></div>
 
   <!-- ─── Career: Match Result ─────────────────────────────────────────── -->
-  <div id="career-result" data-tone="d" role="dialog" aria-modal="true" aria-label="Match result" aria-hidden="true">
+  <div id="career-result" data-tone="d" role="dialog" aria-modal="true" aria-label="Match result" aria-hidden="true" data-dismissible="false">
     <div class="cr-card">
       <div class="cr-result" id="cr-result">무승부</div>
       <div class="cr-score" id="cr-score">0 : 0</div>
@@ -1272,7 +1272,7 @@
   </div>
 
   <!-- ─── Career: 클럽 철학(장기 분기) ──────────────────────────────────── -->
-  <div id="philo-overlay" role="dialog" aria-modal="true" data-i18n-aria="philo.title" aria-label="클럽 철학" aria-hidden="true" data-dismissible="true" tabindex="-1">
+  <div id="philo-overlay" role="dialog" aria-modal="true" data-i18n-aria="philo.title" aria-label="클럽 철학" aria-hidden="true" data-dismissible="false" tabindex="-1">
     <div class="philo-wrap">
       <div class="philo-head">
         <h2 data-i18n="philo.title">클럽 철학</h2>
@@ -1298,7 +1298,7 @@
     </div>
   </div>
 
-  <div id="tactics-overlay" role="dialog" aria-modal="true" aria-labelledby="tactics-heading" aria-hidden="true" tabindex="-1">
+  <div id="tactics-overlay" role="dialog" aria-modal="true" aria-labelledby="tactics-heading" aria-hidden="true" data-dismissible="false" tabindex="-1">
     <div class="tactics-wrap">
       <div class="tactics-head">
         <span class="tactics-prematch"><span>PRE-MATCH</span></span>
@@ -1353,11 +1353,8 @@
           </div>
           <div class="tactics-difficulty">
             <div class="tactics-section-label" data-i18n="brief.shape">빌드업 셰이프</div>
-            <div class="tactics-diff-btns">
-              <button class="shape-btn active" data-shape="balanced" data-i18n="brief.shapeBalanced" title="살리다 3-2 — 안정적 첫 줄 빌드업">균형</button>
-              <button class="shape-btn" data-shape="control" data-i18n="brief.shapeControl" title="인버티드 풀백 — 중앙 통제·역습 차단">통제</button>
-              <button class="shape-btn" data-shape="attack" data-i18n="brief.shapeAttack" title="3-2-5 전진 — 전방 위협·배후 노출">공격</button>
-            </div>
+            <!-- 셰이프는 포메이션 선택(FORMATION_ARCHETYPE)이 결정 — 읽기 전용 표시.
+                 (이전의 셰이프 버튼 3개는 게임플레이에 아무 효과 없는 죽은 컨트롤이었음, 2026-07 감사 C5) -->
             <div class="tactics-diff-desc" id="tactics-shape-desc">안정적 첫 줄 빌드업 — 보정 중립</div>
           </div>
           <div class="tactics-difficulty">

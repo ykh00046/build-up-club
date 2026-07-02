@@ -112,7 +112,7 @@ const DICT = {
     'brief.scouting': '상대 스카우팅', 'brief.style': '성향', 'brief.weakness': '약점',
     'brief.caution': '주의', 'brief.trap': '덫', 'brief.rec': '추천', 'brief.activeTraining': '활성 훈련',
     'brief.difficulty': '난이도', 'brief.diffEasy': '쉬움', 'brief.diffStd': '표준', 'brief.diffHard': '어려움',
-    'brief.shape': '빌드업 셰이프', 'brief.shapeBalanced': '균형', 'brief.shapeControl': '통제', 'brief.shapeAttack': '공격',
+    'brief.shape': '빌드업 셰이프',
     'brief.setpiece': '세트피스 딜리버리', 'brief.inswing': '인스윙', 'brief.outswing': '아웃스윙',
     // ── 튜토리얼 ──
     'tut.welcome': '환영합니다', 'tut.skip': '건너뛰기', 'tut.next': '다음 →', 'tut.start': '시작하기 ✓',
@@ -553,7 +553,7 @@ const DICT = {
     'brief.scouting': 'Opponent scouting', 'brief.style': 'Style', 'brief.weakness': 'Weakness',
     'brief.caution': 'Caution', 'brief.trap': 'Trap', 'brief.rec': 'Recommend', 'brief.activeTraining': 'Active training',
     'brief.difficulty': 'Difficulty', 'brief.diffEasy': 'Easy', 'brief.diffStd': 'Standard', 'brief.diffHard': 'Hard',
-    'brief.shape': 'Build-up shape', 'brief.shapeBalanced': 'Balanced', 'brief.shapeControl': 'Control', 'brief.shapeAttack': 'Attack',
+    'brief.shape': 'Build-up shape',
     'brief.setpiece': 'Set-piece delivery', 'brief.inswing': 'Inswing', 'brief.outswing': 'Outswing',
     // ── Tutorial ──
     'tut.welcome': 'Welcome', 'tut.skip': 'Skip', 'tut.next': 'Next →', 'tut.start': 'Start ✓',

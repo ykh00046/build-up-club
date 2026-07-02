@@ -423,15 +423,12 @@ function updateDeliveryUI() {
   }
 }
 
-// 빌드업 셰이프 UI 동기화 (E6) — active 버튼 + 설명 + 미니맵 셰이프 반영.
+// 빌드업 셰이프 표시 동기화 — 셰이프는 포메이션 선택(FORMATION_ARCHETYPE)이 결정하는
+// 읽기 전용 정보다. (구 셰이프 버튼은 게임플레이 무효과 죽은 컨트롤이라 제거, 감사 C5.)
 function updateShapeUI() {
-  for (const btn of document.querySelectorAll('.shape-btn')) {
-    const on = btn.dataset.shape === chosenShape;
-    btn.classList.toggle('active', on);
-    btn.setAttribute('aria-pressed', String(on));
-  }
   const desc = document.getElementById('tactics-shape-desc');
-  if (desc) desc.textContent = loc(BUILD_SHAPES[chosenShape]?.desc) ?? '';
+  const shape = BUILD_SHAPES[chosenShape];
+  if (desc && shape) desc.textContent = `${loc(shape.label)} — ${loc(shape.desc)}`;
 }
 
 function updateTacticsIntentUI() {
@@ -449,15 +446,6 @@ for (const btn of document.querySelectorAll('.diff-btn')) {
   btn.addEventListener('click', () => {
     chosenDifficulty = btn.dataset.difficulty;
     updateDifficultyUI();
-  });
-}
-for (const btn of document.querySelectorAll('.shape-btn')) {
-  btn.addEventListener('click', () => {
-    chosenShape = btn.dataset.shape;
-    updateShapeUI();
-    // 셰이프 선택 즉시 미니맵을 교체된 대형으로 갱신.
-    const fEl = document.getElementById('tactics-formation');
-    if (fEl) fEl.innerHTML = buildFormationSvg(shapedScenario(), { ...tacticsIntents });
   });
 }
 for (const btn of document.querySelectorAll('.sp-btn')) {
@@ -1508,8 +1496,10 @@ function renderPhiloModal() {
   if (unlockBtn) unlockBtn.addEventListener('click', () => { if (unlockNextPerk()) { Club.save(); renderPhiloModal(); renderHub(); } });
 }
 document.getElementById('hub-philo')?.addEventListener('click', openPhilo);
-document.getElementById('philo-close')?.addEventListener('click', () => closeModal(philoOverlay));
-philoOverlay?.addEventListener('click', (e) => { if (e.target === philoOverlay) closeModal(philoOverlay); });
+// 철학 모달은 허브 위에서 열리는데 openModal이 허브를 교체(단일 activeModal)하므로,
+// 닫을 때 closeModal만 하면 아무 화면도 안 남는다 — 반드시 허브로 복귀.
+document.getElementById('philo-close')?.addEventListener('click', enterHub);
+philoOverlay?.addEventListener('click', (e) => { if (e.target === philoOverlay) enterHub(); });
 
 // 전술 깊이 HUD — 모멘텀·피로 게이지 + 적응(읽힘) 경고.
 let renderedSituationActionKey = '';
