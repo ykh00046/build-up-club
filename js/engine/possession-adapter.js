@@ -28,6 +28,11 @@ export function applyPossession(engine, transition) {
   state.matchDecision = null;
   state.transition = null;
   state.defensivePress = null;
+  // 마지막 패스 컨텍스트도 소멸 — 점유가 바뀌면 직전 컷백/크로스 플래그는 무효
+  // (잔존 시 회수 직후 슛이 잘못된 존 xG를 받는다, 감사 H2).
+  state.lastPassLofted = false;
+  state.lastPassFromByline = false;
+  state.lastPassCross = false;
 
   // 새 점유자는 전방을 향하고, 볼을 그 발밑으로 동기화(있으면).
   if (holder.orientation !== undefined) holder.orientation = 'FACING';

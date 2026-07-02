@@ -40,9 +40,18 @@ export const SHOT_ZONES = [
       && ((p.y > 13.6 && p.y < 27.2) || (p.y > 40.8 && p.y < 54.4)),
   },
   {
+    // Central just inside the box (x 88.5~92): fills the seam where a shooter
+    // 11-16.5m out centrally rated 0.17 (centralD) while one step past x=92
+    // rated 0.62 — a 3.6x cliff over half a metre. Ladder is now
+    // 0.17 (D) → 0.38 (box entry) → 0.62 (close) → 0.88 (six-yard). (2026-07 audit H3)
+    id: 'boxCentral', ko: '박스 정면 진입', en: 'Central box entry',
+    baseXg: 0.38,
+    match: (p) => p.x > BOX.x && p.x <= 92 && Math.abs(p.y - PITCH_H / 2) < 11,
+  },
+  {
     id: 'centralD', ko: '센트럴 D', en: 'Central D',
     baseXg: 0.17,
-    match: (p) => p.x > 82 && p.x < 92 && Math.abs(p.y - PITCH_H / 2) < 8,
+    match: (p) => p.x > 82 && p.x <= BOX.x && Math.abs(p.y - PITCH_H / 2) < 8,
   },
   {
     id: 'midRange', ko: '중거리', en: 'Long range',

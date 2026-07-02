@@ -8,7 +8,7 @@
 import { PHASE_LINES, PITCH_W, PITCH_H, clamp, dist, lerp, carryRange } from '../data/pitch.js';
 import { josa } from '../util/josa.js';
 import {
-  evaluateLane, evaluateLanding, linesBroken, offsideLine,
+  evaluateLane, evaluateLanding, linesBroken, offsideLine, sweeperRisk,
   nearestDefender, TACKLE_RADIUS, computeOrientation, receiverPressure,
 } from './space.js';
 import { createPress } from './press.js';
@@ -216,6 +216,15 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
     return true;
   }
 
+  // 마지막 패스 컨텍스트(컷백/로프트/크로스 플래그) 초기화 — 볼 회수/리셋 경로에서
+  // 반드시 호출. 이전엔 실패·회수 경로가 안 지워서 직전 성공 패스의 플래그가 살아남아
+  // 스크램블 회수 후 슛이 컷백 xG(0.65)를 받거나 헤더(0.18)로 손해 봤다(감사 H2).
+  function clearPassContext() {
+    state.lastPassLofted = false;
+    state.lastPassFromByline = false;
+    state.lastPassCross = false;
+  }
+
   function resolveTransition(choiceId) {
     const tr = state.transition;
     if (!tr) return { ok: false, rejected: true };
@@ -226,6 +235,7 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
       const rec = ours().filter((p) => p.role !== 'GK')
         .sort((a, b) => dist(a, tr.loss) - dist(b, tr.loss))[0];
       if (rec) { state.holderId = rec.id; rec.orientation = 'FACING'; }
+      clearPassContext();
       state.facts.counterpressWins++;
       state.consecutiveHolds = 0;
       addPressure(-8);
@@ -308,6 +318,7 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
     state.consecutiveHolds = 0;
     state.defensivePress = null;
     state.matchDecision = null;
+    clearPassContext();
     addPressure(-12);
     logLine(message, tone);
   }
@@ -330,6 +341,7 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
         state.holderId = rec.id;
         rec.orientation = 'FACING';
       }
+      clearPassContext();
       state.phase = rec && rec.x > PHASE_LINES.PROGRESSION ? 'PROGRESSION' : 'BUILDUP';
       state.facts.defensivePressWins++;
       state.facts.situationsResolved++;
@@ -461,13 +473,19 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
       // 가장 가까운 후방 동료도 25~35m라 리사이클이 롱볼 리스크가 커 — 캐리어가
       // 고립돼 "읽히면 그냥 잃던" 문제의 짝. 전방은 쇄도, 한 명은 탈출구로 트레일.
       const isSupportAnchor = cutbackDeveloping && p.id === anchorId;
+      // 도착런의 합법 깊이 — 오프사이드 준수(패스 순간 위치 기준). 라인까지, 또는
+      // 캐리어가 더 깊으면(바이라인 돌파) 캐리어 뒤까지 허용(백패스 예외로 온사이드).
+      // 이전엔 페널티 스폿(93)/백포스트(98) 무조건 목표라 라인(~88.5) 위 4~9m 주차 —
+      // pass_space의 오프사이드 미검사 버그를 통해서만 서빙 가능했다(2026-07 감사 C3).
+      const legalDepth = Math.max(line - 0.6, (h?.x ?? 0) - 1);
       let want;
       if (cutbackDeveloping && (p.role === 'ST' || p.role === '10')) {
-        // 컷백 도착: 페널티 스폿(컷백 존 x90.5~99.5)으로 파고들어 풀백을 받는다.
-        want = clamp(PITCH_W - 12, 4, PITCH_W - 3);   // ~93 (penaltySpotX)
+        // 컷백 도착: 페널티 스폿 방향으로 최대 합법 깊이까지 — 캐리어가 바이라인이면
+        // 그 뒤(x≈캐리어-1)까지 들어가 컷백 존(x>90.5)에서 풀백을 받는다.
+        want = clamp(Math.min(PITCH_W - 12, legalDepth), 4, PITCH_W - 3);
       } else if (cutbackDeveloping && farSideW) {
-        // 백포스트 도착 — 컷백이 뒤로 흐르거나 크로스가 넘어올 때의 제2 마무리 지점.
-        want = clamp(PITCH_W - 7, 4, PITCH_W - 3);    // ~98 back post
+        // 백포스트 도착 — 합법 깊이 안에서 반대쪽 포스트 라인으로.
+        want = clamp(Math.min(PITCH_W - 7, legalDepth), 4, PITCH_W - 3);
       } else if (isSupportAnchor) {
         want = clamp((h?.x ?? ballX) - 13, 4, PITCH_W - 3);   // 캐리어 뒤 지원
       } else if (isRunner && advancing) {
@@ -863,9 +881,18 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
         if (dd < du) { du = dd; nu = p; }
       }
       if (!nu) return fail(t('log.fail.noReceiver'));
+      // 오프사이드 — 공간 패스도 수신자 "패스 순간" 위치로 판정한다(to_feet과 동일 규칙).
+      // 착지점이 라인 뒤인 것은 합법(그게 스루볼) — 수신자가 라인보다 앞서 있으면 반칙.
+      // 백패스/컷백 예외(수신자가 공보다 뒤)는 isOffside가 처리. (2026-07 감사 C2)
+      if (isOffside(nu)) {
+        return fail(t('log.offside').replace('{label}', jl(nu.label, '은', '는')));
+      }
       const ev = evaluateLane(from, landing, opps(), { lofted, rewardWindow: activeWindow() });
       const reachPenalty = clamp((du - 6) / 16, 0, 0.4); // 동료가 착지점에서 멀면 위험↑
-      const risk = clamp((ev.risk + reachPenalty) * (1.1 - pass * 0.25) * tacRiskMul(state.currentAction), 0.02, 0.97);
+      // 깊이 방향 스루볼은 스위퍼 키퍼의 공간 — GK 레이스로 가격 책정(evaluateLanding과
+      // 동일 모델). 컷백/스퀘어(전진 성분 ≤2m)는 낮은 되돌림이라 GK 소유가 아니므로 제외.
+      const gkRace = landing.x > from.x + 2 ? sweeperRisk(landing, nu, opps()) : 0;
+      const risk = clamp((Math.max(ev.risk, gkRace) + reachPenalty) * (1.1 - pass * 0.25) * tacRiskMul(state.currentAction), 0.02, 0.97);
 
       const fromPos = { x: from.x, y: from.y };
       let loose = false;

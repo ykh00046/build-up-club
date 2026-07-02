@@ -118,6 +118,21 @@ export function evaluateLane(from, to, defenders, options = {}) {
   return { risk, status, interceptor, reason, shadowed, passLen };
 }
 
+// Sweeper-keeper race: the keeper owns the space BEHIND the line — deep
+// through balls are his to claim, and he reads them early (sweeper bonus).
+// This — not a hard cap — is what prices the in-behind corridor. Shared by
+// evaluateLanding AND the engine's pass_space (which previously skipped the
+// GK entirely, making deep through balls free — 2026-07 audit C2).
+export function sweeperRisk(zone, runner, defenders) {
+  const gk = defenders.find((d) => d.line === 'gk');
+  if (!gk || zone.x <= 78) return 0;
+  const runnerTime = dist(runner, zone) / (8 + (runner.traits?.pace ?? 0.7) * 4);
+  const gTime = dist(gk, zone) / 9.5 - 0.25;
+  const margin = gTime - runnerTime;
+  if (margin >= 0.25) return 0;
+  return clamp(0.8 - margin, 0, 0.95);
+}
+
 // Landing-zone read for a pass into space / switch: how alive is this patch
 // of grass once the runner gets there?
 export function evaluateLanding(zone, runner, defenders, options = {}) {
@@ -126,18 +141,9 @@ export function evaluateLanding(zone, runner, defenders, options = {}) {
   const runnerTime = dist(runner, zone) / (8 + (runner.traits?.pace ?? 0.7) * 4);
   for (const d of defenders) {
     if (d.line === 'gk') {
-      // The keeper owns the space BEHIND the line: deep through balls are his
-      // to claim, and he reads them early (sweeper bonus). This — not a hard
-      // cap — is what prices the in-behind corridor.
-      if (zone.x > 78) {
-        const gTime = dist(d, zone) / 9.5 - 0.25;
-        const margin = gTime - runnerTime;
-        if (margin < 0.25) {
-          const contribution = clamp(0.8 - margin, 0, 0.95);
-          if (contribution > risk) interceptor = d;
-          risk = Math.max(risk, contribution);
-        }
-      }
+      const contribution = sweeperRisk(zone, runner, defenders);
+      if (contribution > risk) interceptor = d;
+      risk = Math.max(risk, contribution);
       continue;
     }
     let dTime = dist(d, zone) / (8 + (d.traits?.pace ?? 0.7) * 4);
