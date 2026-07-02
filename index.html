@@ -589,30 +589,28 @@
     .fb-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 11px; }
     .fb-title { font-family: 'Saira Condensed', sans-serif; font-weight: 800; font-size: 13px; letter-spacing: 2px; color: var(--text-muted); }
     .fb-shape { font-family: 'Saira Condensed', sans-serif; font-weight: 800; font-size: 17px; color: var(--energy); letter-spacing: 0.5px; }
-    .fb-pitch { position: relative; width: 100%; height: 344px; border-radius: 10px; overflow: hidden;
-      background:
-        repeating-linear-gradient(0deg, rgba(255,255,255,0.013) 0 30px, transparent 30px 60px),
-        radial-gradient(130% 80% at 50% 0%, rgba(25,233,192,0.07), transparent 62%),
-        linear-gradient(180deg, #103029, #0a1d18);
-      border: 1px solid rgba(120,200,180,0.16); }
-    .fb-pitch::before { content: ''; position: absolute; inset: 9px; border: 1.5px solid rgba(200,230,220,0.16); border-radius: 3px; pointer-events: none;
-      background:
-        radial-gradient(circle at 50% 50%, transparent 30px, rgba(200,230,220,0.14) 31px, rgba(200,230,220,0.14) 32px, transparent 33px),
-        linear-gradient(180deg, transparent calc(50% - 0.75px), rgba(200,230,220,0.13) calc(50% - 0.75px), rgba(200,230,220,0.13) calc(50% + 0.75px), transparent calc(50% + 0.75px)); }
-    .fb-dot { position: absolute; width: 17px; height: 17px; border-radius: 50%; transform: translate(-50%, -50%);
-      background: radial-gradient(circle at 35% 30%, #7dffe6, var(--energy));
-      box-shadow: 0 0 11px rgba(25,233,192,0.6), 0 2px 4px rgba(0,0,0,0.55); border: 1px solid rgba(255,255,255,0.45);
+    /* 세로(포트레이트) 전술 보드 — 매치 화면과 같은 피치 팔레트/마킹(2026-07 재설계).
+       좌: 세로 피치(상대 위 / 우리 아래), 우: 포메이션 칩 2열. */
+    .fb-body { display: grid; grid-template-columns: minmax(250px, 340px) 1fr; gap: 16px; align-items: start; }
+    .fb-pitch { position: relative; width: 100%; max-width: 340px; aspect-ratio: 68 / 105; border-radius: 10px; overflow: hidden;
+      border: 1px solid rgba(120,200,180,0.22); box-shadow: inset 0 0 40px rgba(0,0,0,0.35);
+      background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 68 105' preserveAspectRatio='none'%3E%3Crect width='68' height='105' fill='%2316301f'/%3E%3Cg fill='%23ffffff' opacity='.045'%3E%3Crect y='0' width='68' height='13.125'/%3E%3Crect y='26.25' width='68' height='13.125'/%3E%3Crect y='52.5' width='68' height='13.125'/%3E%3Crect y='78.75' width='68' height='13.125'/%3E%3C/g%3E%3Cg fill='none' stroke='%234a6b56' stroke-width='.6'%3E%3Crect x='1.5' y='1.5' width='65' height='102'/%3E%3Cline x1='1.5' y1='52.5' x2='66.5' y2='52.5'/%3E%3Ccircle cx='34' cy='52.5' r='9.15'/%3E%3Crect x='13.85' y='1.5' width='40.3' height='16.5'/%3E%3Crect x='13.85' y='87' width='40.3' height='16.5'/%3E%3Crect x='24.84' y='1.5' width='18.32' height='5.5'/%3E%3Crect x='24.84' y='98' width='18.32' height='5.5'/%3E%3C/g%3E%3Cg fill='%234a6b56'%3E%3Ccircle cx='34' cy='52.5' r='.8'/%3E%3Ccircle cx='34' cy='12.5' r='.7'/%3E%3Ccircle cx='34' cy='92.5' r='.7'/%3E%3C/g%3E%3C/svg%3E") center / 100% 100% no-repeat; }
+    /* 토큰 — 매치 화면과 동일 계열(우리=밝은 화이트, 상대=레드, GK=앰버). */
+    .fb-dot { position: absolute; width: 18px; height: 18px; border-radius: 50%; transform: translate(-50%, -50%); z-index: 2;
+      background: radial-gradient(circle at 35% 30%, #ffffff, #dbe4ee);
+      box-shadow: 0 2px 5px rgba(0,0,0,0.55); border: 1.5px solid #1f2a37;
       transition: left 0.45s cubic-bezier(0.16,1,0.3,1), top 0.45s cubic-bezier(0.16,1,0.3,1); }
-    .fb-dot.us.gk { background: radial-gradient(circle at 35% 30%, #ffe49a, var(--warn)); box-shadow: 0 0 11px rgba(255,194,75,0.55), 0 2px 4px rgba(0,0,0,0.55); }
-    .fb-dot.opp { background: radial-gradient(circle at 35% 30%, #ff9aa6, var(--danger)); box-shadow: 0 0 10px rgba(255,90,110,0.5), 0 2px 4px rgba(0,0,0,0.55); border-color: rgba(255,255,255,0.4); }
-    .fb-side-label { position: absolute; left: 12px; z-index: 3; font-family: 'Saira Condensed', sans-serif; font-weight: 800; font-size: 10.5px; letter-spacing: 1.2px; padding: 3px 9px; border-radius: 5px; background: rgba(7,11,17,0.62); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); }
-    .fb-side-label.opp { top: 10px; color: var(--danger); }
-    .fb-side-label.us { bottom: 10px; color: var(--energy); }
-    .fb-chips { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 12px; }
-    @media (max-width: 560px) { .fb-chips { grid-template-columns: repeat(2, 1fr); } }
-    .fb-chip { flex: 1; background: var(--panel-2); border: 1px solid var(--line); color: var(--text-muted); border-radius: 9px; padding: 9px 6px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 3px; transition: border-color 0.15s, color 0.15s, background 0.15s; }
-    .fb-chip > span:first-child { font-family: 'Saira Condensed', sans-serif; font-weight: 700; font-size: 13px; letter-spacing: 0.5px; }
-    .fb-chip .fb-chip-sub { font-size: 10.5px; font-weight: 600; color: var(--text-muted); font-feature-settings: 'tnum'; }
+    .fb-dot.us.gk { background: radial-gradient(circle at 35% 30%, #ffe49a, var(--warn)); border-color: #4a3208; }
+    .fb-dot.opp { background: radial-gradient(circle at 35% 30%, #e97c7c, #c44b4b); border-color: #2a0d0d; }
+    .fb-dot.opp.gk { background: radial-gradient(circle at 35% 30%, #ffb3a0, #b03e30); }
+    .fb-side-label { position: absolute; left: 10px; z-index: 3; font-family: 'Saira Condensed', sans-serif; font-weight: 800; font-size: 10.5px; letter-spacing: 1.2px; padding: 3px 9px; border-radius: 5px; background: rgba(7,11,17,0.72); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); }
+    .fb-side-label.opp { top: 9px; color: #ff8d8d; }
+    .fb-side-label.us { bottom: 9px; color: var(--energy); }
+    .fb-chips { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; align-content: start; }
+    @media (max-width: 700px) { .fb-body { grid-template-columns: 1fr; } .fb-pitch { margin: 0 auto; max-width: 300px; } .fb-chips { margin-top: 12px; } }
+    .fb-chip { flex: 1; background: var(--panel-2); border: 1px solid var(--line); color: var(--text-muted); border-radius: 10px; padding: 13px 8px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; transition: border-color 0.15s, color 0.15s, background 0.15s; }
+    .fb-chip > span:first-child { font-family: 'Saira Condensed', sans-serif; font-weight: 700; font-size: 15px; letter-spacing: 0.5px; }
+    .fb-chip .fb-chip-sub { font-size: 11px; font-weight: 600; color: var(--text-muted); font-feature-settings: 'tnum'; }
     .fb-chip:hover { border-color: var(--accent); color: var(--text); }
     .fb-chip.on { border-color: var(--energy); color: var(--energy); background: rgba(25,233,192,0.08); box-shadow: 0 0 16px -5px var(--energy); }
     .fb-chip.on .fb-chip-sub { color: var(--text); }
@@ -1201,8 +1199,10 @@
               <span class="fb-title" data-i18n="hub.formation">FORMATION</span>
               <span class="fb-headr"><span class="fb-shape" id="fb-shape-name">—</span><span class="fb-mods" id="fb-mods"></span></span>
             </div>
-            <div class="fb-pitch" id="fb-pitch" aria-hidden="true"></div>
-            <div class="fb-chips" id="fb-chips" role="group" data-i18n-aria="hub.formation"></div>
+            <div class="fb-body">
+              <div class="fb-pitch" id="fb-pitch" aria-hidden="true"></div>
+              <div class="fb-chips" id="fb-chips" role="group" data-i18n-aria="hub.formation"></div>
+            </div>
           </div>
           <div class="hub-mission" id="hub-mission"></div>
           <div class="hub-promote">
