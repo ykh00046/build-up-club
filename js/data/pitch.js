@@ -23,22 +23,24 @@ export const BOX = {
   penaltySpotX: PITCH_W - 11,
 };
 
+// 2026-07 가독성 패스: 피치·라인·라벨을 한 단계씩 밝혀 "어두운 점 무더기" 인상 해소.
+// (피치 그린 ↑, 라인 대비 ↑, 채널/서드 라벨 알파 ↑, 역할 태그를 반투명→고대비로.)
 export const COLORS = Object.freeze({
   bg:           '#0b0f14',
-  pitch:        '#0f1e16',
-  pitchLine:    '#2e4238',
-  pitchAccent:  '#426050',
-  channelGrid:  'rgba(120, 180, 160, 0.10)',
-  channelLabel: 'rgba(200, 230, 220, 0.40)',
-  thirdLabel:   'rgba(200, 230, 220, 0.35)',
+  pitch:        '#16301f',
+  pitchLine:    '#4a6b56',
+  pitchAccent:  '#5d8168',
+  channelGrid:  'rgba(120, 180, 160, 0.14)',
+  channelLabel: 'rgba(200, 230, 220, 0.60)',
+  thirdLabel:   'rgba(200, 230, 220, 0.55)',
   us:           '#f5f7fa',
   usStroke:     '#1f2a37',
   usText:       '#1f2a37',
-  usTag:        'rgba(245, 247, 250, 0.55)',
-  opp:          '#c44b4b',
+  usTag:        'rgba(235, 244, 255, 0.95)',
+  opp:          '#d94f4f',
   oppStroke:    '#2a0d0d',
   oppText:      '#fdecec',
-  oppTag:       'rgba(196, 75, 75, 0.75)',
+  oppTag:       'rgba(255, 158, 158, 0.95)',
   ball:         '#f5a623',
   ballStroke:   '#1a0f00',
   laneSafe:     'rgba(93, 214, 197, 0.9)',
@@ -48,7 +50,8 @@ export const COLORS = Object.freeze({
   windowEdge:   'rgba(93, 214, 197, 0.55)',
 });
 
-export const TOKEN_R_M = 1.15;
+// 토큰 반경 1.15m→1.5m: 일반 뷰포트에서 지름 ~17px→~22px — 번호·역할이 읽힌다.
+export const TOKEN_R_M = 1.5;
 export const BALL_R_M = 0.45;
 
 export function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }

@@ -128,11 +128,13 @@ function drawActionRing(view) {
   });
   if (shoot) placed.push({ a: shoot, deg: flip ? 180 : 0, stagger: 0 });
 
-  ctx.font = `600 11px ui-sans-serif, system-ui, sans-serif`;
+  // 가독성 패스(2026-07): 링 필 12px/24px + 테두리·텍스트 대비 상향 — 이전 11px
+  // 저대비 필은 "정체 모를 작은 칩"으로 읽혔다.
+  ctx.font = `700 12px ui-sans-serif, system-ui, sans-serif`;
   for (const { a, deg, stagger } of placed) {
     const rad = (deg * Math.PI) / 180;
     const textW = ctx.measureText(a.label).width;
-    const w = textW + 16, hh = 21;
+    const w = textW + 20, hh = 24;
     // Push the pill centre outward so long pills don't kiss the token.
     const r = ringR + stagger + w * 0.5 * Math.abs(Math.cos(rad));
     let px = cx + Math.cos(rad) * r - w / 2;
@@ -144,17 +146,17 @@ function drawActionRing(view) {
     // U3: the shoot pill only takes the hot color in a GOOD zone — orange
     // means "finish here", not "a shot is technically legal".
     const isShoot = a.id === 'shoot' && a.good !== false;
-    ctx.fillStyle = active ? 'rgba(16, 32, 30, 0.96)' : 'rgba(9, 14, 20, 0.88)';
-    roundRect(px, py, w, hh, 10);
+    ctx.fillStyle = active ? 'rgba(16, 32, 30, 0.97)' : 'rgba(9, 14, 20, 0.93)';
+    roundRect(px, py, w, hh, 12);
     ctx.fill();
     ctx.strokeStyle = isShoot
       ? 'rgba(245, 166, 35, 0.95)'
-      : active ? 'rgba(77, 139, 255, 0.95)' : 'rgba(77, 139, 255, 0.38)';
-    ctx.lineWidth = active ? 1.6 : 1;
-    roundRect(px, py, w, hh, 10);
+      : active ? 'rgba(77, 139, 255, 0.95)' : 'rgba(112, 160, 255, 0.6)';
+    ctx.lineWidth = active ? 1.8 : 1.2;
+    roundRect(px, py, w, hh, 12);
     ctx.stroke();
     ctx.fillStyle = isShoot ? 'rgba(255, 205, 130, 0.98)'
-      : active ? 'rgba(160, 245, 232, 1)' : 'rgba(190, 225, 218, 0.92)';
+      : active ? 'rgba(160, 245, 232, 1)' : 'rgba(215, 240, 235, 0.98)';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(a.label, px + w / 2, py + hh / 2 + 0.5);
@@ -252,7 +254,7 @@ function drawPitch() {
   const STRIPES = 12;
   const bw = PITCH_W / STRIPES;
   for (let i = 0; i < STRIPES; i++) {
-    ctx.fillStyle = i % 2 === 0 ? 'rgba(255, 255, 255, 0.028)' : 'rgba(0, 0, 0, 0.04)';
+    ctx.fillStyle = i % 2 === 0 ? 'rgba(255, 255, 255, 0.045)' : 'rgba(0, 0, 0, 0.055)';
     ctx.fillRect(mx(i * bw), my(0), bw * scale + 1, PITCH_H * scale);
   }
   // 방향 조명(위쪽 밝게 → 아래쪽 어둡게) — 조명 받은 경기장 깊이.
@@ -307,7 +309,7 @@ function drawChannelGrid() {
   ctx.setLineDash([]);
   if (!toggles.labels) return;
   ctx.fillStyle = COLORS.channelLabel;
-  ctx.font = `${Math.max(9, scale * 1.1)}px ui-sans-serif, system-ui, sans-serif`;
+  ctx.font = `600 ${Math.max(10, scale * 1.25)}px ui-sans-serif, system-ui, sans-serif`;
   ctx.textAlign = 'left'; ctx.textBaseline = 'top';
   for (let i = 0; i < CHANNEL_LABELS.length; i++) {
     ctx.fillText(CHANNEL_LABELS[i], mx(1.2), my((CHANNEL_BOUNDS_Y[i] + CHANNEL_BOUNDS_Y[i + 1]) / 2) - 7);
@@ -735,13 +737,20 @@ function drawToken(p, isHolder, pressureExpr) {
   }
 
   if (!toggles.labels) return;
+  // 가독성 패스(2026-07): 번호는 굵게, 역할 태그는 고대비+어두운 그림자 — 이전엔
+  // 7.5px 반투명 텍스트가 잔디에 묻혀 판독 불가였다.
   ctx.fillStyle = us ? COLORS.usText : COLORS.oppText;
-  ctx.font = `600 ${Math.max(9, r * 0.95).toFixed(1)}px ui-sans-serif, system-ui, sans-serif`;
+  ctx.font = `700 ${Math.max(10, r * 0.95).toFixed(1)}px ui-sans-serif, system-ui, sans-serif`;
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.fillText(String(p.num), cx, cy + 0.5);
+  ctx.save();
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.85)';
+  ctx.shadowBlur = 3;
   ctx.fillStyle = us ? COLORS.usTag : COLORS.oppTag;
-  ctx.font = `${Math.max(7.5, r * 0.55).toFixed(1)}px ui-sans-serif, system-ui, sans-serif`;
-  ctx.fillText(p.label, cx, cy + r + Math.max(7.5, r * 0.55) + 1);
+  const tagPx = Math.max(9, r * 0.6);
+  ctx.font = `700 ${tagPx.toFixed(1)}px ui-sans-serif, system-ui, sans-serif`;
+  ctx.fillText(p.label, cx, cy + r + tagPx + 1);
+  ctx.restore();
 }
 
 // 클래식 축구공 패널(검정 오각형) — 가운데 + 림 힌트. 공 원에 클립된 채 호출.
