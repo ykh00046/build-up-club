@@ -225,6 +225,10 @@ function newAttempt() {
 let careerRetriesLeft = 1;
 function retryAttempt() {
   if (careerActive) {
+    // 정산 후 재도전 금지(실플레이 발견): 커리어는 시도 종료 즉시 정산되므로 그 뒤의
+    // 재도전은 "유령 경기"가 된다 — 정산된 결과 카드가 .visible로 남아 renderPaused가
+    // 엔진 업데이트를 멈추고(busy 영구 고착), 완주하면 같은 매치데이가 이중 정산된다.
+    if (engine?.state?.status === 'over') { toast(t('match.settled')); return; }
     if (careerRetriesLeft <= 0) { toast(t('match.retryOut')); return; }
     careerRetriesLeft--;
   }
