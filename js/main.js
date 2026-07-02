@@ -26,7 +26,7 @@ import * as analytics from './util/analytics.js';
 // ─── Career layer (idle-football-club 메타 + 통합 글루) ───────────────────────
 import * as Club from './career/club.js';
 import { applyClubBoost, resolveScoreline, BUILD_SHAPES, applyFormationMods, applySetPiece } from './career/mods.js';
-import { FORMATION_BUILDERS, FORMATION_MODS, FORMATION_ARCHETYPE } from './data/formations.js';
+import { FORMATION_BUILDERS, FORMATION_MODS, FORMATION_ARCHETYPE, FORMATION_UNLOCKS, isFormationUnlocked } from './data/formations.js';
 import { DELIVERIES, DEFAULT_DELIVERY, bestDeliveryFor, deliveryBonus } from './data/setpieces.js';
 import { initHub, renderHub, nextMatchInfo } from './career/hub.js';
 import { divisionPool } from './career/season.js';
@@ -1050,6 +1050,7 @@ function enterHub() {
   const sb = document.getElementById('scorebug');
   if (sb) sb.hidden = true;   // 매치 스코어버그는 매치에서만 노출
   renderHub();
+  syncFormationBoard();   // 다음 상대 셰이프 + 포메이션 해금 상태 갱신
   openModal(hubOverlay);
   if (!offlineShown && offlineGain > 1) {
     offlineShown = true;
@@ -1153,7 +1154,13 @@ function settleCareerMatch() {
     momentum: engine.state.momentum, fatigue: engine.state.fatigue,
   };
   const score = resolveScoreline(perf, setup, careerRng);
+  const lockedBefore = Object.keys(FORMATION_UNLOCKS).filter((k) => !isFormationUnlocked(k, Club.club));
   const income = Club.settleMatch(score.result, score.cleanSheet);
+  // 포메이션 해금 체크 — 이번 정산(승수/경기수 증가)으로 새로 열린 포메이션 축하.
+  const newlyUnlocked = lockedBefore.filter((k) => isFormationUnlocked(k, Club.club));
+  for (const k of newlyUnlocked) {
+    toast(`🔓 ${t('hub.unlocked').replace('{x}', FORMATIONS[k]?.shape ?? k)}`);
+  }
   const mission = checkMission({ ...score, tone });
   const cond = rollPostMatchCondition({ ...score, tone }, careerRng);
   const prog = Club.addPoints(score.result);
@@ -1391,7 +1398,7 @@ function setText(id, v) { const el = document.getElementById(id); if (el) el.tex
 initHub({ onPlay: startMatch, onLang: () => {
   applyStaticI18n();
   bindScenarioPanels(scenario);
-  initFormationBoard();   // 허브 포메이션 보드(칩 설명/라벨)도 새 언어로 재구성 (감사 U5)
+  syncFormationBoard();   // 허브 포메이션 보드(칩 설명/잠금/상대 라벨)도 새 언어로 재구성 (감사 U5)
 }, onUpgrade: () => {} });
 
 // ─── Mobile drawer: 상대 정보·전술 (접이식 하단 시트, ISSUE-003) ───────────────
@@ -1436,7 +1443,10 @@ const FORMATIONS = {
     { x: 16, y: 50 }, { x: 35, y: 52 }, { x: 50, y: 50 }, { x: 65, y: 52 }, { x: 84, y: 50 }, { x: 50, y: 20 } ] },
 };
 let currentFormation = 'f433';
-let oppFormation = 'f442';   // 상대 셰이프(블록). 추후 실제 다음 상대 데이터로 연결.
+// 다음 상대의 압박 scheme → 보드 표시용 포메이션 키(시나리오 buildOpp와 동일 계보).
+const SCHEME_FORMATION = { hybrid: 'f433', gegen: 'f433', man: 'f442', zonal: 'f442', midblock: 'f4231', lowblock: 'f532' };
+let oppFormation = 'f442';
+let oppShapeLabel = null;    // 시나리오의 oppShapeName(풀 텍스트) — 보드 상단 라벨
 // 한 팀의 dots를 절반에 매핑: us=하단(자기 골 아래), opp=상단(미러, 서로 마주봄).
 function fbDots(f, side) {
   return f.dots.map((d) => {
@@ -1445,6 +1455,7 @@ function fbDots(f, side) {
   }).join('');
 }
 function renderFormationBoard(key) {
+  if (!isFormationUnlocked(key, Club.club)) return;   // 잠긴 포메이션은 선택 불가
   const f = FORMATIONS[key];
   const opp = FORMATIONS[oppFormation];
   const pitch = document.getElementById('fb-pitch');
@@ -1454,7 +1465,7 @@ function renderFormationBoard(key) {
   chosenFormation = key;
   chosenShape = FORMATION_ARCHETYPE[key] || 'balanced';
   pitch.innerHTML =
-    `<span class="fb-side-label opp">${loc({ ko: '상대', en: 'OPPONENT' })} · ${opp.shape} ${loc(opp.desc)}</span>` +
+    `<span class="fb-side-label opp">${loc({ ko: '상대', en: 'OPPONENT' })} · ${oppShapeLabel ?? (opp.shape + ' ' + loc(opp.desc))}</span>` +
     `<span class="fb-side-label us">${loc({ ko: '우리', en: 'YOU' })} · ${f.shape}</span>` +
     fbDots(opp, 'opp') + fbDots(f, 'us');
   const nameEl = document.getElementById('fb-shape-name');
@@ -1464,10 +1475,24 @@ function renderFormationBoard(key) {
 function initFormationBoard() {
   const chips = document.getElementById('fb-chips');
   if (!chips) return;
-  chips.innerHTML = Object.entries(FORMATIONS).map(([k, f]) =>
-    `<button type="button" class="fb-chip" data-formation="${k}"><span>${f.shape}</span><span class="fb-chip-sub">${loc(f.desc)}</span></button>`).join('');
+  chips.innerHTML = Object.entries(FORMATIONS).map(([k, f]) => {
+    const cond = FORMATION_UNLOCKS[k];
+    const locked = !isFormationUnlocked(k, Club.club);
+    // 잠금 칩도 조건을 보여준다 — "무엇을 하면 열리는가"가 진행 동기(해금 요소).
+    const sub = locked ? `🔒 ${loc({ ko: cond.ko, en: cond.en })}` : loc(f.desc);
+    return `<button type="button" class="fb-chip${locked ? ' locked' : ''}" data-formation="${k}" ${locked ? 'aria-disabled="true"' : ''}><span>${f.shape}</span><span class="fb-chip-sub">${sub}</span></button>`;
+  }).join('');
   for (const c of chips.querySelectorAll('.fb-chip')) c.addEventListener('click', () => renderFormationBoard(c.dataset.formation));
+  // 선택 중이던 포메이션이 (새 세이브 등으로) 잠겨 있으면 기본으로 폴백.
+  if (!isFormationUnlocked(currentFormation, Club.club)) currentFormation = 'f433';
   renderFormationBoard(currentFormation);
+}
+// 허브 진입 시 동기화: 다음 상대의 실제 압박 셰이프 + 해금 상태(경기/승수 갱신 반영).
+function syncFormationBoard() {
+  const info = nextMatchInfo();
+  oppFormation = SCHEME_FORMATION[info?.scenario?.scheme] ?? 'f442';
+  oppShapeLabel = info?.scenario?.oppShapeName ? loc(info.scenario.oppShapeName) : null;
+  initFormationBoard();
 }
 initFormationBoard();
 

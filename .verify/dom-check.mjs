@@ -48,7 +48,9 @@ expect(/career-result\[data-tone="w"\]/.test(html) && /career-result\[data-tone=
 // 5) 핵심 플로우 함수/리스너 존재
 expect(/initHub\(\{[^}]*onPlay: startMatch/.test(main), 'flow: initHub onPlay=startMatch 연결');
 expect(/function settleCareerMatch\(\)/.test(main) && /resolveScoreline\(/.test(main), 'flow: settleCareerMatch + resolveScoreline');
-expect(/if \(careerActive\) settleCareerMatch\(\)/.test(main), 'flow: 경기 종료 → 커리어 정산 분기');
+// 유예 정산(2026-07): 종료 시 즉시 정산이 아니라 결과 카드에서 재도전/정산을 선택 —
+// careerActive 분기가 settleCareerMatch로 이어지는 경로(직접 or showOutcome 콜백)를 확인.
+expect(/if \(careerActive\) \{[\s\S]{0,600}?settleCareerMatch\(\)/.test(main), 'flow: 경기 종료 → 커리어 정산 분기(유예)');
 expect(/applyClubBoost\(engine, currentSetup\)/.test(main), 'glue: newAttempt에서 클럽 부스트 적용');
 
 console.log('=== 정적 DOM 교차검증 ===\n');

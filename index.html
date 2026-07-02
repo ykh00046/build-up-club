@@ -623,6 +623,9 @@
     .fb-chip:hover { border-color: var(--accent); color: var(--text); }
     .fb-chip.on { border-color: var(--energy); color: var(--energy); background: rgba(25,233,192,0.08); box-shadow: 0 0 16px -5px var(--energy); }
     .fb-chip.on .fb-chip-sub { color: var(--text); }
+    /* 잠긴 포메이션 — 해금 조건이 서브라벨로 보인다(진행 동기). */
+    .fb-chip.locked { opacity: 0.45; cursor: not-allowed; filter: grayscale(0.5); }
+    .fb-chip.locked:hover { border-color: var(--line); color: var(--text-muted); }
 
     /* ── 탭 + 패널 (순차 공개의 뼈대) ───────────────────────────── */
     .hub-tabs { display: flex; gap: 4px; background: var(--panel); border: 1px solid var(--line); border-radius: 11px; padding: 4px; }

@@ -1,6 +1,6 @@
 // E6: 포메이션 트레이드오프(FORMATION_MODS) + 교체 안전성 + 설정 정합성.
 // (구 3-셰이프 BUILD_SHAPES/applyShape 시스템 → 라이브 FORMATION_* 로 이관, 2026 감사.)
-import { FORMATION_BUILDERS, FORMATION_MODS, FORMATION_ARCHETYPE } from '../js/data/formations.js';
+import { FORMATION_BUILDERS, FORMATION_MODS, FORMATION_ARCHETYPE, FORMATION_UNLOCKS, isFormationUnlocked } from '../js/data/formations.js';
 import { applyFormationMods, resolveScoreline } from '../js/career/mods.js';
 import { createEngine } from '../js/engine/engine.js';
 import { getScenario } from '../js/data/scenarios.js';
@@ -19,6 +19,18 @@ const keys = Object.keys(FORMATION_BUILDERS);
 ok(keys.length === 8, `포메이션 8개 (${keys.length})`);
 ok(keys.every((k) => FORMATION_MODS[k] && FORMATION_ARCHETYPE[k]), '모든 포메이션이 MODS·ARCHETYPE에 정의됨');
 ok(keys.every((k) => ['balanced', 'control', 'attack'].includes(FORMATION_ARCHETYPE[k])), '아키타입은 balanced/control/attack 중 하나');
+
+// 1b) 해금 정합성 — 모든 포메이션이 UNLOCKS에 정의, 신규 세이브에 기본 2개 이상 열림,
+//     조건(wins/matches)이 실제로 게이트하며 진행 시 열린다.
+ok(keys.every((k) => k in FORMATION_UNLOCKS), '모든 포메이션이 FORMATION_UNLOCKS에 정의됨');
+const freshClub = { record: { w: 0, d: 0, l: 0 }, matchday: 0 };
+const defaults = keys.filter((k) => isFormationUnlocked(k, freshClub));
+ok(defaults.length >= 2 && defaults.includes('f433'), `신규 세이브 기본 해금 ${defaults.length}개 (f433 포함)`);
+ok(!isFormationUnlocked('f532', freshClub), '조건부 포메이션은 신규 세이브에서 잠김');
+ok(isFormationUnlocked('f532', { record: { w: 8 }, matchday: 30 }), '조건 충족 시 해금(8승→5-3-2)');
+ok(isFormationUnlocked('f451', { record: { w: 0 }, matchday: 22 }), '경기수 조건 해금(22경기→4-5-1)');
+ok(keys.every((k) => isFormationUnlocked(k, { record: { w: 99 }, matchday: 99 })), '충분한 진행이면 전부 해금');
+ok(isFormationUnlocked('f433', undefined), '클럽 상태 부재(자유 플레이) 시 기본 포메이션 안전');
 
 // 2) mods 트레이드오프 방향성
 const def = apply('f532');   // 최수비 concedeMul 0.78

@@ -340,3 +340,25 @@ export const FORMATION_ARCHETYPE = {
   f532: 'control', f451: 'control',         // 5-3-2 / 4-5-1 — 수비·통제
   f433: 'balanced', f442: 'balanced', f4231: 'balanced', f4312: 'balanced',
 };
+
+// 포메이션 해금 조건(2026-07): 8개가 처음부터 다 열려 있으면 신규 유저에게 선택
+// 과부하 + 진행 보상 부재. 기본 2개로 시작해 커리어 진행(승수/경기수)이 전술 폭을
+// 연다 — 허브의 핵심 진행감. null = 기본 해금. 조건은 세이브 필드 추가 없이
+// club.record.w / club.matchday에서 순수 계산(마이그레이션 불필요).
+export const FORMATION_UNLOCKS = {
+  f433: null, f442: null,                                          // 기본
+  f4231: { type: 'wins', n: 2, ko: '통산 2승', en: '2 career wins' },
+  f352:  { type: 'matches', n: 8, ko: '8경기 소화', en: 'Play 8 matches' },
+  f343:  { type: 'wins', n: 5, ko: '통산 5승', en: '5 career wins' },
+  f4312: { type: 'matches', n: 15, ko: '15경기 소화', en: 'Play 15 matches' },
+  f532:  { type: 'wins', n: 8, ko: '통산 8승', en: '8 career wins' },
+  f451:  { type: 'matches', n: 22, ko: '22경기 소화', en: 'Play 22 matches' },
+};
+
+export function isFormationUnlocked(key, club) {
+  const cond = FORMATION_UNLOCKS[key];
+  if (!cond) return true;
+  if (cond.type === 'wins') return (club?.record?.w ?? 0) >= cond.n;
+  if (cond.type === 'matches') return (club?.matchday ?? 0) >= cond.n;
+  return true;
+}
