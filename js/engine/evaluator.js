@@ -48,6 +48,54 @@ function buildPassCandidates(engine, limit) {
   });
 }
 
+// carry 후보 — 보드가 패스만 세우면 "운반으로 첫 압박수를 끌어내라"는 브리핑과
+// 모순되고 추천의 92%가 pass_space로 단조해진다(자기대국 감사). 전방 3방향
+// (직진·하프스페이스 대각)을 previewCarry(디스패치와 동일식)로 재고 최고 1개만
+// 후보로. 보상 통화는 패스 후보와 동일 단위(safety 0.50 / fwd 0.22 / phase 0.28)
+// + 유인 보너스(carry는 TRIGGER 1.10 커밋 유도 + baits 적립) − 압박 +4 비용.
+const PHASE_LINES_EV = { PROGRESSION: 40, FINAL_THIRD: 68 };
+function buildCarryCandidate(engine) {
+  const h = engine.holder?.();
+  if (!h || typeof engine.previewCarry !== 'function') return null;
+  const state = engine.state;
+  // 연속 운반 차단 — 열린 공간 운반은 위험이 거의 없어(base 0.04) 후보로 상시
+  // 노출하면 "걸어서 전진" 스팸이 된다(측정: goal 19→36% 붕괴). 직전이 운반이면
+  // 후보 자체를 내리지 않는다: 운반→패스→운반 리듬만 추천.
+  if ((state.actionHistory ?? []).slice(-2).includes('carry')) return null;
+  const aims = [
+    { x: h.x + 9, y: h.y },
+    { x: h.x + 7, y: h.y - 6 },
+    { x: h.x + 7, y: h.y + 6 },
+  ];
+  let best = null;
+  for (const aim of aims) {
+    const p = engine.previewCarry(aim);
+    if (!p || p.risk >= 0.88) continue;
+    const progress = p.to.x - h.x;
+    if (progress < 2) continue;                      // 전진성 없는 운반은 제외
+    const phaseBonus = (state.phase === 'BUILDUP' && p.to.x > PHASE_LINES_EV.PROGRESSION) ? 0.28
+      : (state.phase === 'PROGRESSION' && p.to.x > PHASE_LINES_EV.FINAL_THIRD) ? 0.28 : 0;
+    const baitBonus = 0.04;   // 커밋 유인 EV — 과대평가 시 carry 스팸(위 주석) 재발
+    const score = (1 - p.risk) * 0.50 + clamp(progress / 55, -0.3, 1) * 0.22 + phaseBonus + baitBonus - 0.03;
+    const reward = score + clamp(progress / 48, -0.15, 0.45);
+    const cand = {
+      type: 'pass',
+      action: 'carry',
+      target: h,
+      point: p.to,
+      risk: p.risk,
+      safety: 1 - p.risk,
+      score,
+      progress,
+      reward,
+      engine,
+      reason: null,
+    };
+    if (!best || cand.reward - cand.risk * 0.62 > best.reward - best.risk * 0.62) best = cand;
+  }
+  return best;
+}
+
 function buildShotCandidate(engine) {
   const shot = engine.previewShot?.();
   if (!shot) return null;
@@ -91,6 +139,7 @@ export function evaluateBoard(engine, options = {}) {
   const state = engine.state;
   const candidates = [
     ...buildPassCandidates(engine, limit),
+    buildCarryCandidate(engine),
     buildShotCandidate(engine),
   ].filter(Boolean).map((candidate) => annotate(candidate, state));
 
