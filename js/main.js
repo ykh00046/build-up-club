@@ -216,6 +216,9 @@ function newAttempt() {
   engine = createEngine(engineScenario(shapedScenario()), undefined, {
     intensityOverride: chosenDifficulty,
     opponentBuildDisposition: careerActive ? oppDisposition : null,
+    // 상실 지점 진입(4R 플랜 A): 커리어에선 어디서 뺏겼는지가 수비 국면의 위험을
+    // 결정한다 — 깊은 상실 = 위험한 진입. 자유 플레이는 기존 GK 리셋 유지.
+    defenseEntry: careerActive ? 'loss' : 'reset',
   });
   lastCommanded = careerActive ? oppDisposition : null;
   // 통합 글루: 클럽 업그레이드를 'us' 선수 traits로 반영 → 강해질수록 전술이 쉬워짐.

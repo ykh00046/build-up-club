@@ -48,9 +48,26 @@ export function chooseOppBuild(read, disposition, rng = Math.random) {
   // 진짜 출구가 없을 때만 정체 = 회수는 상대 실수가 아니라 세운 블록의 몫.
   const viable = lanes.filter((l) => (l.c.progress ?? 0) >= 1);
   const pool = viable.length ? viable : lanes;
+  // 스텝 전진 캡(4R 플랜 A-1) — 한 패스로 26m 넘게 못 건너뛴다(대안이 있을 때).
+  // 국면 길이의 지지대를 "GK 고정 진입"에서 스텝 물리로 옮기는 토대: CB→ST
+  // 원패스 스피드런이 잘리고 결정 수가 자연 확보된다. direct의 burst 레인만
+  // 캡 1.5배 — "직선 역습은 캡을 뚫는다"는 성향 질감. 전 레인이 캡 초과면
+  // 통과(GK처럼 모든 동료가 멀 때 — 첫 전개까지 막지는 않는다).
+  const STEP_CAP = 26;
+  const capOf = (l) => (disposition === 'direct' && l.c === burst ? STEP_CAP * 1.5 : STEP_CAP);
+  const inCap = pool.filter((l) => (l.c.progress ?? 0) <= capOf(l));
+  // 전 레인이 캡 초과면 "최단 전진 출구"를 강제하되, 역할 레인 풀이 아니라
+  // 전체 후보(cands)에서 찾는다 — 역할 레인(best/calm 등)이 전부 같은 원거리
+  // 타깃을 가리키는 국면에서 풀 내 최단은 여전히 31m+ ST라 1결정 슛이 샜다.
+  const shortOutlet = cands
+    .filter((c) => (c.progress ?? 0) >= 1 && (c.progress ?? 99) <= STEP_CAP)
+    .reduce((a, c) => (a === null || (c.progress ?? 99) < (a.progress ?? 99) ? c : a), null);
+  const finalPool = inCap.length ? inCap
+    : shortOutlet ? [{ c: shortOutlet, w: 1 }]
+    : [pool.reduce((a, l) => (((l.c.progress ?? 99) < (a.c.progress ?? 99)) ? l : a))];
 
-  const total = pool.reduce((s, l) => s + l.w, 0);
+  const total = finalPool.reduce((s, l) => s + l.w, 0);
   let r = rng() * total;
-  for (const l of pool) { if ((r -= l.w) <= 0) return l.c; }
-  return pool[pool.length - 1].c;
+  for (const l of finalPool) { if ((r -= l.w) <= 0) return l.c; }
+  return finalPool[finalPool.length - 1].c;
 }

@@ -39,7 +39,7 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
   // defenseLoop(기본 ON, 2026-07 A단계): 볼 상실 후 공격이 그냥 끝나는 대신 상대가
   // 실제로 전개해 오고(잠자던 턴오버 루프 활성화) 매 스텝 수비 3택으로 저지한다 —
   // 실패가 쌓이면 상대 슛(실점 위험), 회수하면 공격 재개. 한 판 안의 공수 왕복.
-  const { intensityOverride, possessionTurnoverLoop = false, opponentBuildDisposition = null, defenseLoop: defenseLoopEnabled = true } = options;
+  const { intensityOverride, possessionTurnoverLoop = false, opponentBuildDisposition = null, defenseLoop: defenseLoopEnabled = true, defenseEntry = 'reset' } = options;
   // 수비 국면의 상대 전개 성향 — setOpponentDisposition으로 경기 중 교체 가능
   // (에이전트 듀얼/추후 B단계: 상대 지휘를 외부에 개방). null = 결정적 best 루트.
   let liveOppDisposition = opponentBuildDisposition;
@@ -269,7 +269,8 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
       }
     }
     // 수비 국면(A): 공격이 끝나는 대신 상대가 전개해 온다 — 우리가 막을 차례.
-    if (defenseLoopEnabled && openDefenseLoop()) {
+    // 상실 지점은 위에서 transition을 지우기 전에 잡아 인자로 넘긴다(A-2 진입).
+    if (defenseLoopEnabled && openDefenseLoop(tr.loss)) {
       return { ok: true, recovered: false, defending: true };
     }
     finishAttempt(tr.kind, tr.detail);
@@ -284,7 +285,10 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
   // 32→24 (자기대국 2R 감사): 32는 상대 MF 기본 위치(x≈31)와 겹쳐 전 시나리오에서
   // 국면이 2결정 만에 슛으로 끝났다(3번째 결정 관측 0건) — 지휘자·내려서기 축적·
   // 성향 교체가 영향 줄 시간 자체가 없었다. 24면 한 패스 더 들어와야 사거리.
-  const DEFENSE_SHOT_X = 24;        // 상대 캐리어가 이 x 아래로 오면 사거리(우리 골 x=0)
+  // 24→22 (4R 플랜 A): 상대 MF 라인이 x=24-25라 MF 수신=즉시 슛이었다 — 특히
+  // 상실지점 진입+direct burst 조합이 1결정 슛으로 붕괴. 22면 MF 수신 후에도
+  // 결정이 하나 더 남는다(전방 x≈19가 진짜 사거리).
+  const DEFENSE_SHOT_X = 22;        // 상대 캐리어가 이 x 아래로 오면 사거리(우리 골 x=0)
 
   // 수비 국면의 재배치 — 22명 전원이 공격 대형 그대로 박제된 채 볼만 순간이동
   // 하던 문제(자기대국 감사: 국면 전체 이동량 0.00, 상대 GK의 최근접 '헌터'가
@@ -370,11 +374,26 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
     };
   }
 
-  function openDefenseLoop() {
+  function openDefenseLoop(lossAt = state.transition?.loss ?? null) {
     const turnover = applyPossessionEvent({ state }, 'turnover');
     if (!turnover) return false;
-    const carrier = holder();
+    let carrier = holder();
     if (!carrier || carrier.side !== 'opp') return false;
+    // 진입 다양화(4R 플랜 A-2, defenseEntry:'loss') — 상실 지점 최근접 상대가
+    // 이어받는다: 깊은 곳에서 뺏길수록 위험한 진입. 기본값 'reset'(GK 재시작)은
+    // 기존 계약 불변. 하드 가드 1개: 사거리+한 스텝(26m) 안이면 한 티어 뒤로
+    // 승격 — "0~1결정 즉사"는 결정 게임의 부정(카운터팩추얼: 회수 48.8→12.3%).
+    if (defenseEntry === 'loss' && lossAt) {
+      const MIN_ENTRY_X = DEFENSE_SHOT_X + 26;
+      const entry = opps().filter((p) => p.line !== 'gk')
+        .sort((a, b) => dist(a, lossAt) - dist(b, lossAt))
+        .find((p) => p.x > MIN_ENTRY_X) ?? carrier;
+      if (entry.id !== carrier.id) {
+        state.holderId = entry.id;
+        if (state.ball) { state.ball.x = entry.x; state.ball.y = entry.y; }
+        carrier = entry;
+      }
+    }
     clearPassContext();
     state.defenseLoop = { steps: 0, beaten: 0, contained: 0, regainP: 0, cutP: 0 };
     logLine(t('log.defense.open'), 'warn');
