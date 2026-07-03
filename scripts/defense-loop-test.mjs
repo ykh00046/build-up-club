@@ -129,6 +129,19 @@ function openDefense(seed, opts = {}) {
   ok(c.oppGoals >= 1, `인게임 실점 반영 (oppGoals=${c.oppGoals})`);
 }
 
+// 6b) setOpponentDisposition 훅 — 유효성 검사 + 수비 국면 상대 성향 교체.
+{
+  const { e } = openDefense(55);
+  ok(e.setOpponentDisposition('aggressive') === true, '유효 성향 수락(aggressive)');
+  ok(e.setOpponentDisposition('nonsense') === false, '무효 성향 거부');
+  ok(e.setOpponentDisposition(null) === true, 'null(결정적 best) 수락');
+  // 성향 적용 후에도 스텝이 정상 동작(회수/전진/슛 중 하나로 해소).
+  e.setOpponentDisposition('direct');
+  e.state.defenseLoop.regainP = 0;
+  const r = e.chooseSituationOption('dp_press');
+  ok(r.ok !== false || r.recovered || r.conceded !== undefined, '성향 교체 후 스텝 정상 해소');
+}
+
 // 7) 옵트아웃 — defenseLoop:false면 구계약(후퇴=종료) 유지.
 {
   const { e } = openDefense(99, { defenseLoop: false });

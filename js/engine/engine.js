@@ -16,6 +16,7 @@ import { findSuperiorityZones, superiorityAt } from './superiority.js';
 import { detectShotZone, resolveShot, computeShotXg } from './shots.js';
 import { buildOutcome } from './outcome.js';
 import { applyOpponentBuildStep, applyPossessionEvent } from './possession-adapter.js';
+import { isDisposition } from './opp-build-policy.js';
 import { createRng } from './rng.js';
 import {
   applyMatchDecision, createTacticalState, prepareSituations, resolveCounterRisk,
@@ -38,6 +39,9 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
   // 실제로 전개해 오고(잠자던 턴오버 루프 활성화) 매 스텝 수비 3택으로 저지한다 —
   // 실패가 쌓이면 상대 슛(실점 위험), 회수하면 공격 재개. 한 판 안의 공수 왕복.
   const { intensityOverride, possessionTurnoverLoop = false, opponentBuildDisposition = null, defenseLoop: defenseLoopEnabled = true } = options;
+  // 수비 국면의 상대 전개 성향 — setOpponentDisposition으로 경기 중 교체 가능
+  // (에이전트 듀얼/추후 B단계: 상대 지휘를 외부에 개방). null = 결정적 best 루트.
+  let liveOppDisposition = opponentBuildDisposition;
   const press = createPress({ ...scenario, ...(intensityOverride ? { intensityOverride } : {}) });
 
   const players = [...scenario.buildOurs(), ...scenario.buildOpp()].map((p) => ({
@@ -331,8 +335,8 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
     }
     // 상대의 전진 스텝. 레인이 없으면(정체) 우리 회수.
     const step = applyOpponentBuildStep({ state }, {
-      disposition: opponentBuildDisposition,
-      rng: opponentBuildDisposition ? rng.next : undefined,
+      disposition: liveOppDisposition,
+      rng: liveOppDisposition ? rng.next : undefined,
     });
     if (!step || step.stalled) {
       return defenseRegain(step?.at ?? { x: carrier.x, y: carrier.y });
@@ -1500,6 +1504,14 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
     },
 
     openPressingMode,
+
+    // 수비 국면의 상대 전개 성향을 경기 중 교체(null=결정적 best). 에이전트 듀얼·
+    // B단계에서 "상대 지휘자"가 스텝마다 위험 성향을 고르는 훅.
+    setOpponentDisposition(d) {
+      if (d !== null && !isDisposition(d)) return false;
+      liveOppDisposition = d;
+      return true;
+    },
 
     advanceOpponentBuildUp(options = {}) {
       if (!possessionTurnoverLoop) return { ok: false, rejected: true };
