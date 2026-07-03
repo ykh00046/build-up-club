@@ -129,14 +129,27 @@ export function pressPolicy(view) {
   const values = {
     dp_press: pr.regainP * pr.regainP * 1.25 + carrierRisk * 0.14 - bestSafety * 0.08,
     dp_cut: pr.cutP * (0.35 + offLaneThreat * 0.8) + laneThreat * 0.08,
+    // 내려서기 base = "안전한 탈출은 압박이 무의미" — 상대 최선 탈출이 저위험이면
+    // 쫓아도 못 잡으니(press 성공률↓) 블록을 유지한다. 위협 레인이 있으면(risky)
+    // press/cut이 이겨 drop이 밀린다.
     dp_drop: 0.14 + (1 - laneThreat) * 0.5,
   };
   if (sid === 'defend') {
     // 지목 마크 EV ≈ 적중률(pred) × markP — 위협 레인이 갈릴수록 선점 가치↑.
     values.dp_mark = (pr.markP ?? 0.7) * (pr.pred ?? 1) * (0.40 + offLaneThreat * 0.5);
-    // 전술 파울 — 이미 벗겨졌고(슛각 헌납) 파울 예산(2회)이 남았을 때만 위기 밸브.
-    const crisis = (pr.beaten ?? 0) >= 1 && (pr.steps ?? 0) >= 1;
-    values.dp_foul = (crisis && (pr.fouls ?? 0) < 2) ? 0.34 : 0.01;
+    // 위기 에스컬레이션 사다리 — 뺏을 가망(regain/cut/mark 최선)과 파울 예산으로
+    // 갈린다: (1) 가망 있으면 위 3택으로 뺏는다. (2) 가망 없고(<0.4) 이미 벗겨져
+    // 슛이 임박하면 → 파울 예산이 남을 땐 전술 파울로 리셋(공격을 후방으로 되돌림),
+    // (3) 파울까지 소진했으면 내려서기로 데미지 컨트롤(블록으로 슛 xG를 깎는 최후
+    // 수단) — base보다 클 때만 승격. drop은 순EV로 늘 열등이라 이 지점에서만 최선.
+    const bestOdds = Math.max(pr.regainP ?? 0, pr.cutP ?? 0, (pr.markP ?? 0) * (pr.pred ?? 1));
+    const beatenDeep = (pr.beaten ?? 0) >= 1 && (pr.steps ?? 0) >= 1;
+    const regainPoor = bestOdds < 0.40;
+    const foulLeft = (pr.fouls ?? 0) < 2;
+    values.dp_foul = beatenDeep ? (foulLeft ? (regainPoor ? 0.62 : 0.34) : 0.01) : 0.01;
+    if (regainPoor && (pr.steps ?? 0) >= 1 && !foulLeft) {
+      values.dp_drop = Math.max(values.dp_drop, 0.40 + (pr.contained ?? 0) * 0.10 + (1 - bestOdds) * 0.25);
+    }
   }
   // choices가 없는 합성 뷰(테스트/프로브)는 필터 생략 — 있는 그대로 최댓값.
   const legal = new Set((view.situation.choices ?? []).map((c) => c.id));
