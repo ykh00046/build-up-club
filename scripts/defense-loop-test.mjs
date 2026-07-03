@@ -25,8 +25,8 @@ function openDefense(seed, opts = {}) {
   ok(e.state.status === 'live', '수비 중 status live(즉시 종료 안 함)');
   ok(e.state.possession === 'opp' && e.holder()?.side === 'opp', '점유·홀더가 상대로 전환');
   const md = e.state.matchDecision;
-  ok(md?.id === 'defend' && md.choices.length === 4, 'defend 결정 4택 노출(전술 파울 포함)');
-  ok(md.choices.map((c) => c.id).join() === 'dp_press,dp_cut,dp_drop,dp_foul', '선택지 dp_press/dp_cut/dp_drop/dp_foul');
+  ok(md?.id === 'defend' && md.choices.length === 5, 'defend 결정 5택 노출(지목 마크·전술 파울 포함)');
+  ok(md.choices.map((c) => c.id).join() === 'dp_press,dp_cut,dp_mark,dp_drop,dp_foul', '선택지 5종 순서');
   ok(e.state.defenseLoop && e.state.defenseLoop.regainP > 0, '수비 확률 산출');
   const mate = e.state.players.find((p) => p.side === 'us' && p.role !== 'GK');
   ok(e.dispatch('to_feet', mate.id).rejected === true, '수비 결정 중 일반 액션 거부');
@@ -170,6 +170,24 @@ function openDefense(seed, opts = {}) {
     }
   }
   ok(capped, '파울 스팸 → 카드/프리킥 상한 발동 관측');
+}
+
+// 6d) 지목 마크 — 적중(결정적 best는 항상 예상 루트와 일치) / 미스(자리 헌납).
+{
+  const { e } = openDefense(41);
+  e.state.defenseLoop.markP = 1;                      // 적중 시 회수 강제
+  const r = e.chooseSituationOption('dp_mark');
+  ok(r.recovered === true, '지목 적중(null 성향=결정적 best) → 선점 회수');
+  const { e: e2 } = openDefense(43);
+  e2.state.defenseLoop.routeTargetId = 'no-such-id';  // 예측 강제 실패
+  const before = e2.state.defenseLoop.beaten;
+  const r2 = e2.chooseSituationOption('dp_mark');
+  if (r2.recovered) {
+    ok(true, '(미스 후 레인 정체로 즉시 회수 — 허용 경로)');
+  } else {
+    ok(r2.conceded !== undefined || e2.state.defenseLoop?.beaten === before + 1,
+      '지목 미스 → 슛각 헌납(beaten++) 후 상대 전진');
+  }
 }
 
 // 7) 옵트아웃 — defenseLoop:false면 구계약(후퇴=종료) 유지.

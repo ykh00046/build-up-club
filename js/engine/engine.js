@@ -17,7 +17,7 @@ import { detectShotZone, resolveShot, computeShotXg, shotBackpressure } from './
 import { buildOutcome } from './outcome.js';
 import { applyOpponentBuildStep, applyPossessionEvent } from './possession-adapter.js';
 import { oppBuildDryRun } from './dry-run.js';
-import { isDisposition } from './opp-build-policy.js';
+import { isDisposition, chooseOppBuild } from './opp-build-policy.js';
 import { createRng } from './rng.js';
 import {
   applyMatchDecision, createTacticalState, prepareSituations, resolveCounterRisk,
@@ -336,8 +336,14 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
     const pred = liveOppDisposition ? (PREDICTABILITY[liveOppDisposition] ?? 0.85) : 1;
     const cutP = clamp(0.08 + (route?.risk ?? 0.4) * 0.38 * pred + (state.lineIntents.mid === 'support' ? 0.08 : 0), 0.1, 0.62);
     state.defenseLoop.route = route?.targetReal ? { x: route.targetReal.x, y: route.targetReal.y } : null;
+    state.defenseLoop.routeTargetId = route?.target?.id ?? null;
     state.defenseLoop.regainP = regainP;
     state.defenseLoop.cutP = cutP;
+    // 지목 마크(dp_mark) — 적중 시 회수 확률과 성향 신뢰도. 테스트가 강제할 수
+    // 있도록 dl에 저장(regainP/cutP와 같은 규약). 사용할수록 상대도 읽어 감쇄
+    // (0.6 → -0.15/회, 바닥 0.3): 감쇄 없인 safe 상대가 원버튼 회수 93%였다.
+    state.defenseLoop.markP = Math.max(0.3, 0.6 - 0.15 * (state.defenseLoop.markUses ?? 0));
+    state.defenseLoop.pred = pred;
     // 예상 루트 인텔(2R 기능 2순위) — dry-run이 이미 계산한 best 루트를 노출하되,
     // 성향 신뢰도로 가른다: best 표시를 무조건 주면 direct 상대에겐 4번 중 3번
     // 오정보(이탈률 77%)라, 예측 가능한 상대만 구체 루트를 말한다. 허브 성향 필
@@ -353,6 +359,9 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
       choices: [
         { id: 'dp_press', label: t('dec.defensive_press.dp_press.label'), desc: t('dec.defensive_press.dp_press.desc').replace('{n}', String(Math.round(regainP * 100))) },
         { id: 'dp_cut', label: t('dec.defensive_press.dp_cut.label'), desc: t('dec.defensive_press.dp_cut.desc').replace('{n}', String(Math.round(cutP * 100))) },
+        // 지목 마크 — 인텔의 예상 수신자를 선점하는 읽기 도박: 적중하면 최고의
+        // 회수, 빗나가면 마커가 자리를 비워 슛각 헌납. 성향 신뢰도가 곧 EV.
+        { id: 'dp_mark', label: t('dec.defend.mark.label'), desc: t('dec.defend.mark.desc').replace('{n}', String(Math.round(state.defenseLoop.markP * pred * 100))) },
         { id: 'dp_drop', label: t('dec.defend.drop.label'), desc: t('dec.defend.drop.desc') },
         // 전술 파울 — 역습 강제 리셋 밸브(2R 감사 기능 1순위). 첫 파울은 싸지만
         // 누적되면 카드/프리킥 위험: 자원 관리 판단이 네 번째 축.
@@ -425,7 +434,7 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
       state.turn++;
       state.holderId = deep.id;
       if (state.ball) { state.ball.x = deep.x; state.ball.y = deep.y; }
-      dl.steps = 0; dl.beaten = 0; dl.contained = 0;
+      dl.steps = 0; dl.beaten = 0; dl.contained = 0; dl.markUses = 0;
       defendDecisionFor(deep);
       return { ok: true, fouled: true, reset: true };
     }
@@ -443,6 +452,22 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
       // 점프했다 벗겨짐 — 상대에게 전진을 내주고, 강압박 실패는 슛 각까지 헌납.
       if (choiceId === 'dp_press') dl.beaten++;
       logLine(choiceId === 'dp_press' ? t('log.defPress.pressFail') : t('log.defPress.cutFail'), 'error');
+    } else if (choiceId === 'dp_mark') {
+      // 지목 마크 — 상대의 이번 루트를 먼저 확정해 인텔의 예상 수신자와 대조한다.
+      // 적중(같은 수신자)이면 markP로 선점 회수 — 예측 가능한 상대(safe)에게 강하고
+      // direct(이탈 77%)에겐 도박. 빗나가거나 미끄러지면 마커가 자리를 비운 값으로
+      // 슛각 헌납(beaten) — press 실패와 같은 통화, 확정한 루트는 그대로 실행된다.
+      const chosen = chooseOppBuild(oppBuildDryRun({ state }), liveOppDisposition,
+        liveOppDisposition ? rng.next : undefined);
+      dl.markUses = (dl.markUses ?? 0) + 1;
+      const hit = !!(chosen && dl.routeTargetId && chosen.target?.id === dl.routeTargetId);
+      if (hit && rng.next() < dl.markP) {
+        logLine(t('log.defense.markWin'), 'success');
+        return defenseRegain(chosen.targetReal ?? { x: carrier.x, y: carrier.y });
+      }
+      dl.beaten++;
+      logLine(hit ? t('log.defense.markSlip') : t('log.defense.markMiss'), 'error');
+      dl.forcedChoice = chosen;
     } else {
       // 내려서기 — 회수 시도는 없지만 블록을 세워 마지막 슛 질을 깎는다.
       dl.contained++;
@@ -456,7 +481,10 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
       }
     }
     // 상대의 전진 스텝. 레인이 없으면(정체) 우리 회수.
+    // dp_mark가 이미 확정한 루트(forcedChoice)는 다시 굴리지 않고 그대로 실행.
+    const forced = dl.forcedChoice; dl.forcedChoice = null;
     const step = applyOpponentBuildStep({ state }, {
+      choice: forced ?? undefined,
       disposition: liveOppDisposition,
       rng: liveOppDisposition ? rng.next : undefined,
     });
@@ -1710,9 +1738,9 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
         if (choiceId === 'dp_press' || choiceId === 'dp_cut' || choiceId === 'dp_drop') return resolveDefensivePress(choiceId);
         return { ok: false, rejected: true };
       }
-      // 수비 국면(A): 상대 전개 저지 4택(전술 파울 포함).
+      // 수비 국면(A): 상대 전개 저지 5택(지목 마크·전술 파울 포함).
       if (state.defenseLoop && state.matchDecision?.id === 'defend') {
-        if (choiceId === 'dp_press' || choiceId === 'dp_cut' || choiceId === 'dp_drop' || choiceId === 'dp_foul') return resolveDefendStep(choiceId);
+        if (choiceId === 'dp_press' || choiceId === 'dp_cut' || choiceId === 'dp_mark' || choiceId === 'dp_drop' || choiceId === 'dp_foul') return resolveDefendStep(choiceId);
         return { ok: false, rejected: true };
       }
       if (state.status !== 'live') return { ok: false, rejected: true };

@@ -43,9 +43,14 @@ export function chooseOppBuild(read, disposition, rng = Math.random) {
     { c: burst, w: profile.burst },
   ].filter((l) => l.c && l.w > 0 && (l.c.risk ?? 0) <= cap);
   if (!lanes.length) return best;                          // 전부 걸러지면 안전하게 best
+  // 전진 불가(정체) 레인은 대안이 있으면 스스로 피한다 — 상대 AI 수준(자기대국
+  // 감사: D2 safe가 prog=0 레인을 골라 국면의 49%를 자멸, 수비가 무이벤트).
+  // 진짜 출구가 없을 때만 정체 = 회수는 상대 실수가 아니라 세운 블록의 몫.
+  const viable = lanes.filter((l) => (l.c.progress ?? 0) >= 1);
+  const pool = viable.length ? viable : lanes;
 
-  const total = lanes.reduce((s, l) => s + l.w, 0);
+  const total = pool.reduce((s, l) => s + l.w, 0);
   let r = rng() * total;
-  for (const l of lanes) { if ((r -= l.w) <= 0) return l.c; }
-  return lanes[lanes.length - 1].c;
+  for (const l of pool) { if ((r -= l.w) <= 0) return l.c; }
+  return pool[pool.length - 1].c;
 }

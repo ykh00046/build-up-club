@@ -59,7 +59,9 @@ export function applyOpponentBuildStep(engine, options = {}) {
   if (!state || state.status !== 'live' || state.possession !== 'opp') return null;
   const read = oppBuildDryRun(engine, options);
   // best 만 고르지 않고 성향(options.disposition)에 따라 best/gamble/trap 중 선택 → 상대 빌드업 다양성.
-  const choice = chooseOppBuild(read, options.disposition, options.rng);
+  // options.choice: 호출자가 이미 확정한 루트(dp_mark의 "예측 대조" — 같은 선택을
+  // 두 번 굴리지 않기 위해 지목 판정에 쓴 후보를 그대로 실행한다).
+  const choice = options.choice ?? chooseOppBuild(read, options.disposition, options.rng);
   const targetId = choice?.target?.id;
   const target = state.players?.find((p) => p.id === targetId && p.side === 'opp');
   if (!target) return null;

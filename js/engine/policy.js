@@ -23,6 +23,7 @@ export function buildPolicyView(engine, side = 'us') {
   const board = (!md && holder?.side === 'us') ? evaluateBoard(engine) : null;
   const oppBuild = oppBuildDryRun(engine);
   const dp = s.defensivePress || null;
+  const dl = s.defenseLoop || null;
   return {
     side,
     possession: holder?.side === 'opp' ? 'opp' : 'us',
@@ -34,7 +35,15 @@ export function buildPolicyView(engine, side = 'us') {
     legalActions: legalActionsFor(engine, md, holder),
     boardRead: board,
     oppBuildRead: oppBuild,
-    pressRead: dp ? { regainP: dp.regainP, cutP: dp.cutP } : null,
+    // 압박 읽기 — 공격 국면 압박 모드(defensivePress) 또는 수비 국면(defenseLoop).
+    // 수비 국면은 5택 판단 재료(지목 신뢰도·파울 예산·누적 카운터)까지 노출한다.
+    pressRead: dp ? { regainP: dp.regainP, cutP: dp.cutP }
+      : dl ? {
+          regainP: dl.regainP, cutP: dl.cutP, markP: dl.markP ?? 0.7, pred: dl.pred ?? 1,
+          steps: dl.steps, beaten: dl.beaten, contained: dl.contained,
+          fouls: s.facts?.fouls ?? 0,
+        }
+      : null,
     situation: md
       ? { id: md.id, choices: md.choices.map((c) => ({ id: c.id, label: c.label, desc: c.desc })) }
       : null,
@@ -101,9 +110,12 @@ function chooseAttackCandidate(view) {
 }
 
 // 압박: 압박 결정이 열려 있으면 regainP/cutP/실패비용으로 강압·차단·후퇴를 고른다.
+// 수비 국면(defend)에서는 5택 — 지목 마크(성향 신뢰도 EV)와 전술 파울(위기 밸브,
+// 파울 예산 2회 내)까지 판단한다. (자기대국 수비 수준 상향 — 3R)
 export function pressPolicy(view) {
   const pr = view.pressRead;
-  if (!view.situation || view.situation.id !== 'defensive_press' || !pr) {
+  const sid = view.situation?.id;
+  if (!view.situation || !pr || (sid !== 'defensive_press' && sid !== 'defend')) {
     return { kind: 'noop', reason: 'no press decision' };
   }
   const read = view.oppBuildRead ?? null;
@@ -119,11 +131,26 @@ export function pressPolicy(view) {
     dp_cut: pr.cutP * (0.35 + offLaneThreat * 0.8) + laneThreat * 0.08,
     dp_drop: 0.14 + (1 - laneThreat) * 0.5,
   };
-  const [choiceId, value] = Object.entries(values).sort((a, b) => b[1] - a[1])[0];
-  const reason = choiceId === 'dp_press' ? 'press the exposed carrier'
-    : choiceId === 'dp_cut' ? 'cut the dangerous escape lane'
-    : 'opp escape is safe — drop into block';
-  return { kind: 'situation_choice', choiceId, confidence: Math.min(0.95, Math.max(0.05, value)), reason };
+  if (sid === 'defend') {
+    // 지목 마크 EV ≈ 적중률(pred) × markP — 위협 레인이 갈릴수록 선점 가치↑.
+    values.dp_mark = (pr.markP ?? 0.7) * (pr.pred ?? 1) * (0.40 + offLaneThreat * 0.5);
+    // 전술 파울 — 이미 벗겨졌고(슛각 헌납) 파울 예산(2회)이 남았을 때만 위기 밸브.
+    const crisis = (pr.beaten ?? 0) >= 1 && (pr.steps ?? 0) >= 1;
+    values.dp_foul = (crisis && (pr.fouls ?? 0) < 2) ? 0.34 : 0.01;
+  }
+  // choices가 없는 합성 뷰(테스트/프로브)는 필터 생략 — 있는 그대로 최댓값.
+  const legal = new Set((view.situation.choices ?? []).map((c) => c.id));
+  const [choiceId, value] = Object.entries(values)
+    .filter(([id]) => legal.size === 0 || legal.has(id))
+    .sort((a, b) => b[1] - a[1])[0];
+  const REASONS = {
+    dp_press: 'press the exposed carrier',
+    dp_cut: 'cut the dangerous escape lane',
+    dp_mark: 'predictable side — jump the expected receiver',
+    dp_foul: 'beaten and in danger — burn a foul to reset',
+    dp_drop: 'opp escape is safe — drop into block',
+  };
+  return { kind: 'situation_choice', choiceId, confidence: Math.min(0.95, Math.max(0.05, value)), reason: REASONS[choiceId] };
 }
 
 function summarizeLane(candidate) {
