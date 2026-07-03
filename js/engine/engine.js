@@ -283,7 +283,41 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
   const DEFENSE_MAX_STEPS = 3;      // 이 스텝을 버티면(또는 침투 당하면) 슛 국면
   const DEFENSE_SHOT_X = 32;        // 상대 캐리어가 이 x 아래로 오면 사거리(우리 골 x=0)
 
+  // 수비 국면의 재배치 — 22명 전원이 공격 대형 그대로 박제된 채 볼만 순간이동
+  // 하던 문제(자기대국 감사: 국면 전체 이동량 0.00, 상대 GK의 최근접 '헌터'가
+  // 우리 ST). 최근접 2인은 캐리어를 사냥하고, 나머지는 볼-골 사이로 물러나며
+  // 중앙을 좁힌다. 상대 비캐리어도 전진 지원. 결정적(rng 미사용) — 시퀀스 불변.
+  function advanceDefenseShape(carrier) {
+    const STEP = 6;
+    const usField = ours().filter((p) => p.role !== 'GK');
+    const byDist = [...usField].sort((a, b) => dist(a, carrier) - dist(b, carrier));
+    const hunterIds = new Set(byDist.slice(0, 2).map((p) => p.id));
+    for (const p of usField) {
+      // 사냥조는 캐리어로, 블록조는 캐리어보다 골 쪽 라인으로 + 중앙 압축.
+      const txp = hunterIds.has(p.id) ? carrier.x : Math.min(p.x, carrier.x - 6);
+      const typ = hunterIds.has(p.id) ? carrier.y : p.y + (PITCH_H / 2 - p.y) * 0.15;
+      const dx = txp - p.x, dy = typ - p.y;
+      const dd = Math.hypot(dx, dy);
+      if (dd > 0.01) {
+        const mv = Math.min(dd, STEP);
+        p.x = clamp(p.x + (dx / dd) * mv, 2, PITCH_W - 2);
+        p.y = clamp(p.y + (dy / dd) * mv, 2, PITCH_H - 2);
+      }
+      p.fx = p.x; p.fy = p.y; p.tx = p.x; p.ty = p.y; p.rx = p.x; p.ry = p.y;
+    }
+    for (const p of opps()) {
+      if (p.id === carrier.id || p.line === 'gk') continue;
+      // 볼보다 뒤(후방)의 선수만 따라 올라온다 — 이미 깊은 전방은 라인 유지.
+      // 전원 전진시키면 ST가 스텝마다 박스로 파고들어 근거리 슛이 양산된다(측정:
+      // 실점 10.7→25.8% 폭등) — 지원은 캐리어 라인까지만.
+      if (p.x <= carrier.x) continue;
+      p.x = clamp(Math.max(p.x - 2, carrier.x), 2, PITCH_W - 2);   // 전진 지원(-x)
+      p.fx = p.x; p.tx = p.x; p.rx = p.x;
+    }
+  }
+
   function defendDecisionFor(carrier) {
+    advanceDefenseShape(carrier);
     const hunters = pressureHunters(carrier);
     const regainP = defensivePressProb(carrier, hunters);
     // 패스길 차단은 상대의 실제 다음 루트(dry-run best)를 읽는다 — 위험한 루트로
@@ -387,7 +421,9 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
     const d = dist(shooter, { x: 0, y: PITCH_H / 2 });
     const gk = ours().find((p) => p.role === 'GK');
     const keeping = gk?.traits?.keeping ?? 0.72;
-    const base = (d < 16 ? 0.34 : d < 26 ? 0.22 : 0.12) + intDef;
+    // 티어 0.34/0.22/0.12 → 0.30/0.18/0.10 (재배치 도입 보정): 지원 전진으로
+    // 슈터가 한 티어 가까워져 전 선택지 실점이 ~2배 뛰었다 — 위험 순증만 상쇄.
+    const base = (d < 16 ? 0.30 : d < 26 ? 0.18 : 0.10) + intDef;
     // 바닥 0.05: 내려서기만 반복해도 '완전 무료'는 아니게 — 안전하되 긴장은 남긴다.
     const xg = clamp(base + dl.beaten * 0.06 - dl.contained * 0.04 - (keeping - 0.7) * 0.4, 0.05, 0.55);
     state.defenseLoop = null;
