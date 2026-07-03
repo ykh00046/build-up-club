@@ -16,6 +16,7 @@ import { findSuperiorityZones, superiorityAt } from './superiority.js';
 import { detectShotZone, resolveShot, computeShotXg } from './shots.js';
 import { buildOutcome } from './outcome.js';
 import { applyOpponentBuildStep, applyPossessionEvent } from './possession-adapter.js';
+import { oppBuildDryRun } from './dry-run.js';
 import { isDisposition } from './opp-build-policy.js';
 import { createRng } from './rng.js';
 import {
@@ -277,7 +278,13 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
   function defendDecisionFor(carrier) {
     const hunters = pressureHunters(carrier);
     const regainP = defensivePressProb(carrier, hunters);
-    const cutP = clamp(regainP - 0.08 + (state.lineIntents.mid === 'support' ? 0.08 : 0), 0.1, 0.68);
+    // 패스길 차단은 상대의 실제 다음 루트(dry-run best)를 읽는다 — 위험한 루트로
+    // 나올수록 끊기 쉽다. 기존 regainP-0.08 파생은 "할인된 강압박"일 뿐 상대 선택과
+    // 무접점이라 읽기 게임이 없었다(자기대국 감사). 상대 위험 루트가 공짜였던 것도
+    // 이 항으로 비용이 생긴다: 위험하게 나오면 cut이 press를 역전한다.
+    const route = oppBuildDryRun({ state })?.best ?? null;
+    const cutP = clamp(0.08 + (route?.risk ?? 0.4) * 0.38 + (state.lineIntents.mid === 'support' ? 0.08 : 0), 0.1, 0.62);
+    state.defenseLoop.route = route?.targetReal ? { x: route.targetReal.x, y: route.targetReal.y } : null;
     state.defenseLoop.regainP = regainP;
     state.defenseLoop.cutP = cutP;
     state.matchDecision = {
@@ -324,7 +331,15 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
     state.facts.decisionsMade++;
     if (choiceId === 'dp_press' || choiceId === 'dp_cut') {
       const p = choiceId === 'dp_press' ? dl.regainP : dl.cutP;
-      if (rng.next() < p) return defenseRegain({ x: carrier.x, y: carrier.y });
+      if (rng.next() < p) {
+        // 회수 위치가 두 선택의 보상을 가른다: 강압박=캐리어 지점(높은 회수 —
+        // 그대로 역공), 차단=패스길 중간(더 깊음 — 안전하지만 재시작이 낮다).
+        // 확률·실점 모두 cut 우위면 press가 지배당한다(EV 감사) — 위치로 분리.
+        const at = choiceId === 'dp_cut' && dl.route
+          ? { x: (carrier.x + dl.route.x) / 2, y: (carrier.y + dl.route.y) / 2 }
+          : { x: carrier.x, y: carrier.y };
+        return defenseRegain(at);
+      }
       // 점프했다 벗겨짐 — 상대에게 전진을 내주고, 강압박 실패는 슛 각까지 헌납.
       if (choiceId === 'dp_press') dl.beaten++;
       logLine(choiceId === 'dp_press' ? t('log.defPress.pressFail') : t('log.defPress.cutFail'), 'error');
@@ -332,6 +347,13 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
       // 내려서기 — 회수 시도는 없지만 블록을 세워 마지막 슛 질을 깎는다.
       dl.contained++;
       logLine(t('log.defense.drop'), 'info');
+      // 세운 블록 앞에서 상대 전개가 죽을 수 있다 — 내려서기의 회수 경로.
+      // 회수 0%였을 때 drop은 cut에 준열등했다(EV 감사: cut이 실점률까지 같거나
+      // 낮으면서 회수 48%를 공짜로 얹음). 블록이 쌓일수록 정체 확률이 오른다.
+      if (rng.next() < Math.min(0.12 * dl.contained, 0.36)) {
+        logLine(t('log.defense.blockStall'), 'success');
+        return defenseRegain({ x: carrier.x, y: carrier.y });
+      }
     }
     // 상대의 전진 스텝. 레인이 없으면(정체) 우리 회수.
     const step = applyOpponentBuildStep({ state }, {
@@ -382,13 +404,16 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
   }
 
   function defensivePressProb(carrier, hunters) {
-    const near = hunters.filter((x) => x.d < 14).length;
+    // 거리 연속 가중 — 이진 컷(14m 미만 머릿수)은 15m와 23m를 동일 취급했고,
+    // 아무도 닿지 못하는 상대 후방 GK(헌터 0명)에도 base 0.22를 줬다(자기대국
+    // 감사). 0m=1.0 ~ 24m=0으로 감쇄해 "닿을 수 있어야 뺏는다"를 확률에 새긴다.
+    const reach = hunters.reduce((s, x) => s + Math.max(0, 1 - x.d / 24), 0);
     const front = state.lineIntents.front === 'pin' ? 0.08 : 0;
     const mid = state.lineIntents.mid === 'between' ? 0.06 : 0;
     const momentum = ((state.momentum ?? 50) - 50) / 100 * 0.12;
     const fatigue = ((state.fatigue ?? 0) / 100) * 0.16;
     const carrierCalm = (carrier.traits?.pressResistance ?? carrier.traits?.pass ?? 0.65) * 0.18;
-    return clamp(0.22 + near * 0.11 + front + mid + momentum - fatigue - carrierCalm, 0.12, 0.74);
+    return clamp(0.10 + Math.min(reach, 3) * 0.15 + front + mid + momentum - fatigue - carrierCalm, 0.06, 0.74);
   }
 
   function openPressingMode() {

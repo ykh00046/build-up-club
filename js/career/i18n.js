@@ -303,6 +303,7 @@ const DICT = {
     'log.defense.shot': '{label}의 슛!',
     'log.defense.saved': '막았습니다! 우리 골키퍼가 잡아냅니다.',
     'log.defense.restart': '골킥 — 다시 우리 빌드업부터.',
+    'log.defense.blockStall': '세운 블록 앞에서 전개가 죽습니다 — 볼이 굴러 나옵니다!',
     // ── 상대 전개 성향(C단계): 허브 스카우트 필 + 경기 중 지휘 전환 통지 ──
     'disp.safe': '신중한 전개',
     'disp.balanced': '균형 전개',
@@ -770,6 +771,7 @@ const DICT = {
     'log.defense.shot': '{label} shoots!',
     'log.defense.saved': 'Saved! Our keeper holds it.',
     'log.defense.restart': 'Goal kick — build again from the back.',
+    'log.defense.blockStall': 'The build-up dies against the set block — the ball squirts loose!',
     // ── Opponent disposition (C): hub scout pill + in-match command shifts ──
     'disp.safe': 'Cautious build-up',
     'disp.balanced': 'Balanced build-up',

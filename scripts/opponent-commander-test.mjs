@@ -47,14 +47,14 @@ console.log('=== 상대 지휘자 (C) ===\n');
   const st = (dl, wins = 0) => ({ defenseLoop: dl, facts: { defensivePressWins: wins } });
   ok(commandOpponent(st({ steps: 0, beaten: 0, contained: 0 }), 'balanced') === 'balanced',
     '신선한 루프 → base 유지');
-  ok(commandOpponent(st({ steps: 2, beaten: 0, contained: 2 })) === 'direct',
-    '내려서기 반복(contained≥2) → direct(수동 블록 처벌)');
+  ok(commandOpponent(st({ steps: 1, beaten: 0, contained: 1 })) === 'direct',
+    '내려서기(contained≥1) → direct(수동 블록 처벌 — v1 ≥2는 발동 0% 죽은 규칙)');
   ok(commandOpponent(st({ steps: 1, beaten: 1, contained: 0 })) === 'aggressive',
     '압박 벗겨냄(beaten≥1) → aggressive(기세)');
-  ok(commandOpponent(st({ steps: 1, beaten: 1, contained: 0 }, 2)) === 'safe',
-    '경기 중 2회 이상 뺏김 → safe(데인 상대, 최우선)');
-  ok(commandOpponent(st({ steps: 2, beaten: 0, contained: 2 }, 3)) === 'safe',
-    '뺏김 기억이 내려서기 처벌보다 우선');
+  ok(commandOpponent(st({ steps: 0, beaten: 0, contained: 0 }, 2)) === 'safe',
+    '경기 중 2회 이상 뺏김 → safe(데인 상대, 국면 내 반응 없을 때 폴백)');
+  ok(commandOpponent(st({ steps: 1, beaten: 0, contained: 1 }, 3)) === 'direct',
+    '국면 내 반응(내려서기 처벌)이 뺏김 기억보다 우선 — v1 영구 차단 해소');
 }
 
 // 5) 엔진 통합 — 지휘자 출력은 항상 setOpponentDisposition이 수락한다.

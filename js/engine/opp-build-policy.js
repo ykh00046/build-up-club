@@ -5,12 +5,19 @@
 //
 // 안전: disposition 미지정이면 결정적 best 를 반환한다(실제 플레이 경로 기본 동작 불변).
 // 랜덤은 호출자가 주입(rng) — 정책이 시드를 직접 소유하지 않게.
+//
+// v2 (자기대국 감사): 절대 riskCap은 후보 risk가 전부 0.55+인 국면에서 safe/balanced의
+// 모든 레인을 걸러 결정적 best로 붕괴시켰다(성향 4종 → 체감 2종). 캡을 best 대비
+// 상대값(capDelta)으로 바꾸고, 역할 레인 외에 파생 레인 2개를 추가한다:
+//   calm  = 후보 중 최저 risk (safe의 정체성 — best가 위험하면 덜 위험한 우회로)
+//   burst = 후보 중 최대 progress (direct의 정체성 — 한 방에 전진 크게)
 
 export const OPP_DISPOSITIONS = {
-  safe:       { best: 0.9,  gamble: 0.1,  trap: 0.0,  riskCap: 0.5 },   // 안정 — 거의 best, 위험 회피
-  balanced:   { best: 0.6,  gamble: 0.35, trap: 0.05, riskCap: 0.75 },  // 균형
-  aggressive: { best: 0.25, gamble: 0.6,  trap: 0.15, riskCap: 1.0 },   // 공격 — 도박 선호, 위험 감수
-  direct:     { best: 0.2,  gamble: 0.8,  trap: 0.0,  riskCap: 0.9 },   // 직선 — 전진 큰 도박 위주
+  //          best   gamble trap  calm  burst  capDelta(best.risk 대비 허용 추가 위험)
+  safe:       { best: 0.3,  gamble: 0.0,  trap: 0.0,  calm: 0.7,  burst: 0.0,  capDelta: 0.02 },
+  balanced:   { best: 0.55, gamble: 0.3,  trap: 0.0,  calm: 0.15, burst: 0.0,  capDelta: 0.12 },
+  aggressive: { best: 0.25, gamble: 0.55, trap: 0.2,  calm: 0.0,  burst: 0.0,  capDelta: 0.45 },
+  direct:     { best: 0.15, gamble: 0.45, trap: 0.0,  calm: 0.0,  burst: 0.4,  capDelta: 0.35 },
 };
 
 export function isDisposition(name) {
@@ -25,12 +32,16 @@ export function chooseOppBuild(read, disposition, rng = Math.random) {
   if (!disposition || !isDisposition(disposition) || !cands.length) return best;
 
   const profile = OPP_DISPOSITIONS[disposition];
-  // 역할(best/gamble/trap)별 가중치 — riskCap 초과 후보는 제외.
+  const calm = cands.reduce((a, c) => (((c.risk ?? 1) < (a?.risk ?? 1)) ? c : a), null);
+  const burst = cands.reduce((a, c) => (((c.progress ?? -1) > (a?.progress ?? -1)) ? c : a), null);
+  const cap = (best?.risk ?? 0) + profile.capDelta;
   const lanes = [
-    { c: read.best, w: profile.best },
+    { c: best, w: profile.best },
     { c: read.gamble, w: profile.gamble },
     { c: read.trap, w: profile.trap },
-  ].filter((l) => l.c && l.w > 0 && (l.c.risk ?? 0) <= profile.riskCap);
+    { c: calm, w: profile.calm },
+    { c: burst, w: profile.burst },
+  ].filter((l) => l.c && l.w > 0 && (l.c.risk ?? 0) <= cap);
   if (!lanes.length) return best;                          // 전부 걸러지면 안전하게 best
 
   const total = lanes.reduce((s, l) => s + l.w, 0);
