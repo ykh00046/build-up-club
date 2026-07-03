@@ -107,8 +107,11 @@ function buildHoldCandidate(engine) {
   const depthMul = h.x < 40 ? 1.0 : h.x >= 88 ? 1.35 : 1.0 + (h.x - 40) * (0.35 / 48);
   const pHat = clamp(0.30 * (0.6 + (state.pressure ?? 0) / 100 * 0.8) * depthMul, 0.05, 0.45);
   const chain = state.consecutiveHolds ?? 0;
+  // 유지비 λ 0.0075→0.0045 (4R 플랜 B-2): 구계수는 게이지 만점에서도 문턱 미달
+  // — 니치가 수학적으로 성립 불가였다. 신계수는 압박 ≥35에서 후보 성립(고압박
+  // 전용 니치 유지, 스팸 가드·연속 페널티 불변).
   const reward = pHat * 0.5 * 0.49
-    - 0.0075 * (10 + 3 * chain)
+    - 0.0045 * (10 + 3 * chain)
     - (h.orientation === 'BACK' ? 0.20 : 0)
     - (chain >= 2 ? 0.15 : 0);
   if (reward <= 0.02) return null;   // 니치가 성립할 때만 후보로 노출

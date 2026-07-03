@@ -1113,7 +1113,10 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
     // reception = moving → FACING; ground pass = check defender proximity.
     target.orientation = computeOrientation(target, opps(), { moving: useLofted });
 
-    if (broken > 0) addPressure(-6 * broken);
+    // -6→-3/개 (4R 플랜 B): 라인 브레이크는 경기당 ~4회로 최다 빈도 유출이라
+    // 게이지가 상시 0에 붙어(중앙값 2) 압박 유인 루프가 경제에서 퇴출돼 있었다.
+    // 큰 마일스톤 보상(페이즈 전환 -10/-6, 창사용 -8)은 유지 — 잦은 것만 절반.
+    if (broken > 0) addPressure(-3 * broken);
     const usedWindow = windowUseCheck(target);
 
     const trigger = passTriggerFor(fromPos, target, target);
@@ -1237,10 +1240,10 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
       state.lastPassCross = lofted && Math.abs(fromPos.y - PITCH_H / 2) > 16 && Math.abs(landing.y - PITCH_H / 2) < 12 && landing.x > 78;
       windowUseCheck(landing);
       if (loose) { addPressure(10); state.facts.secondBalls = (state.facts.secondBalls || 0) + 1; }
-      // -5→-2 (자기대국 2R): 지배 액션(pass_space 52%)이 압박 자원을 공짜로 깎아
-      // 게이지 중앙값 0·베이트 0회/경기 — "압박 유인" 정체성이 경제에서 퇴출돼
-      // 있었다. 전진 보상은 페이즈 전환(-10/-6)에 이미 있으므로 여기선 최소만.
-      else { addPressure(-2); }
+      // -5→-2→0 (4R 플랜 B 확정): 지배 액션(pass_space)의 게이지 유출은 전액 제거.
+      // 전진 보상은 페이즈 전환(-10/-6)과 창사용(-8)에 이미 있다 — 잦은 액션이
+      // 자원을 공짜로 깎으면 게이지 중앙값이 0-8에 붙어 유인 루프가 죽는다.
+      else { addPressure(0); }
       const trigger = passTriggerFor(fromPos, landing, nu);
       pressReact({ type: 'pass', trigger, dist: dist(fromPos, landing) });
       maybeAdvancePhase();
