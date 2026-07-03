@@ -76,7 +76,9 @@ export function detectShotZone(shooter, context) {
 // 슛 순간 xG 감쇄로 표현. 없으면 "높은 라인을 뚫으면 슛이 더 깨끗"이라는 보상이
 // 강도 램프를 역전시킨다(자기대국 감사: vhigh 평균 슛 xG 0.263 vs mid 0.219 —
 // 최고 강도 디비전이 최다 득점). 미리보기·해소 동일 적용(정직한 프리뷰 유지).
-const BACKPRESSURE = { low: 1.04, mid: 1.0, high: 0.94, vhigh: 0.86 };
+// vhigh 0.86→0.79 (2R 재캘리브레이션): 0.86으로도 vhigh 평균 슛 xG 0.276 vs mid
+// 0.219 — 높은 라인이 뚫린 뒤 배후 존 질(+47%)을 못 따라잡아 goal%가 역전 잔존.
+const BACKPRESSURE = { low: 1.04, mid: 1.0, high: 0.93, vhigh: 0.79 };
 export function shotBackpressure(intensity) {
   return BACKPRESSURE[intensity] ?? 1;
 }

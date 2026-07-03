@@ -281,7 +281,10 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
   // 우리가 강압박/패스길 차단/내려서기 중 선택한다. 회수하면 공격 재개, 스텝이
   // 쌓이거나 우리 진영 깊숙이 들어오면 상대가 실제로 슛한다(실점 위험).
   const DEFENSE_MAX_STEPS = 3;      // 이 스텝을 버티면(또는 침투 당하면) 슛 국면
-  const DEFENSE_SHOT_X = 32;        // 상대 캐리어가 이 x 아래로 오면 사거리(우리 골 x=0)
+  // 32→24 (자기대국 2R 감사): 32는 상대 MF 기본 위치(x≈31)와 겹쳐 전 시나리오에서
+  // 국면이 2결정 만에 슛으로 끝났다(3번째 결정 관측 0건) — 지휘자·내려서기 축적·
+  // 성향 교체가 영향 줄 시간 자체가 없었다. 24면 한 패스 더 들어와야 사거리.
+  const DEFENSE_SHOT_X = 24;        // 상대 캐리어가 이 x 아래로 오면 사거리(우리 골 x=0)
 
   // 수비 국면의 재배치 — 22명 전원이 공격 대형 그대로 박제된 채 볼만 순간이동
   // 하던 문제(자기대국 감사: 국면 전체 이동량 0.00, 상대 GK의 최근접 '헌터'가
@@ -325,7 +328,13 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
     // 무접점이라 읽기 게임이 없었다(자기대국 감사). 상대 위험 루트가 공짜였던 것도
     // 이 항으로 비용이 생긴다: 위험하게 나오면 cut이 press를 역전한다.
     const route = oppBuildDryRun({ state })?.best ?? null;
-    const cutP = clamp(0.08 + (route?.risk ?? 0.4) * 0.38 + (state.lineIntents.mid === 'support' ? 0.08 : 0), 0.1, 0.62);
+    // 예측 가능성 할인 — cutP는 best 루트를 읽지만 실제 상대 선택은 성향 레인이라
+    // 이탈률이 safe 35% ~ direct 77%다(2R 감사). 종잡을 수 없는 상대일수록 길목
+    // 읽기가 어렵다: 성향별 할인으로 cut 지배(순EV +9.1pp 독주)를 깎고, "안정적
+    // 상대엔 차단 / 럭비공 상대엔 압박·내려서기"라는 매치업 선택을 만든다.
+    const PREDICTABILITY = { safe: 0.95, balanced: 0.85, aggressive: 0.7, direct: 0.6 };
+    const pred = liveOppDisposition ? (PREDICTABILITY[liveOppDisposition] ?? 0.85) : 1;
+    const cutP = clamp(0.08 + (route?.risk ?? 0.4) * 0.38 * pred + (state.lineIntents.mid === 'support' ? 0.08 : 0), 0.1, 0.62);
     state.defenseLoop.route = route?.targetReal ? { x: route.targetReal.x, y: route.targetReal.y } : null;
     state.defenseLoop.regainP = regainP;
     state.defenseLoop.cutP = cutP;
@@ -353,11 +362,20 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
     return true;
   }
 
-  function defenseRegain(at) {
+  function defenseRegain(at, { viaPress = false } = {}) {
     const regain = applyPossessionEvent({ state }, 'press_regain', { at, regainSide: 'us' });
     state.defenseLoop = null;
     state.matchDecision = null;
     clearPassContext();
+    // phase 정합 — 공격측 압박 회수와 같은 규약. 안 맞추면 회수 후 홀더 x>40인데
+    // phase=BUILDUP인 스테일이 100%로 남아 국면선 통과 보너스가 공짜로 지급됐다
+    // (자기대국 2R 감사).
+    const h = holder();
+    state.phase = h && h.x > PHASE_LINES.PROGRESSION ? 'PROGRESSION' : 'BUILDUP';
+    // 강압박 회수의 정체성 = 즉시 역공의 기세. 회수 지점 프리미엄은 최근접 매칭
+    // 기하학상 무의미로 측정됨(2R: 골전환 press 16.5% vs cut 18.0%) — 위치 대신
+    // 모멘텀으로 보상해 press/cut 트레이드오프를 실체화.
+    if (viaPress) state.momentum = clamp((state.momentum ?? 50) + 10, 0, 100);
     state.facts.defensivePressWins++;
     state.consecutiveHolds = 0;
     addPressure(-10);
@@ -380,7 +398,7 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
         const at = choiceId === 'dp_cut' && dl.route
           ? { x: (carrier.x + dl.route.x) / 2, y: (carrier.y + dl.route.y) / 2 }
           : { x: carrier.x, y: carrier.y };
-        return defenseRegain(at);
+        return defenseRegain(at, { viaPress: choiceId === 'dp_press' });
       }
       // 점프했다 벗겨짐 — 상대에게 전진을 내주고, 강압박 실패는 슛 각까지 헌납.
       if (choiceId === 'dp_press') dl.beaten++;
@@ -1177,38 +1195,7 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
     carry(_targetId, point) {
       const h = holder();
       if (!point) return fail(t('log.fail.carryPoint'));
-      const maxCarry = carryRange(h.traits);   // 공을 달면 느리다 — pace·볼 컨트롤로 5~10m
-      const d = dist(h, point);
-      const to = d > maxCarry
-        ? { x: h.x + (point.x - h.x) / d * maxCarry, y: h.y + (point.y - h.y) / d * maxCarry }
-        : { x: point.x, y: point.y };
-      to.x = clamp(to.x, 2, PITCH_W - 2); to.y = clamp(to.y, 2, PITCH_H - 2);
-
-      // Tackle risk along the carry path.
-      let risk = 0.04;
-      let tackler = null;
-      for (const def of opps()) {
-        if (def.line === 'gk') continue;
-        const seg = distToSegmentLocal(def, h, to);
-        const reach = TACKLE_RADIUS + (def.traits?.pace ?? 0.7);
-        if (seg < reach) {
-          const c = clamp(1 - seg / reach, 0, 0.95) * 0.8;
-          if (c > risk) { risk = c; tackler = def; }
-        }
-      }
-      risk *= (1.15 - (h.traits?.carry ?? h.traits?.pressResistance ?? 0.6) * 0.45);
-      // Carrying INTO the central box converges the back line (P1a: ends the free
-      // six-yard walk-in) — but only when an outfield defender can actually collapse
-      // onto the destination. 진짜 비워낸 박스는 유령 태클로 처벌하지 않는다(거리 비례).
-      // 운반은 유인 도구다.
-      if (to.x > 85 && Math.abs(to.y - PITCH_H / 2) < 14) {
-        const { defender: conv, d: convD } = nearestDefender(to, opps());
-        if (conv && convD < 14) {
-          const floor = 0.45 * clamp(1 - (convD - 5) / 9, 0, 1);   // 5m≤ 풀 처벌 → 14m 소멸
-          if (floor > risk) { risk = floor; tackler = conv; }
-        }
-      }
-      risk = clamp(risk * tacRiskMul(state.currentAction), 0.02, 0.97);
+      const { to, risk, tackler } = planCarry(h, point);
 
       if (rollFail(risk)) {
         pressReact({ type: 'carry', trigger: 'carry', dist: dist(h, to) });
@@ -1252,6 +1239,44 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
   function fail(message) {
     logLine(message, 'warn');
     return { ok: false, rejected: true, message };
+  }
+
+  // 운반 계획 — 목적지·경로 태클 위험을 순수 계산. dispatch carry()와 previewCarry
+  // (evaluator carry 후보)가 같은 식을 쓴다: 미리보기=실제 위험 보장(정직한 프리뷰).
+  function planCarry(h, point) {
+    const maxCarry = carryRange(h.traits);   // 공을 달면 느리다 — pace·볼 컨트롤로 5~10m
+    const d = dist(h, point);
+    const to = d > maxCarry
+      ? { x: h.x + (point.x - h.x) / d * maxCarry, y: h.y + (point.y - h.y) / d * maxCarry }
+      : { x: point.x, y: point.y };
+    to.x = clamp(to.x, 2, PITCH_W - 2); to.y = clamp(to.y, 2, PITCH_H - 2);
+
+    // Tackle risk along the carry path.
+    let risk = 0.04;
+    let tackler = null;
+    for (const def of opps()) {
+      if (def.line === 'gk') continue;
+      const seg = distToSegmentLocal(def, h, to);
+      const reach = TACKLE_RADIUS + (def.traits?.pace ?? 0.7);
+      if (seg < reach) {
+        const c = clamp(1 - seg / reach, 0, 0.95) * 0.8;
+        if (c > risk) { risk = c; tackler = def; }
+      }
+    }
+    risk *= (1.15 - (h.traits?.carry ?? h.traits?.pressResistance ?? 0.6) * 0.45);
+    // Carrying INTO the central box converges the back line (P1a: ends the free
+    // six-yard walk-in) — but only when an outfield defender can actually collapse
+    // onto the destination. 진짜 비워낸 박스는 유령 태클로 처벌하지 않는다(거리 비례).
+    // 운반은 유인 도구다.
+    if (to.x > 85 && Math.abs(to.y - PITCH_H / 2) < 14) {
+      const { defender: conv, d: convD } = nearestDefender(to, opps());
+      if (conv && convD < 14) {
+        const floor = 0.45 * clamp(1 - (convD - 5) / 9, 0, 1);   // 5m≤ 풀 처벌 → 14m 소멸
+        if (floor > risk) { risk = floor; tackler = conv; }
+      }
+    }
+    risk = clamp(risk * tacRiskMul(state.currentAction), 0.02, 0.97);
+    return { to, risk, tackler };
   }
 
   function distToSegmentLocal(p, a, b) {
@@ -1414,12 +1439,24 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
     // Preview the shot probability for the current holder without rolling.
     // resolveShot과 같은 computeShotXg 단일 소스 — 미리보기=실제 xG 보장.
     // (이전엔 상수 3개가 어긋나 미리보기가 ~20-25% 과소 표시, 2026-07 감사 C1.)
+    // 운반 미리보기 — planCarry(dispatch와 동일식)를 상태 변경 없이 노출.
+    // evaluator가 carry를 보드 후보로 세우는 데 쓴다(자기대국 2R: 후보 부재로
+    // 보드 추천의 92%가 pass_space 단조 — carry 주입만으로 goal +1%p 실증).
+    previewCarry(point) {
+      const h = holder();
+      if (!h || h.side !== 'us' || !point) return null;
+      const { to, risk } = planCarry(h, point);
+      return { to, risk };
+    },
+
     previewShot() {
       if (state.phase !== 'FINAL_THIRD') return null;
       const h = holder();
       const zone = detectShotZone(h, state);
       if (!zone) return null;
-      const { xg } = computeShotXg(h, zone, opps(), { backpressure: shotBackpressure(effIntensity) });
+      // resolveShot과 같은 소스(state.pressIntensity) — 클로저 값과 갈라지면
+      // 프리뷰≠해소 xG(maxΔ 0.115 실증, 2R 감사)가 되는 유일한 분기점이었다.
+      const { xg } = computeShotXg(h, zone, opps(), { backpressure: shotBackpressure(state.pressIntensity) });
       return { zone, xg };
     },
 
