@@ -620,10 +620,14 @@ function dismissGuide() {
 function updateGuide() {
   if (!coachCard) return;
   const titleVisible = titleOverlay?.classList.contains('visible');
+  // 결정 창(전환·수비 국면·압박)이 열리면 코치 카드를 숨긴다 — 그 카드는 공격
+  // 빌드업 기본기 팁이라 수비 상황줄과 무관하고, 같은 좌상단에서 겹친다.
+  // (첫 경기에서 볼을 잃으면 코치가 "짧은 패스로 유인" 팁을 수비 결정 위에 덮었음.)
+  const decisionActive = !!engine.state.matchDecision;
   const stage = engine.state.phase === 'FINAL_THIRD' || engine.state.phase === 'SHOT'
     ? 3
     : engine.state.turn > 0 || engine.state.phase !== 'BUILDUP' ? 2 : 1;
-  const renderKey = `${guideDismissed}:${titleVisible}:${stage}`;
+  const renderKey = `${guideDismissed}:${titleVisible}:${decisionActive}:${stage}`;
   if (renderKey === renderedGuideKey) return;
   renderedGuideKey = renderKey;
   const copy = {
@@ -631,7 +635,7 @@ function updateGuide() {
     2: [t('coach.s2.title'), t('coach.s2.copy')],
     3: [t('coach.s3.title'), t('coach.s3.copy')],
   }[stage];
-  coachCard.hidden = guideDismissed || titleVisible;
+  coachCard.hidden = guideDismissed || titleVisible || decisionActive;
   coachCard.querySelector('.coach-step').textContent = `${t('coach.step')} · ${stage}/3`;
   coachCard.querySelector('.coach-title').textContent = copy[0];
   coachCard.querySelector('.coach-copy').textContent = copy[1];
