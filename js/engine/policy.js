@@ -127,16 +127,25 @@ export function pressPolicy(view) {
   const laneThreat = Math.max(best?.risk ?? 0, gamble?.risk ?? 0, trap?.risk ?? 0);
   const offLaneThreat = Math.max(0, laneThreat - carrierRisk);
   const values = {
-    dp_press: pr.regainP * pr.regainP * 1.25 + carrierRisk * 0.14 - bestSafety * 0.08,
-    dp_cut: pr.cutP * (0.35 + offLaneThreat * 0.8) + laneThreat * 0.08,
+    // press = 공격적 회수, 단 깊고 위험한 캐리어(laneThreat↑)를 압박하다 벗겨지면
+    // 고xG 슛 헌납 → 위험 비례 페널티. 구식 regainP²×1.25 + carrierRisk×0.14는
+    // loss 진입(캐리어가 우리 압박선 근처, regainP·laneThreat 동시 높음)에서 press를
+    // 폭증시켜 5택을 press로 붕괴시켰다(5R 감사 치명 발견).
+    dp_press: pr.regainP * 0.92 - laneThreat * 0.08,
+    // cut = 존 커버. 위험한 off-lane이 있으면 그 길목을 끊는 가치가 오른다
+    // (offLaneThreat 가산 — cut의 정체성). 단 구식은 offLaneThreat에만 의존해
+    // loss(offLane=0)에서 값이 붕괴했으므로, 안전 base(회수 시도 무비용)로 바닥을
+    // 줘 loss에서도 살아남게 한다.
+    dp_cut: pr.cutP * 0.55 + offLaneThreat * 0.22 + 0.08,
     // 내려서기 base = "안전한 탈출은 압박이 무의미" — 상대 최선 탈출이 저위험이면
-    // 쫓아도 못 잡으니(press 성공률↓) 블록을 유지한다. 위협 레인이 있으면(risky)
-    // press/cut이 이겨 drop이 밀린다.
+    // 쫓아도 못 잡으니 블록을 유지한다. 위협 레인이 있으면 press/cut이 이겨 밀린다.
     dp_drop: 0.14 + (1 - laneThreat) * 0.5,
   };
   if (sid === 'defend') {
-    // 지목 마크 EV ≈ 적중률(pred) × markP — 위협 레인이 갈릴수록 선점 가치↑.
-    values.dp_mark = (pr.markP ?? 0.7) * (pr.pred ?? 1) * (0.40 + offLaneThreat * 0.5);
+    // 지목 마크 EV = 적중률(markP × pred) 직접 스케일(flat). offLaneThreat 가산은
+    // reset에서 mark을 부풀려 예측 경계를 흐리므로 제거 — 예측 경계 pred≈0.75
+    // (balanced/aggressive 사이)에서 mark(예측가능)↔cut(불가)이 갈리게 계수 고정.
+    values.dp_mark = (pr.markP ?? 0.7) * (pr.pred ?? 1) * 0.58;
     // 위기 에스컬레이션 사다리 — 뺏을 가망(regain/cut/mark 최선)과 파울 예산으로
     // 갈린다: (1) 가망 있으면 위 3택으로 뺏는다. (2) 가망 없고(<0.4) 이미 벗겨져
     // 슛이 임박하면 → 파울 예산이 남을 땐 전술 파울로 리셋(공격을 후방으로 되돌림),
