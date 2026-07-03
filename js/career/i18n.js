@@ -313,7 +313,6 @@ const DICT = {
     'dec.defend.mark.label': '수신자 지목',
     'dec.defend.mark.desc': '예상 루트를 선점 — 기대 {n}% · 빗나가면 슛각 헌납',
     'log.defense.markWin': '읽었습니다! 지목한 수신자 앞에서 패스를 가로챕니다.',
-    'log.defense.markSlip': '수신자를 맞게 짚었지만 몸싸움에서 밀립니다 — 자리만 비웠습니다.',
     'log.defense.markMiss': '지목이 빗나갔습니다 — 상대는 다른 길로, 마커 자리가 뚫립니다.',
     // ── 상대 전개 성향(C단계): 허브 스카우트 필 + 경기 중 지휘 전환 통지 ──
     'disp.safe': '신중한 전개',
@@ -792,7 +791,6 @@ const DICT = {
     'dec.defend.mark.label': 'Mark the receiver',
     'dec.defend.mark.desc': 'Jump the expected route — {n}% expected · miss concedes the angle',
     'log.defense.markWin': 'Read it! Intercepted right in front of the marked receiver.',
-    'log.defense.markSlip': 'Right receiver, lost the duel — the marker just vacated his spot.',
     'log.defense.markMiss': 'Marked the wrong man — they went the other way, straight through the gap.',
     // ── Opponent disposition (C): hub scout pill + in-match command shifts ──
     'disp.safe': 'Cautious build-up',
