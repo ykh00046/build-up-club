@@ -53,7 +53,7 @@ export function chooseOppBuild(read, disposition, rng = Math.random) {
   // 원패스 스피드런이 잘리고 결정 수가 자연 확보된다. direct의 burst 레인만
   // 캡 1.5배 — "직선 역습은 캡을 뚫는다"는 성향 질감. 전 레인이 캡 초과면
   // 통과(GK처럼 모든 동료가 멀 때 — 첫 전개까지 막지는 않는다).
-  const STEP_CAP = 26;
+  const STEP_CAP = 32;
   const capOf = (l) => (disposition === 'direct' && l.c === burst ? STEP_CAP * 1.5 : STEP_CAP);
   const inCap = pool.filter((l) => (l.c.progress ?? 0) <= capOf(l));
   // 전 레인이 캡 초과면 "최단 전진 출구"를 강제하되, 역할 레인 풀이 아니라
