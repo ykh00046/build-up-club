@@ -338,14 +338,25 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
     state.defenseLoop.route = route?.targetReal ? { x: route.targetReal.x, y: route.targetReal.y } : null;
     state.defenseLoop.regainP = regainP;
     state.defenseLoop.cutP = cutP;
+    // 예상 루트 인텔(2R 기능 2순위) — dry-run이 이미 계산한 best 루트를 노출하되,
+    // 성향 신뢰도로 가른다: best 표시를 무조건 주면 direct 상대에겐 4번 중 3번
+    // 오정보(이탈률 77%)라, 예측 가능한 상대만 구체 루트를 말한다. 허브 성향 필
+    // ("직선 역습")이 경기 중 수비 판단과 여기서 연결된다.
+    const intel = route?.target?.label
+      ? (pred >= 0.8 ? t('dec.defend.intel').replace('{label}', route.target.label) : t('dec.defend.intelFuzzy'))
+      : '';
     state.matchDecision = {
       id: 'defend',
       title: t('dec.defend.title'),
-      detail: t('dec.defend.detail').replace('{label}', carrier.label).replace('{n}', String(DEFENSE_MAX_STEPS - state.defenseLoop.steps)),
+      detail: t('dec.defend.detail').replace('{label}', carrier.label).replace('{n}', String(DEFENSE_MAX_STEPS - state.defenseLoop.steps))
+        + (intel ? ' ' + intel : ''),
       choices: [
         { id: 'dp_press', label: t('dec.defensive_press.dp_press.label'), desc: t('dec.defensive_press.dp_press.desc').replace('{n}', String(Math.round(regainP * 100))) },
         { id: 'dp_cut', label: t('dec.defensive_press.dp_cut.label'), desc: t('dec.defensive_press.dp_cut.desc').replace('{n}', String(Math.round(cutP * 100))) },
         { id: 'dp_drop', label: t('dec.defend.drop.label'), desc: t('dec.defend.drop.desc') },
+        // 전술 파울 — 역습 강제 리셋 밸브(2R 감사 기능 1순위). 첫 파울은 싸지만
+        // 누적되면 카드/프리킥 위험: 자원 관리 판단이 네 번째 축.
+        { id: 'dp_foul', label: t('dec.defend.foul.label'), desc: t('dec.defend.foul.desc').replace('{n}', String((state.facts.fouls ?? 0) + 1)) },
       ],
     };
   }
@@ -389,6 +400,35 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
     const carrier = holder();
     state.matchDecision = null;
     state.facts.decisionsMade++;
+    if (choiceId === 'dp_foul') {
+      // 전술 파울 — 이 역습을 강제 종료하고 상대 최후방부터 다시. 프로페셔널
+      // 파울의 게임화: 스텝·슛각 헌납이 리셋되는 대신 파울이 누적되고, 3번째부터
+      // 카드/위험 지역 프리킥 확률이 계단식으로 오른다(무한 리셋 스팸의 상한).
+      state.facts.fouls = (state.facts.fouls ?? 0) + 1;
+      const n = state.facts.fouls;
+      addPressure(8 + n * 4);
+      if (n >= 3 && rng.next() < 0.10 + (n - 3) * 0.06) {
+        const fkXg = clamp(0.12 + (n - 3) * 0.05, 0.12, 0.4);
+        state.defenseLoop = null;
+        logLine(t('log.defense.foulCard'), 'error');
+        if (rng.next() < fkXg) {
+          endAttempt('conceded', { shooter: carrier, xg: fkXg });
+          return { ok: true, conceded: true, fouled: true };
+        }
+        logLine(t('log.defense.saved'), 'success');
+        state.possession = 'us';
+        resetToKeeper(t('log.defense.restart'), 'info');
+        return { ok: true, conceded: false, fouled: true, restarted: true };
+      }
+      logLine(t('log.defense.foul'), 'warn');
+      const deep = opps().filter((p) => p.line !== 'gk').sort((a, b) => b.x - a.x)[0] ?? carrier;
+      state.turn++;
+      state.holderId = deep.id;
+      if (state.ball) { state.ball.x = deep.x; state.ball.y = deep.y; }
+      dl.steps = 0; dl.beaten = 0; dl.contained = 0;
+      defendDecisionFor(deep);
+      return { ok: true, fouled: true, reset: true };
+    }
     if (choiceId === 'dp_press' || choiceId === 'dp_cut') {
       const p = choiceId === 'dp_press' ? dl.regainP : dl.cutP;
       if (rng.next() < p) {
@@ -441,7 +481,9 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
     const keeping = gk?.traits?.keeping ?? 0.72;
     // 티어 0.34/0.22/0.12 → 0.30/0.18/0.10 (재배치 도입 보정): 지원 전진으로
     // 슈터가 한 티어 가까워져 전 선택지 실점이 ~2배 뛰었다 — 위험 순증만 상쇄.
-    const base = (d < 16 ? 0.30 : d < 26 ? 0.18 : 0.10) + intDef;
+    // + back 오버랩이면 뒷문 노출(+0.04) — defensivePressProb의 +0.05와 쌍.
+    const base = (d < 16 ? 0.30 : d < 26 ? 0.18 : 0.10) + intDef
+      + (state.lineIntents.back === 'overlap' ? 0.04 : 0);
     // 바닥 0.05: 내려서기만 반복해도 '완전 무료'는 아니게 — 안전하되 긴장은 남긴다.
     const xg = clamp(base + dl.beaten * 0.06 - dl.contained * 0.04 - (keeping - 0.7) * 0.4, 0.05, 0.55);
     state.defenseLoop = null;
@@ -475,7 +517,11 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
     const momentum = ((state.momentum ?? 50) - 50) / 100 * 0.12;
     const fatigue = ((state.fatigue ?? 0) / 100) * 0.16;
     const carrierCalm = (carrier.traits?.pressResistance ?? carrier.traits?.pass ?? 0.65) * 0.18;
-    return clamp(0.10 + Math.min(reach, 3) * 0.15 + front + mid + momentum - fatigue - carrierCalm - intDef, 0.06, 0.74);
+    // back 라인 컨트롤(2R): 오버랩(풀백 전진)은 공격 보너스만 있고 수비 국면
+    // 비용이 없었다 — 이미 올라가 있으니 즉시 압박 가담(+0.05), 대신 뒷문이
+    // 열려 상대 슛 질↑(resolveOppShot +0.04). 공수 트레이드가 한 겹 생긴다.
+    const back = state.lineIntents.back === 'overlap' ? 0.05 : 0;
+    return clamp(0.10 + Math.min(reach, 3) * 0.15 + front + mid + back + momentum - fatigue - carrierCalm - intDef, 0.06, 0.74);
   }
 
   function openPressingMode() {
@@ -776,6 +822,10 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
     const dt = actionTime(event.type, event.dist);
     event.dt = dt;                 // press.js가 같은 시간으로 수비 이동을 스케일
     ourStructureShift(dt);
+    // 자연 상승 +2/액션 — 시간이 갈수록 상대 블록이 자리 잡는다. 감소 항만 있던
+    // 게이지 경제(중앙값 0, 베이트 0회/경기 — 자기대국 감사)에 유입원을 만들어
+    // "압박 유인" 루프(hold 후보·커밋 유도)가 경제에 복귀할 토대.
+    addPressure(2);
     const reaction = press.react(state, event, rng);
     // §6.4 shape reading: surface the recognition delay so the player can
     // feel (and exploit) the window before the press adjusts.
@@ -1140,7 +1190,10 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
       state.lastPassCross = lofted && Math.abs(fromPos.y - PITCH_H / 2) > 16 && Math.abs(landing.y - PITCH_H / 2) < 12 && landing.x > 78;
       windowUseCheck(landing);
       if (loose) { addPressure(10); state.facts.secondBalls = (state.facts.secondBalls || 0) + 1; }
-      else { addPressure(-5); }
+      // -5→-2 (자기대국 2R): 지배 액션(pass_space 52%)이 압박 자원을 공짜로 깎아
+      // 게이지 중앙값 0·베이트 0회/경기 — "압박 유인" 정체성이 경제에서 퇴출돼
+      // 있었다. 전진 보상은 페이즈 전환(-10/-6)에 이미 있으므로 여기선 최소만.
+      else { addPressure(-2); }
       const trigger = passTriggerFor(fromPos, landing, nu);
       pressReact({ type: 'pass', trigger, dist: dist(fromPos, landing) });
       maybeAdvancePhase();
@@ -1657,9 +1710,9 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
         if (choiceId === 'dp_press' || choiceId === 'dp_cut' || choiceId === 'dp_drop') return resolveDefensivePress(choiceId);
         return { ok: false, rejected: true };
       }
-      // 수비 국면(A): 상대 전개 저지 3택.
+      // 수비 국면(A): 상대 전개 저지 4택(전술 파울 포함).
       if (state.defenseLoop && state.matchDecision?.id === 'defend') {
-        if (choiceId === 'dp_press' || choiceId === 'dp_cut' || choiceId === 'dp_drop') return resolveDefendStep(choiceId);
+        if (choiceId === 'dp_press' || choiceId === 'dp_cut' || choiceId === 'dp_drop' || choiceId === 'dp_foul') return resolveDefendStep(choiceId);
         return { ok: false, rejected: true };
       }
       if (state.status !== 'live') return { ok: false, rejected: true };

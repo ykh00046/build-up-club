@@ -96,6 +96,29 @@ function buildCarryCandidate(engine) {
   return best;
 }
 
+// hold 후보 — "기다려서 압박수를 끌어내라"는 브리핑의 유인 축구를 보드에 복원.
+// 보상 = 커밋 유도 기대값(압박이 높고 깊을수록 유도 확률↑ — press.js decide()의
+// 관측 가능 근사) − 유지비(압박 +10+3k) − 읽힘 페널티. 좋은 전진 패스가 있으면
+// 절대 못 이기는 낮은 절대값이 의도: 레인이 다 막혔을 때만 "정지"가 뜬다.
+function buildHoldCandidate(engine) {
+  const h = engine.holder?.();
+  const state = engine.state;
+  if (!h || state.phase === 'FINAL_THIRD') return null;
+  const depthMul = h.x < 40 ? 1.0 : h.x >= 88 ? 1.35 : 1.0 + (h.x - 40) * (0.35 / 48);
+  const pHat = clamp(0.30 * (0.6 + (state.pressure ?? 0) / 100 * 0.8) * depthMul, 0.05, 0.45);
+  const chain = state.consecutiveHolds ?? 0;
+  const reward = pHat * 0.5 * 0.49
+    - 0.0075 * (10 + 3 * chain)
+    - (h.orientation === 'BACK' ? 0.20 : 0)
+    - (chain >= 2 ? 0.15 : 0);
+  if (reward <= 0.02) return null;   // 니치가 성립할 때만 후보로 노출
+  return {
+    type: 'pass', action: 'hold', target: h, point: null,
+    risk: 0.04, safety: 0.96, score: reward, progress: 0, reward,
+    engine, reason: null,
+  };
+}
+
 function buildShotCandidate(engine) {
   const shot = engine.previewShot?.();
   if (!shot) return null;
@@ -140,6 +163,7 @@ export function evaluateBoard(engine, options = {}) {
   const candidates = [
     ...buildPassCandidates(engine, limit),
     buildCarryCandidate(engine),
+    buildHoldCandidate(engine),
     buildShotCandidate(engine),
   ].filter(Boolean).map((candidate) => annotate(candidate, state));
 

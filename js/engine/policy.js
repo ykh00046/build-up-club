@@ -72,6 +72,9 @@ export function attackPolicy(view) {
   if (b.action === 'carry' && b.point) {
     return { kind: 'engine_action', actionId: 'carry', point: b.point, confidence: b.safety, reason: 'carry to bait/advance' };
   }
+  if (b.action === 'hold') {
+    return { kind: 'engine_action', actionId: 'hold', confidence: b.safety, reason: 'lanes closed — bait the press' };
+  }
   if (b.action === 'pass_space') {
     return { kind: 'engine_action', actionId: 'pass_space', point: { x: Math.min((b.target?.x ?? 0) + 10, PITCH_W - 2), y: b.target?.y }, confidence: b.safety, reason: 'best space lane' };
   }

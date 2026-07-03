@@ -224,6 +224,9 @@ export function resolveScoreline(perf, setup, rngNext, pmods = philoMods()) {
   // 수비 국면(A)에서 이미 인게임 실점이 났다면 역습 노출 가산은 생략 — 그 노출이
   // 실제 골로 구현된 것이므로 이중 처벌하지 않는다. (필드 부재 시 rng 시퀀스 불변.)
   if (tone === 'fail' && !P.concededLive) concedeP += 0.18 * (1 - dominance * 0.40) * (1 - (pmods.failConcedeRelief || 0));
+  // 전술 파울 누적 — 2회까지는 무료(전술의 일부), 3회부터 카드·세트피스 리스크가
+  // 정산 실점으로 번진다. 필드 부재 시 0 가산이라 기존 회귀에 중립.
+  concedeP += Math.max(0, (P.fouls || 0) - 2) * 0.05;
   concedeP = clamp(concedeP, 0.02, 0.92);
 
   // 인게임 실점(수비 국면에서 상대 슛이 골) — 스코어라인에 그대로 반영.

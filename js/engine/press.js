@@ -505,14 +505,11 @@ export function createPress(config) {
                   }
                 : null;
             } else {
-              // One defender takes a half-step; the window it appears to open
-              // is bait — support holds behind it.
+              // Half-step pressure only — no bait window. 가짜 창은 측정상 아무도
+              // 안 속았다(2,300패스 중 가짜行 0건 — 레인 평가가 위험을 정직하게
+              // 반영해 프리뷰가 스스로 회피). 화면 노이즈만 남아 제거(자기대국 2R).
+              // "보이는 반짝임 = 진짜 기회" 신뢰 확보가 이 게임 문법에 맞다.
               committer.halfStep = { x: (committer.x + ball.x) / 2, y: (committer.y + ball.y) / 2 };
-              rewardWindow = {
-                x: vacated.x, y: vacated.y, r: cz.windowR * 0.8,
-                kind: 'false', expiresTurn: state.turn + 1,
-                openedBy: triggerKind, committerId: committer.id,
-              };
             }
           }
         } else if (decision === 'drop_off') {

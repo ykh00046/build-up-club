@@ -1140,6 +1140,7 @@ function settleCareerMatch() {
     baits: f.baits, linesBroken: f.linesBroken, switches: f.switches,
     runs: f.runs, windowsUsed: f.windowsUsed,
     situationsResolved: f.situationsResolved, decisionsMade: f.decisionsMade,
+    fouls: f.fouls ?? 0,   // 전술 파울 누적 → 3회부터 정산 실점 가중
     xg: out?.xg ?? 0,
     concededLive: out?.kind === 'conceded' ? 1 : 0,   // 수비 국면 실점 → 스코어라인 반영
     // 게임스테이트 (E4): 전술 모먼트의 모멘텀·피로가 정산 스코어라인으로 흘러든다.
