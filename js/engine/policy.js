@@ -127,10 +127,11 @@ export function pressPolicy(view) {
   const laneThreat = Math.max(best?.risk ?? 0, gamble?.risk ?? 0, trap?.risk ?? 0);
   const offLaneThreat = Math.max(0, laneThreat - carrierRisk);
   const values = {
-    // press = 공격적 회수, 단 깊고 위험한 캐리어(laneThreat↑)를 압박하다 벗겨지면
-    // 고xG 슛 헌납 → 위험 비례 페널티. 구식 regainP²×1.25 + carrierRisk×0.14는
-    // loss 진입(캐리어가 우리 압박선 근처, regainP·laneThreat 동시 높음)에서 press를
-    // 폭증시켜 5택을 press로 붕괴시켰다(5R 감사 치명 발견).
+    // press = 공격적 회수. 구식 regainP²×1.25 + carrierRisk×0.14는 loss 진입에서
+    // press를 폭증시켜 5택을 press로 붕괴시켰다(5R 감사) → regainP 선형으로.
+    // laneThreat 항은 dry-run risk가 거의 항상 0.95 클램프 포화라(6R 감사) 사실상
+    // 상수(≈−0.076) — "위험 비례"가 아니라 press가 loss에서 독점하지 않게 하는
+    // 평탄 댐핑이다. loss(regainP↑) press를 눌러 cut/mark가 뚫을 여지를 만든다.
     dp_press: pr.regainP * 0.92 - laneThreat * 0.08,
     // cut = 존 커버. 위험한 off-lane이 있으면 그 길목을 끊는 가치가 오른다
     // (offLaneThreat 가산 — cut의 정체성). 단 구식은 offLaneThreat에만 의존해
@@ -142,10 +143,11 @@ export function pressPolicy(view) {
     dp_drop: 0.14 + (1 - laneThreat) * 0.5,
   };
   if (sid === 'defend') {
-    // 지목 마크 EV = 적중률(markP × pred) 직접 스케일(flat). offLaneThreat 가산은
-    // reset에서 mark을 부풀려 예측 경계를 흐리므로 제거 — 예측 경계 pred≈0.75
-    // (balanced/aggressive 사이)에서 mark(예측가능)↔cut(불가)이 갈리게 계수 고정.
-    values.dp_mark = (pr.markP ?? 0.7) * (pr.pred ?? 1) * 0.58;
+    // 지목 마크 EV = 적중률(markP × pred) 직접 스케일(flat). 계수 0.58→0.66
+    // (6R 감사: 0.58은 실측 경계를 pred≈0.90으로 밀어 mark이 safe 전용이 됐다 —
+    // balanced 0.85조차 cut에 밀림). 0.66이면 경계가 pred≈0.78(balanced/aggressive
+    // 사이)로 내려와 예측 가능(safe·balanced)→mark, 불가(aggressive·direct)→cut.
+    values.dp_mark = (pr.markP ?? 0.7) * (pr.pred ?? 1) * 0.66;
     // 위기 에스컬레이션 사다리 — 뺏을 가망(regain/cut/mark 최선)과 파울 예산으로
     // 갈린다: (1) 가망 있으면 위 3택으로 뺏는다. (2) 가망 없고(<0.4) 이미 벗겨져
     // 슛이 임박하면 → 파울 예산이 남을 땐 전술 파울로 리셋(공격을 후방으로 되돌림),

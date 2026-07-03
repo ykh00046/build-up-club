@@ -1225,7 +1225,9 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
         loose = true;
       }
       state.facts.linesBroken += linesBroken(fromPos, landing, opps());
-      if (Math.abs(fromPos.y - landing.y) > 16) state.facts.switches++; // 측면 전환(16m+ 대각) → 측면 정체성
+      const isSwitch = Math.abs(fromPos.y - landing.y) > 16;
+      if (isSwitch) state.facts.switches++;   // 측면 전환(16m+ 대각) → 측면 정체성
+      state.lastWasSwitch = isSwitch;          // 연속 스위치 쿨다운용(탁구질 억제)
       nu.tx = landing.x; nu.ty = landing.y; nu.x = landing.x; nu.y = landing.y;
       state.holderId = nu.id;
       state.consecutiveHolds = 0;
@@ -1459,6 +1461,7 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
       }
       state.turn++;
       state.currentAction = actionId;
+      if (actionId !== 'pass_space') state.lastWasSwitch = false;   // 비-전환 액션은 쿨다운 리셋
       logSituationEvents(prepareSituations(state, actionId));
       state.lastTacticalFactors = tacticalFactors(state, actionId);
       // Buildup clock: dawdling lets the press settle — with fair warning.
@@ -1678,7 +1681,7 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
           : (state.phase === 'PROGRESSION' && targetX > PHASE_LINES.FINAL_THIRD) ? 0.28 : 0;
         const comboBonus = actionId === 'pass_space' ? 0.12 : 0;
         const orientBonus = (h.orientation === 'BACK' && targetX <= h.x + 2) ? 0.18 : 0;
-        // 오버로드-투-아이솔레이트(E3): 볼 반대편(|Δy|>20)이 비었으면 전환으로
+        // 오버로드-투-아이솔레이트(E3): 볼 반대편(|Δy|>16)이 비었으면 전환으로
         // 약측 1v1 고립을 만든다. 전환은 전진(fwd)이 낮아 늘 저평가됐다 — 열린
         // 약측일수록 보너스를 얹어 evaluator가 스위치를 실제 추천하게 한다.
         // (자기대국 감사: 열린 스위치 21% 가용인데 실행 23%뿐 → 정산 isolation
@@ -1686,7 +1689,10 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
         let switchBonus = 0;
         if (Math.abs(target.y - h.y) > 16) {
           const open = nearestDefender(target, opps()).d;
-          switchBonus = clamp((open - 10) / 16, 0, 1) * 0.24;
+          // 연속 스위치 쿨다운 — 직전이 전환이면 ×0.5로 감가(탁구질/좌우좌 왕복
+          // 억제 + 저강도 블록[D2]에서 약측이 늘 열려 스위치 과반응하던 것 완화).
+          const cooldown = state.lastWasSwitch ? 0.5 : 1;
+          switchBonus = clamp((open - 10) / 16, 0, 1) * 0.24 * cooldown;
         }
         const score = safety + fwd + winBonus + phaseBonus + comboBonus * 0.8 + orientBonus + switchBonus;
         return { action: actionId, target, score, risk };
