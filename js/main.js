@@ -1710,6 +1710,12 @@ function loop(ts) {
     keyboardTargetId: kbTargetId,
     passOptions,
     runDestinations,
+    // 예상 루트 인텔 시각화 — 수비 결정(defend) 중 상대의 dry-run best 루트를
+    // 피치에 점선으로 그린다. 예측 가능(confident)이면 캐리어→예상 수신자 화살표+
+    // 타깃 링, 불가(fuzzy)면 전방 부채꼴 확산(종잡을 수 없음). 인텔 텍스트와 쌍.
+    defenseRoute: (s.defenseLoop?.route && s.matchDecision?.id === 'defend' && engine.holder())
+      ? { from: { x: engine.holder().x, y: engine.holder().y }, to: s.defenseLoop.route, confident: (s.defenseLoop.pred ?? 1) >= 0.8 }
+      : null,
     // Input is single-surface(2026-07 액션바 삭제): 모든 뷰포트에서 피치 링이 유일한
     // 조작면. 링 항목의 enabled/armed/guide-lock 상태는 비표시 [data-action] 상태
     // 모델에서 읽는다.

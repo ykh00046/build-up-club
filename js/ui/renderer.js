@@ -73,6 +73,7 @@ export function render(view, dtMs) {
   if (toggles.superiority && view.superiorityZones?.length) drawSuperiorityZones(view.superiorityZones);
   // 열린 공간(리워드 윈도우): main.js가 쉬움(mid)에서만 view.rewardWindow를 채움(난이도 학습 보조).
   if (view.rewardWindow) drawRewardWindow(view.rewardWindow);
+  if (view.defenseRoute) drawDefenseRoute(view.defenseRoute);
   if (view.shotZone) drawShotZoneBadge(view.shotZone, view.holder, view.shotXg);
   if (toggles.shadows) drawCoverShadows(view);
   if (view.hover) drawHover(view.hover, view.holder);
@@ -392,6 +393,54 @@ function drawRewardWindow(w) {
     ctx.font = `${Math.max(9, scale * 1.0)}px ui-sans-serif, system-ui, sans-serif`;
     ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
     ctx.fillText(t('pitch.openSpace'), mx(w.x), my(w.y) - r - 3);
+  }
+}
+
+// 예상 루트 인텔 — 수비 결정 중 상대 전개 예측을 피치에 그린다. 인텔 텍스트
+// ("예상 전개: ST 방향" / "종잡을 수 없는 상대")의 시각 쌍. 상대 위협이므로
+// 적색(laneCut) 계열, 행진 점선으로 "곧 갈 길"을 표현.
+function drawDefenseRoute(route) {
+  const fx = mx(route.from.x), fy = my(route.from.y);
+  const march = -pulse * 24;   // 점선이 캐리어→타깃으로 흐른다(전개 방향감)
+  if (route.confident) {
+    const tx = mx(route.to.x), ty = my(route.to.y);
+    const ang = Math.atan2(ty - fy, tx - fx);
+    const r0 = scale * TOKEN_R_M + 4;      // 캐리어 토큰 밖에서 시작
+    const sx = fx + Math.cos(ang) * r0, sy = fy + Math.sin(ang) * r0;
+    const ex = tx - Math.cos(ang) * (scale * TOKEN_R_M + 3), ey = ty - Math.sin(ang) * (scale * TOKEN_R_M + 3);
+    ctx.strokeStyle = 'rgba(255, 92, 92, 0.78)';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([7, 6]); ctx.lineDashOffset = march;
+    ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(ex, ey); ctx.stroke();
+    ctx.setLineDash([]); ctx.lineDashOffset = 0;
+    // 화살촉
+    const ah = 8;
+    ctx.fillStyle = 'rgba(255, 92, 92, 0.9)';
+    ctx.beginPath();
+    ctx.moveTo(ex, ey);
+    ctx.lineTo(ex - Math.cos(ang - 0.42) * ah, ey - Math.sin(ang - 0.42) * ah);
+    ctx.lineTo(ex - Math.cos(ang + 0.42) * ah, ey - Math.sin(ang + 0.42) * ah);
+    ctx.closePath(); ctx.fill();
+    // 예상 수신자 타깃 링(맥동)
+    const rr = (scale * TOKEN_R_M + 6) * (1 + Math.sin(pulse * 5) * 0.12);
+    ctx.strokeStyle = 'rgba(255, 92, 92, 0.55)';
+    ctx.lineWidth = 1.6; ctx.setLineDash([4, 4]); ctx.lineDashOffset = march;
+    ctx.beginPath(); ctx.arc(tx, ty, rr, 0, Math.PI * 2); ctx.stroke();
+    ctx.setLineDash([]); ctx.lineDashOffset = 0;
+  } else {
+    // 종잡을 수 없음 — 전방(상대 공격 방향 -x)으로 부채꼴 확산 점선.
+    const fanLen = scale * 12;
+    ctx.strokeStyle = 'rgba(245, 166, 35, 0.45)';   // 앰버(불확실)
+    ctx.lineWidth = 1.5; ctx.setLineDash([5, 7]); ctx.lineDashOffset = march;
+    for (const spread of [-0.5, -0.17, 0.17, 0.5]) {
+      const ang = Math.PI + spread;   // -x 기준 부채꼴
+      const r0 = scale * TOKEN_R_M + 4;
+      ctx.beginPath();
+      ctx.moveTo(fx + Math.cos(ang) * r0, fy + Math.sin(ang) * r0);
+      ctx.lineTo(fx + Math.cos(ang) * fanLen, fy + Math.sin(ang) * fanLen);
+      ctx.stroke();
+    }
+    ctx.setLineDash([]); ctx.lineDashOffset = 0;
   }
 }
 
