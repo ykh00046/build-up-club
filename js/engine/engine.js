@@ -13,7 +13,7 @@ import {
 } from './space.js';
 import { createPress } from './press.js';
 import { findSuperiorityZones, superiorityAt } from './superiority.js';
-import { detectShotZone, resolveShot, computeShotXg } from './shots.js';
+import { detectShotZone, resolveShot, computeShotXg, shotBackpressure } from './shots.js';
 import { buildOutcome } from './outcome.js';
 import { applyOpponentBuildStep, applyPossessionEvent } from './possession-adapter.js';
 import { oppBuildDryRun } from './dry-run.js';
@@ -44,6 +44,13 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
   // (에이전트 듀얼/추후 B단계: 상대 지휘를 외부에 개방). null = 결정적 best 루트.
   let liveOppDisposition = opponentBuildDisposition;
   const press = createPress({ ...scenario, ...(intensityOverride ? { intensityOverride } : {}) });
+  // 유효 강도 — 수비 국면에도 같은 램프를 건다. 기존엔 createPress(공격 국면)에만
+  // 들어가 커리어 "상대 OVR → 강도" 램프가 수비 국면에서 끊겨 있었다(자기대국
+  // 감사: 강도 4종 결과가 바이트 단위 동일). 강한 상대일수록 우리 압박에 침착하고
+  // (regainP↓) 마지막 슛 질이 좋다(xG base↑).
+  const effIntensity = intensityOverride ?? scenario?.intensity ?? 'mid';
+  const INT_DEF = { low: -0.02, mid: 0, high: 0.04, vhigh: 0.07 };
+  const intDef = INT_DEF[effIntensity] ?? 0;
 
   const players = [...scenario.buildOurs(), ...scenario.buildOpp()].map((p) => ({
     ...p,
@@ -56,6 +63,7 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
   const state = {
     scenario, seed,
     players,
+    pressIntensity: effIntensity,  // 슛 백프레셔·리포트용 유효 강도 (자기대국 감사)
     possession: 'us',
     holderId: 'us-gk',
     phase: 'BUILDUP',
@@ -379,7 +387,7 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
     const d = dist(shooter, { x: 0, y: PITCH_H / 2 });
     const gk = ours().find((p) => p.role === 'GK');
     const keeping = gk?.traits?.keeping ?? 0.72;
-    const base = d < 16 ? 0.34 : d < 26 ? 0.22 : 0.12;
+    const base = (d < 16 ? 0.34 : d < 26 ? 0.22 : 0.12) + intDef;
     // 바닥 0.05: 내려서기만 반복해도 '완전 무료'는 아니게 — 안전하되 긴장은 남긴다.
     const xg = clamp(base + dl.beaten * 0.06 - dl.contained * 0.04 - (keeping - 0.7) * 0.4, 0.05, 0.55);
     state.defenseLoop = null;
@@ -413,7 +421,7 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
     const momentum = ((state.momentum ?? 50) - 50) / 100 * 0.12;
     const fatigue = ((state.fatigue ?? 0) / 100) * 0.16;
     const carrierCalm = (carrier.traits?.pressResistance ?? carrier.traits?.pass ?? 0.65) * 0.18;
-    return clamp(0.10 + Math.min(reach, 3) * 0.15 + front + mid + momentum - fatigue - carrierCalm, 0.06, 0.74);
+    return clamp(0.10 + Math.min(reach, 3) * 0.15 + front + mid + momentum - fatigue - carrierCalm - intDef, 0.06, 0.74);
   }
 
   function openPressingMode() {
@@ -1375,7 +1383,7 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
       const h = holder();
       const zone = detectShotZone(h, state);
       if (!zone) return null;
-      const { xg } = computeShotXg(h, zone, opps());
+      const { xg } = computeShotXg(h, zone, opps(), { backpressure: shotBackpressure(effIntensity) });
       return { zone, xg };
     },
 

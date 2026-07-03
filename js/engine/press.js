@@ -11,7 +11,9 @@ import { t } from '../career/i18n.js';
 // midblock/lowblock(E10): 지역 방어 계열 — 사람보다 공간을 지키고 드롭오프가 잦다
 // (마킹 분기는 man/hybrid가 아니라 zonal-like로 폴백). 블록일수록 base commit↓.
 const SCHEME_BASE = { hybrid: 0.50, man: 0.58, zonal: 0.36, gegen: 0.62, midblock: 0.40, lowblock: 0.30 };
-const INTENSITY_MUL = { low: 0.75, mid: 1.0, high: 1.18, vhigh: 1.45 };
+// vhigh 1.45→1.30 (자기대국 감사): 커밋이 폭증하면 등 뒤 real 윈도우(공격 보상)가
+// 함께 폭증해 최고 강도가 오히려 최다 득점이 됐다. 커밋 절제(discipline)와 세트.
+const INTENSITY_MUL = { low: 0.75, mid: 1.0, high: 1.18, vhigh: 1.30 };
 const COMPACT = {
   tight:  { sideShift: 0.50, windowR: 6.0, lineGap: -0.25 },
   normal: { sideShift: 0.40, windowR: 7.5, lineGap: 0 },
@@ -35,7 +37,23 @@ const RECOG_DELAY = { hybrid: 2, man: 3, zonal: 3, gegen: 4, midblock: 3, lowblo
 export function createPress(config) {
   const { scheme, compactness, intensityOverride } = config;
   const intensity = intensityOverride ?? config.intensity ?? 'high';
-  const cz = COMPACT[compactness] || COMPACT.normal;
+  // 강도 → 수비 물리량. 커밋 확률(INTENSITY_MUL)만 올리면 full_commit이 등 뒤
+  // real 윈도우를 함께 늘려 공격 보상이 상쇄된다 — 측정상 goal%가 low 15.7 →
+  // vhigh 17.3으로 오히려 역전, 커리어 디비전 램프가 헛돌았다(자기대국 감사).
+  // 강할수록 블록이 볼 쪽으로 더 붙고(sideShift↑) 내주는 창이 작아진다(windowR↓).
+  const INTENSITY_PHYS = {
+    low:   { shift: -0.05, winR: +1.0 },
+    mid:   { shift: 0,     winR: 0 },
+    high:  { shift: +0.05, winR: -0.7 },
+    vhigh: { shift: +0.12, winR: -1.6 },
+  };
+  const czBase = COMPACT[compactness] || COMPACT.normal;
+  const ph = INTENSITY_PHYS[intensity] ?? INTENSITY_PHYS.mid;
+  const cz = {
+    sideShift: czBase.sideShift + ph.shift,
+    windowR: Math.max(4.5, czBase.windowR + ph.winR),
+    lineGap: czBase.lineGap,
+  };
   let accumulator = 0;   // urgency rises the longer we stay alive in their press
   let droppedOff = 0;    // turns remaining of deliberate retreat
   let actionChain = [];  // last 5 trigger kinds (pattern recognition)
@@ -282,8 +300,9 @@ export function createPress(config) {
 
   // Defenders are not teleporters: each beat they cover at most a sprint's
   // worth of grass. The block LAGS a big switch — that lag is the point.
-  const MAX_STEP = 7;
-  const MAX_STEP_COMMIT = 10;
+  // vhigh만 반 발 더 빠르다 — 최상위 압박의 "따라잡힌다" 체감(디비전 램프).
+  const MAX_STEP = intensity === 'vhigh' ? 8 : 7;
+  const MAX_STEP_COMMIT = intensity === 'vhigh' ? 11 : 10;
 
   // dt = 행동 시간(짧은 패스면 작음). 수비 이동 캡을 그만큼 줄여 — 짧은 순간엔
   // 수비도 조금만 좁힌다. 짧은 패스 연쇄(원투·써드맨)가 자연 발생하는 이유.
@@ -337,9 +356,13 @@ export function createPress(config) {
       * gegenMul,
       0.02, 0.92,
     );
+    // 고강도 압박은 빠를 뿐 아니라 절제됐다 — 점프는 오되 각을 덜 버린다(partial↑).
+    // full_commit만 늘리면 등 뒤 real 윈도우가 함께 급증해 공격 보상이 상쇄,
+    // 강도 램프가 역전된다(자기대국 감사: goal% low 15.7 < vhigh 17.3).
+    const discipline = intensity === 'vhigh' ? 0.6 : intensity === 'high' ? 0.25 : 0;
     return rng.weighted([
       { value: 'full_commit',    w: p * backMul },
-      { value: 'partial_commit', w: p * 0.55 },
+      { value: 'partial_commit', w: p * (0.55 + discipline) },
       { value: 'hold',           w: Math.max(0.08, 1 - p) },
       { value: 'drop_off',       w: scheme === 'man' ? 0.05 : scheme === 'gegen' ? 0.07 : 0.14 },
     ]);

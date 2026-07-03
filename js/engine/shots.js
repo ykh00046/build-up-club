@@ -72,7 +72,16 @@ export function detectShotZone(shooter, context) {
 // preview use. They had drifted apart (preview GK weights 0.8/0.45, clamp 0.85
 // vs resolution 0.35/0.30/0.92), so the board read understated xG by ~20-25%
 // and steered players away from good shots. Single function = honest preview.
-export function computeShotXg(shooter, zone, defenders) {
+// 리커버리 백프레셔 — 고강도 압박 팀은 뚫린 뒤 되돌아오는 스프린트도 빠르다.
+// 슛 순간 xG 감쇄로 표현. 없으면 "높은 라인을 뚫으면 슛이 더 깨끗"이라는 보상이
+// 강도 램프를 역전시킨다(자기대국 감사: vhigh 평균 슛 xG 0.263 vs mid 0.219 —
+// 최고 강도 디비전이 최다 득점). 미리보기·해소 동일 적용(정직한 프리뷰 유지).
+const BACKPRESSURE = { low: 1.04, mid: 1.0, high: 0.94, vhigh: 0.86 };
+export function shotBackpressure(intensity) {
+  return BACKPRESSURE[intensity] ?? 1;
+}
+
+export function computeShotXg(shooter, zone, defenders, opts = {}) {
   const gk = defenders.find((d) => d.line === 'gk');
   // Pressure includes the rushing GK (P1a): deep in the box the keeper IS the
   // pressure — excluding him made six-yard walk-ins read as "free" shots.
@@ -82,13 +91,15 @@ export function computeShotXg(shooter, zone, defenders) {
   );
   const affinity = shooter.traits?.shot?.[zone.id] ?? 0.7;
   const gkFactor = gk ? clamp(1 - (gk.traits?.keeping ?? 0.75) * clamp(1 - dist(shooter, gk) / 30, 0.2, 1) * 0.30, 0.5, 1) : 1;
-  const xg = clamp(zone.baseXg * affinity * (1 - pressureAtShot * 0.35) * gkFactor, 0.01, 0.92);
+  const xg = clamp(zone.baseXg * affinity * (1 - pressureAtShot * 0.35) * gkFactor * (opts.backpressure ?? 1), 0.01, 0.92);
   return { xg, pressureAtShot };
 }
 
 export function resolveShot(shooter, zone, state, rng) {
   const defenders = state.players.filter((p) => p.side === 'opp');
-  const { xg, pressureAtShot } = computeShotXg(shooter, zone, defenders);
+  const { xg, pressureAtShot } = computeShotXg(shooter, zone, defenders, {
+    backpressure: shotBackpressure(state.pressIntensity),
+  });
   const roll = rng.next();
 
   let result;
