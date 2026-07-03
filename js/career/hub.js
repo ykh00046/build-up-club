@@ -9,7 +9,7 @@ import {
 } from './club.js';
 import { ROLES } from '../data/roles.js';
 import { matchSetup, upgradePreview } from './mods.js';
-import { opponentName, scenarioForMatchday } from './season.js';
+import { opponentName, scenarioForMatchday, opponentDisposition } from './season.js';
 import { t, loc, getLang, toggleLang } from './i18n.js';
 import { currentMission, effectsSummary } from './events.js';
 import { currentPhilosophy } from './philosophy.js';
@@ -381,6 +381,8 @@ export function nextMatchInfo() {
   return {
     oppName: opponentName(club.divIdx, club.matchday),
     oppOVR, setup, scenario: scn,
+    // 상대 전개 성향 페르소나 — 수비 국면에서 상대 루트 선택의 기본값 (C단계)
+    disposition: opponentDisposition(club.divIdx, club.matchday),
   };
 }
 

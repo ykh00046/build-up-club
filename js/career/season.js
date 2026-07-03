@@ -29,6 +29,20 @@ export function scenarioForMatchday(divIdx, matchday) {
   return SCENARIOS[scenarioCellForMatchday(divIdx, matchday)] || SCENARIOS.A1;
 }
 
+// 상대 전개 성향(에이전트 듀얼/C단계) — 볼 상실 후 수비 국면에서 상대가 고르는
+// 루트의 위험 성향. 압박 스킴과 한 몸으로 묶는다: 게겐프레스 팀은 탈취 즉시
+// 직선 역습이 정체성이고, 대인 고강도는 과감하게, 로우블록/지역은 신중하게 전개.
+// 상위 디비전 풀일수록 man/gegen이 늘어 수비 국면 난이도 곡선이 자연히 생긴다.
+const SCHEME_DISPOSITION = {
+  lowblock: 'safe', zonal: 'safe',
+  midblock: 'balanced', hybrid: 'balanced',
+  man: 'aggressive', gegen: 'direct',
+};
+
+export function opponentDisposition(divIdx, matchday) {
+  return SCHEME_DISPOSITION[scenarioForMatchday(divIdx, matchday)?.scheme] ?? 'balanced';
+}
+
 // 상대 클럽명 생성 — 디비전이 높을수록 격이 오르는 느낌.
 const PREFIX = ['Real', 'Inter', 'Athletic', 'Sporting', 'Dynamo', 'Olympic', 'United', 'City',
   'Borussia', 'Atlético', 'Racing', 'Union', 'Rovers', 'Wanderers'];

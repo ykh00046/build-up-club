@@ -44,6 +44,7 @@ import {
   activeIdentityLevel,
 } from './career/identity.js';
 import { checkSeasonGoal } from './career/season-goals.js';
+import { commandOpponent } from './career/opponent-commander.js';
 
 
 const canvas = document.getElementById('pitch');
@@ -96,6 +97,8 @@ function engineScenario(scn) {
 // 한 경기 = 한 번의 전술 빌드업 모먼트. 그 결과로 클럽이 자란다.
 let currentSetup = null;   // mods.matchSetup — 이번 경기의 압박강도/트레잇 부스트/수비
 let careerActive = false;  // 전술 매치가 커리어 경기로 진행 중인가
+let oppDisposition = null;      // 이번 상대의 전개 성향 페르소나 (season, C단계)
+let lastCommanded = null;       // 지휘자가 마지막으로 지시한 성향 — 전환 통지 중복 방지
 const careerRng = () => Math.random();
 const offlineGain = Club.load();   // 저장 불러오기 + 자리비움 수익
 
@@ -209,7 +212,12 @@ function switchScenario(cell) {
 
 function newAttempt() {
   hideOutcome();
-  engine = createEngine(engineScenario(shapedScenario()), undefined, { intensityOverride: chosenDifficulty });
+  // 커리어에선 상대 페르소나가 수비 국면 전개 성향의 기본값 (자유 플레이는 기존 결정적 best).
+  engine = createEngine(engineScenario(shapedScenario()), undefined, {
+    intensityOverride: chosenDifficulty,
+    opponentBuildDisposition: careerActive ? oppDisposition : null,
+  });
+  lastCommanded = careerActive ? oppDisposition : null;
   // 통합 글루: 클럽 업그레이드를 'us' 선수 traits로 반영 → 강해질수록 전술이 쉬워짐.
   if (currentSetup) applyClubBoost(engine, currentSetup);
   outcomeShown = false;
@@ -1099,10 +1107,11 @@ document.addEventListener('keydown', (e) => {
 
 // 허브의 "다음 경기" → 이번 매치데이의 시나리오/상대/셋업을 잡고 전술 매치로.
 function startMatch() {
-  const info = nextMatchInfo();           // { oppName, oppOVR, setup, scenario }
+  const info = nextMatchInfo();           // { oppName, oppOVR, setup, scenario, disposition }
   currentSetup = info.setup;
   lastMatch = info;
   chosenDifficulty = info.setup.intensity; // 압박 강도 = 클럽 vs 상대 전력
+  oppDisposition = info.disposition ?? null; // 상대 전개 성향 페르소나 (C단계)
   careerActive = true;
   analytics.track('match_start', { div: Club.club.divIdx }); // 경기 시작(디비전 기록)
   closeModal(hubOverlay);
@@ -1487,6 +1496,8 @@ function syncFormationBoard() {
   oppShapeLabel = info?.scenario?.oppShapeName ? loc(info.scenario.oppShapeName) : null;
   setText('hs-name', info?.oppName ?? '—');
   setText('hs-shape', oppShapeLabel ?? '');
+  // 전개 성향 필 — "뺏기면 이 상대는 이렇게 나온다"를 경기 전에 읽게(C단계).
+  setText('hs-disp', info?.disposition ? t('disp.' + info.disposition) : '');
   const sc = SCOUTING[info?.scenario?.scheme];
   setText('hs-weak', sc?.weakness ? loc(sc.weakness) : '—');
   initFormationBoard();
@@ -1570,6 +1581,18 @@ function renderSituationActions(container, situation) {
     btn.title = choice.desc;
     btn.textContent = choice.label;
     btn.addEventListener('click', () => {
+      // 상대 지휘자(C단계): 수비 국면이면 이번 스텝의 상대 성향을 상황 반응으로
+      // 교체한다. 성향은 이 선택의 resolveDefendStep 내부 전개 스텝에서 읽힌다.
+      // 지금까지 쌓인 패턴(내려서기 반복·압박 벗겨짐·회수 횟수)에만 반응 — 이번
+      // 클릭 자체는 못 본다(즉발 카운터 방지, 읽고 대응하는 듀얼 감각).
+      if (careerActive && engine.state.defenseLoop) {
+        const next = commandOpponent(engine.state, oppDisposition);
+        if (next !== lastCommanded && engine.setOpponentDisposition(next)) {
+          // 페르소나 이탈만 통지(복귀는 조용히) — 전환 카피가 '변화' 어조라서.
+          if (next && next !== oppDisposition) toast(t('defcmd.' + next));
+          lastCommanded = next;
+        }
+      }
       const result = engine.chooseSituationOption(choice.id);
       if (result.ok) {
         renderedSituationActionKey = '';

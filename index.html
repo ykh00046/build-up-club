@@ -580,6 +580,9 @@
     .hs-k { color: var(--text-muted); font-size: 10.5px; letter-spacing: 1px; text-transform: uppercase; }
     .hs-name { font-family: 'Saira Condensed', sans-serif; font-size: 19px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.3px; }
     .hs-shape { font-size: 11px; font-weight: 700; color: var(--danger); border: 1px solid rgba(255,90,110,0.45); border-radius: 999px; padding: 2px 9px; white-space: nowrap; }
+    /* 상대 전개 성향 필 — 볼을 뺏겼을 때 이 상대가 어떻게 나오는지 미리 읽는다(C단계). */
+    .hs-disp { font-size: 11px; font-weight: 700; color: var(--warn); border: 1px solid rgba(255,190,90,0.4); border-radius: 999px; padding: 2px 9px; white-space: nowrap; }
+    .hs-disp:empty { display: none; }
     .hs-weak { display: flex; align-items: baseline; gap: 8px; font-size: 12px; color: var(--text-muted); max-width: 52%; }
     .hs-weak b { color: var(--accent); font-size: 10.5px; letter-spacing: 1px; text-transform: uppercase; white-space: nowrap; }
     @media (max-width: 700px) { .hs-weak { max-width: 100%; } }
@@ -1191,6 +1194,7 @@
               <span class="hs-k" data-i18n="hub.nextOpp">다음 상대</span>
               <span class="hs-name" id="hs-name">—</span>
               <span class="hs-shape" id="hs-shape"></span>
+              <span class="hs-disp" id="hs-disp"></span>
             </div>
             <div class="hs-weak"><b data-i18n="hub.oppWeak">공략 포인트</b><span id="hs-weak">—</span></div>
           </div>
