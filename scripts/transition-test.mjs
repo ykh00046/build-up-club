@@ -8,9 +8,11 @@ const ok = (c, m) => { console.log(`  ${c ? '✓' : '✗ FAIL —'} ${m}`); if (
 console.log('=== 카운터프레스 전환 창 (E1) ===\n');
 
 // 턴오버를 유발해 전환 창이 열린 엔진을 반환(시드부터 브루트포스).
+// defenseLoop:false — 이 파일은 전환 창 자체의 레거시 계약(후퇴=종료)을 검증한다.
+// 기본값(수비 국면으로 연결)은 defense-loop-test.mjs가 커버.
 function openTransition(startSeed) {
   for (let seed = startSeed; seed < startSeed + 600; seed++) {
-    const e = createEngine(getScenario('A1'), seed, { intensityOverride: 'vhigh' });
+    const e = createEngine(getScenario('A1'), seed, { intensityOverride: 'vhigh', defenseLoop: false });
     for (let step = 0; step < 8; step++) {
       if (e.state.transition) return e;
       if (e.state.status !== 'live') break;

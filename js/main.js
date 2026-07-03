@@ -1132,6 +1132,7 @@ function settleCareerMatch() {
     runs: f.runs, windowsUsed: f.windowsUsed,
     situationsResolved: f.situationsResolved, decisionsMade: f.decisionsMade,
     xg: out?.xg ?? 0,
+    concededLive: out?.kind === 'conceded' ? 1 : 0,   // 수비 국면 실점 → 스코어라인 반영
     // 게임스테이트 (E4): 전술 모먼트의 모멘텀·피로가 정산 스코어라인으로 흘러든다.
     momentum: engine.state.momentum, fatigue: engine.state.fatigue,
   };

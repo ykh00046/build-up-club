@@ -34,7 +34,10 @@ function jl(label, withB, withoutB) {
 
 export function createEngine(scenario, seed = Date.now() % 2147483647, options = {}) {
   const rng = createRng(seed);
-  const { intensityOverride, possessionTurnoverLoop = false, opponentBuildDisposition = null } = options;
+  // defenseLoop(기본 ON, 2026-07 A단계): 볼 상실 후 공격이 그냥 끝나는 대신 상대가
+  // 실제로 전개해 오고(잠자던 턴오버 루프 활성화) 매 스텝 수비 3택으로 저지한다 —
+  // 실패가 쌓이면 상대 슛(실점 위험), 회수하면 공격 재개. 한 판 안의 공수 왕복.
+  const { intensityOverride, possessionTurnoverLoop = false, opponentBuildDisposition = null, defenseLoop: defenseLoopEnabled = true } = options;
   const press = createPress({ ...scenario, ...(intensityOverride ? { intensityOverride } : {}) });
 
   const players = [...scenario.buildOurs(), ...scenario.buildOpp()].map((p) => ({
@@ -65,6 +68,7 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
     outcome: null,
     transition: null,        // 카운터프레스 5초 창 (E1): { kind, detail, loss, msLeft, regainP }
     defensivePress: null,    // 상대 소유 압박 창: { carrierId, msLeft, regainP, cutP }
+    defenseLoop: null,       // 수비 국면(A): { steps, beaten, contained, regainP, cutP }
     transitionUsed: false,
     lastPassFromByline: false,
     lastPassLofted: false,
@@ -251,8 +255,118 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
         return { ok: true, recovered: false, turnover };
       }
     }
+    // 수비 국면(A): 공격이 끝나는 대신 상대가 전개해 온다 — 우리가 막을 차례.
+    if (defenseLoopEnabled && openDefenseLoop()) {
+      return { ok: true, recovered: false, defending: true };
+    }
     finishAttempt(tr.kind, tr.detail);
     return { ok: true, recovered: false };
+  }
+
+  // ─── 수비 국면(A단계): 상대 전개 저지 ──────────────────────────────────────
+  // 상대가 자기 후방에서 한 스텝씩 전개(opp-build-policy가 경로 선택)하고, 매 스텝
+  // 우리가 강압박/패스길 차단/내려서기 중 선택한다. 회수하면 공격 재개, 스텝이
+  // 쌓이거나 우리 진영 깊숙이 들어오면 상대가 실제로 슛한다(실점 위험).
+  const DEFENSE_MAX_STEPS = 3;      // 이 스텝을 버티면(또는 침투 당하면) 슛 국면
+  const DEFENSE_SHOT_X = 32;        // 상대 캐리어가 이 x 아래로 오면 사거리(우리 골 x=0)
+
+  function defendDecisionFor(carrier) {
+    const hunters = pressureHunters(carrier);
+    const regainP = defensivePressProb(carrier, hunters);
+    const cutP = clamp(regainP - 0.08 + (state.lineIntents.mid === 'support' ? 0.08 : 0), 0.1, 0.68);
+    state.defenseLoop.regainP = regainP;
+    state.defenseLoop.cutP = cutP;
+    state.matchDecision = {
+      id: 'defend',
+      title: t('dec.defend.title'),
+      detail: t('dec.defend.detail').replace('{label}', carrier.label).replace('{n}', String(DEFENSE_MAX_STEPS - state.defenseLoop.steps)),
+      choices: [
+        { id: 'dp_press', label: t('dec.defensive_press.dp_press.label'), desc: t('dec.defensive_press.dp_press.desc').replace('{n}', String(Math.round(regainP * 100))) },
+        { id: 'dp_cut', label: t('dec.defensive_press.dp_cut.label'), desc: t('dec.defensive_press.dp_cut.desc').replace('{n}', String(Math.round(cutP * 100))) },
+        { id: 'dp_drop', label: t('dec.defend.drop.label'), desc: t('dec.defend.drop.desc') },
+      ],
+    };
+  }
+
+  function openDefenseLoop() {
+    const turnover = applyPossessionEvent({ state }, 'turnover');
+    if (!turnover) return false;
+    const carrier = holder();
+    if (!carrier || carrier.side !== 'opp') return false;
+    clearPassContext();
+    state.defenseLoop = { steps: 0, beaten: 0, contained: 0, regainP: 0, cutP: 0 };
+    logLine(t('log.defense.open'), 'warn');
+    defendDecisionFor(carrier);
+    return true;
+  }
+
+  function defenseRegain(at) {
+    const regain = applyPossessionEvent({ state }, 'press_regain', { at, regainSide: 'us' });
+    state.defenseLoop = null;
+    state.matchDecision = null;
+    clearPassContext();
+    state.facts.defensivePressWins++;
+    state.consecutiveHolds = 0;
+    addPressure(-10);
+    logLine(t('log.defense.regain'), 'success');
+    return { ok: true, recovered: true, regain };
+  }
+
+  function resolveDefendStep(choiceId) {
+    const dl = state.defenseLoop;
+    if (!dl) return { ok: false, rejected: true };
+    const carrier = holder();
+    state.matchDecision = null;
+    state.facts.decisionsMade++;
+    if (choiceId === 'dp_press' || choiceId === 'dp_cut') {
+      const p = choiceId === 'dp_press' ? dl.regainP : dl.cutP;
+      if (rng.next() < p) return defenseRegain({ x: carrier.x, y: carrier.y });
+      // 점프했다 벗겨짐 — 상대에게 전진을 내주고, 강압박 실패는 슛 각까지 헌납.
+      if (choiceId === 'dp_press') dl.beaten++;
+      logLine(choiceId === 'dp_press' ? t('log.defPress.pressFail') : t('log.defPress.cutFail'), 'error');
+    } else {
+      // 내려서기 — 회수 시도는 없지만 블록을 세워 마지막 슛 질을 깎는다.
+      dl.contained++;
+      logLine(t('log.defense.drop'), 'info');
+    }
+    // 상대의 전진 스텝. 레인이 없으면(정체) 우리 회수.
+    const step = applyOpponentBuildStep({ state }, {
+      disposition: opponentBuildDisposition,
+      rng: opponentBuildDisposition ? rng.next : undefined,
+    });
+    if (!step || step.stalled) {
+      return defenseRegain(step?.at ?? { x: carrier.x, y: carrier.y });
+    }
+    dl.steps++;
+    const nu = holder();
+    logLine(t('log.defense.step').replace('{label}', nu.label), 'warn');
+    addPressure(5);
+    if (nu.x <= DEFENSE_SHOT_X || dl.steps >= DEFENSE_MAX_STEPS) return resolveOppShot(nu);
+    defendDecisionFor(nu);
+    return { ok: true, recovered: false, step };
+  }
+
+  // 상대 슛 — 거리·수비 세움(contained)·벗겨짐(beaten)·GK 키핑으로 xG 산출.
+  // 골이면 실점으로 공격 종료, 아니면 우리 GK부터 재개(공수 왕복).
+  function resolveOppShot(shooter) {
+    const dl = state.defenseLoop;
+    const d = dist(shooter, { x: 0, y: PITCH_H / 2 });
+    const gk = ours().find((p) => p.role === 'GK');
+    const keeping = gk?.traits?.keeping ?? 0.72;
+    const base = d < 16 ? 0.34 : d < 26 ? 0.22 : 0.12;
+    // 바닥 0.05: 내려서기만 반복해도 '완전 무료'는 아니게 — 안전하되 긴장은 남긴다.
+    const xg = clamp(base + dl.beaten * 0.06 - dl.contained * 0.04 - (keeping - 0.7) * 0.4, 0.05, 0.55);
+    state.defenseLoop = null;
+    state.matchDecision = null;
+    logLine(t('log.defense.shot').replace('{label}', shooter.label), 'warn');
+    if (rng.next() < xg) {
+      endAttempt('conceded', { shooter, xg });
+      return { ok: true, conceded: true, xg };
+    }
+    logLine(t('log.defense.saved'), 'success');
+    state.possession = 'us';
+    resetToKeeper(t('log.defense.restart'), 'info');
+    return { ok: true, conceded: false, xg, restarted: true };
   }
 
   function pressureHunters(point) {
@@ -317,7 +431,9 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
     state.phase = 'BUILDUP';
     state.consecutiveHolds = 0;
     state.defensivePress = null;
+    state.defenseLoop = null;
     state.matchDecision = null;
+    state.possession = 'us';
     clearPassContext();
     addPressure(-12);
     logLine(message, tone);
@@ -1411,6 +1527,11 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
       }
       if (state.defensivePress) {
         if (choiceId === 'dp_press' || choiceId === 'dp_cut' || choiceId === 'dp_drop') return resolveDefensivePress(choiceId);
+        return { ok: false, rejected: true };
+      }
+      // 수비 국면(A): 상대 전개 저지 3택.
+      if (state.defenseLoop && state.matchDecision?.id === 'defend') {
+        if (choiceId === 'dp_press' || choiceId === 'dp_cut' || choiceId === 'dp_drop') return resolveDefendStep(choiceId);
         return { ok: false, rejected: true };
       }
       if (state.status !== 'live') return { ok: false, rejected: true };

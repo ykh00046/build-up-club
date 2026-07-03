@@ -53,6 +53,15 @@ export function buildOutcome(kind, state, detail = {}) {
         ? fill('out.ownGoal.body', { name: name(detail.interceptor) })
         : `${josa(name(detail.interceptor), '이', '가')} 낮게 깔린 컷백을 걷어내려다 자기 골문으로. 바이라인 침투가 만든 득점입니다.`;
       break;
+    case 'conceded':
+      tone = 'fail';
+      headline = getLang() === 'en'
+        ? fill('out.conceded.headline', { name: name(detail.shooter) })
+        : `실점 — ${josa(name(detail.shooter), '이', '가')} 마무리했습니다`;
+      body = getLang() === 'en'
+        ? fill('out.conceded.body', { n: Math.round((detail.xg ?? 0) * 100) })
+        : fill('out.conceded.body', { n: Math.round((detail.xg ?? 0) * 100) });
+      break;
     case 'saved':
       tone = 'near';
       headline = fill('out.saved.headline', { name: name(detail.shooter), zone: zoneName });

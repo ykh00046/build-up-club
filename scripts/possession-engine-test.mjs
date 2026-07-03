@@ -24,13 +24,15 @@ function openSyntheticTurnover(engine) {
 
 console.log('=== 소유권 엔진 연결 테스트 (Phase 2b) ===\n');
 
-const defaultEngine = createEngine(getScenario('A1'), 301);
+// defenseLoop:false — 이 절은 루프 이전의 원(raw) 경로를 검증(기본값의 수비 국면은
+// defense-loop-test.mjs가 커버).
+const defaultEngine = createEngine(getScenario('A1'), 301, { defenseLoop: false });
 openSyntheticTurnover(defaultEngine);
 const defaultResult = defaultEngine.chooseSituationOption('cp_retreat');
-ok(defaultResult.ok && defaultResult.recovered === false, '기본 경로: cp_retreat 처리');
-ok(defaultEngine.state.status === 'over', '기본 경로: 기존처럼 시도 종료');
-ok(defaultEngine.state.outcome?.kind === 'intercepted', '기본 경로: 기존 outcome 유지');
-ok(defaultEngine.advanceOpponentBuildUp?.().rejected === true, '기본 경로: 상대 빌드업 전개 메서드 비활성');
+ok(defaultResult.ok && defaultResult.recovered === false, '원 경로: cp_retreat 처리');
+ok(defaultEngine.state.status === 'over', '원 경로(defenseLoop off): 기존처럼 시도 종료');
+ok(defaultEngine.state.outcome?.kind === 'intercepted', '원 경로: 기존 outcome 유지');
+ok(defaultEngine.advanceOpponentBuildUp?.().rejected === true, '원 경로: 상대 빌드업 전개 메서드 비활성');
 
 const loopEngine = createEngine(getScenario('A1'), 302, { possessionTurnoverLoop: true });
 openSyntheticTurnover(loopEngine);

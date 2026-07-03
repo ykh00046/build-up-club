@@ -221,10 +221,13 @@ export function resolveScoreline(perf, setup, rngNext, pmods = philoMods()) {
   concedeP *= (1 - dominance * 0.35);
   // 수비 전환(E1, §3.1): 볼 상실 시 역습 노출. 단, 지배력이 높았다면 레스트 디펜스가
   // 갖춰져 카운터프레스로 회복 — 통제된 상실일수록 역습 페널티가 줄어든다.
-  if (tone === 'fail') concedeP += 0.18 * (1 - dominance * 0.40) * (1 - (pmods.failConcedeRelief || 0));
+  // 수비 국면(A)에서 이미 인게임 실점이 났다면 역습 노출 가산은 생략 — 그 노출이
+  // 실제 골로 구현된 것이므로 이중 처벌하지 않는다. (필드 부재 시 rng 시퀀스 불변.)
+  if (tone === 'fail' && !P.concededLive) concedeP += 0.18 * (1 - dominance * 0.40) * (1 - (pmods.failConcedeRelief || 0));
   concedeP = clamp(concedeP, 0.02, 0.92);
 
-  let oppGoals = 0;
+  // 인게임 실점(수비 국면에서 상대 슛이 골) — 스코어라인에 그대로 반영.
+  let oppGoals = P.concededLive ? 1 : 0;
   if (rngNext() < concedeP) oppGoals += 1;
   if (rngNext() < concedeP * 0.45) oppGoals += 1;
   // 후반 피로 — 골은 막판에 몰린다(§3.2). 피로가 쌓였을 때만 늦은 실점 롤(피로 0이면
