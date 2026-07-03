@@ -17,7 +17,7 @@ import { detectShotZone, resolveShot, computeShotXg, shotBackpressure } from './
 import { buildOutcome } from './outcome.js';
 import { applyOpponentBuildStep, applyPossessionEvent } from './possession-adapter.js';
 import { oppBuildDryRun } from './dry-run.js';
-import { isDisposition, chooseOppBuild } from './opp-build-policy.js';
+import { isDisposition } from './opp-build-policy.js';
 import { createRng } from './rng.js';
 import {
   applyMatchDecision, createTacticalState, prepareSituations, resolveCounterRisk,
@@ -332,15 +332,16 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
     // 무접점이라 읽기 게임이 없었다(자기대국 감사). 상대 위험 루트가 공짜였던 것도
     // 이 항으로 비용이 생긴다: 위험하게 나오면 cut이 press를 역전한다.
     const route = oppBuildDryRun({ state })?.best ?? null;
-    // 예측 가능성 할인 — cutP는 best 루트를 읽지만 실제 상대 선택은 성향 레인이라
-    // 이탈률이 safe 35% ~ direct 77%다(2R 감사). 종잡을 수 없는 상대일수록 길목
-    // 읽기가 어렵다: 성향별 할인으로 cut 지배(순EV +9.1pp 독주)를 깎고, "안정적
-    // 상대엔 차단 / 럭비공 상대엔 압박·내려서기"라는 매치업 선택을 만든다.
     const PREDICTABILITY = { safe: 0.95, balanced: 0.85, aggressive: 0.7, direct: 0.6 };
     const pred = liveOppDisposition ? (PREDICTABILITY[liveOppDisposition] ?? 0.85) : 1;
-    const cutP = clamp(0.08 + (route?.risk ?? 0.4) * 0.38 * pred + (state.lineIntents.mid === 'support' ? 0.08 : 0), 0.1, 0.62);
+    // 차단(cut)은 존 커버 — 특정 수신자를 읽는 게 아니라 위험한 패스길(채널)을
+    // 막는다. 그래서 성향 무관(예측 할인 없음): 럭비공 상대든 정석 상대든 위험한
+    // 루트는 똑같이 끊기 쉽다. 지목(mark)이 "예측 의존 대인 도박"을 맡으므로 cut은
+    // "성향 독립 신뢰형 중간 회수"로 역할을 나눈다(니치 중복 정리, 4R 후속).
+    // 실패는 무비용(존을 지켰을 뿐 — 벗겨짐 없음)이라 press보다 안전하고, 회수
+    // 상한은 press보다 낮다.
+    const cutP = clamp(0.12 + (route?.risk ?? 0.4) * 0.32 + (state.lineIntents.mid === 'support' ? 0.08 : 0), 0.1, 0.56);
     state.defenseLoop.route = route?.targetReal ? { x: route.targetReal.x, y: route.targetReal.y } : null;
-    state.defenseLoop.routeTargetId = route?.target?.id ?? null;
     state.defenseLoop.regainP = regainP;
     state.defenseLoop.cutP = cutP;
     // 지목 마크(dp_mark) — 적중 시 회수 확률과 성향 신뢰도. 테스트가 강제할 수
@@ -472,21 +473,21 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
       if (choiceId === 'dp_press') dl.beaten++;
       logLine(choiceId === 'dp_press' ? t('log.defPress.pressFail') : t('log.defPress.cutFail'), 'error');
     } else if (choiceId === 'dp_mark') {
-      // 지목 마크 — 상대의 이번 루트를 먼저 확정해 인텔의 예상 수신자와 대조한다.
-      // 적중(같은 수신자)이면 markP로 선점 회수 — 예측 가능한 상대(safe)에게 강하고
-      // direct(이탈 77%)에겐 도박. 빗나가거나 미끄러지면 마커가 자리를 비운 값으로
-      // 슛각 헌납(beaten) — press 실패와 같은 통화, 확정한 루트는 그대로 실행된다.
-      const chosen = chooseOppBuild(oppBuildDryRun({ state }), liveOppDisposition,
-        liveOppDisposition ? rng.next : undefined);
+      // 지목 마크 — 예상 수신자에 대인으로 붙는 읽기 도박. 적중률은 성향 예측
+      // 가능성(pred)에서 직접 유도한다(markP × pred). 루트 매칭으로 판정하던 구식은
+      // 스텝 캡으로 전진 레인이 ~1개가 되면 성향과 무관하게 적중해 direct(79%)가
+      // safe(73%)보다 회수가 높은 역설을 낳았다(니치 중복 정리). pred는 성향에서
+      // 곧장 나오므로 robust: safe 0.95 → 잘 읽힘, direct 0.6 → 도박.
       dl.markUses = (dl.markUses ?? 0) + 1;
-      const hit = !!(chosen && dl.routeTargetId && chosen.target?.id === dl.routeTargetId);
-      if (hit && rng.next() < dl.markP) {
+      const markHitP = clamp(dl.markP * (dl.pred ?? 1), 0.08, 0.9);
+      if (rng.next() < markHitP) {
+        // 클린 인터셉트 — 수신자 앞에서 끊어 그대로 역공(모멘텀).
         logLine(t('log.defense.markWin'), 'success');
-        return defenseRegain(chosen.targetReal ?? { x: carrier.x, y: carrier.y });
+        return defenseRegain({ x: carrier.x, y: carrier.y }, { viaPress: true });
       }
+      // 빗나감 — 마커가 자리를 비워 슛각 헌납(press 실패와 같은 통화).
       dl.beaten++;
-      logLine(hit ? t('log.defense.markSlip') : t('log.defense.markMiss'), 'error');
-      dl.forcedChoice = chosen;
+      logLine(t('log.defense.markMiss'), 'error');
     } else {
       // 내려서기 — 회수 시도는 없지만 블록을 세워 마지막 슛 질을 깎는다.
       dl.contained++;
@@ -500,10 +501,7 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
       }
     }
     // 상대의 전진 스텝. 레인이 없으면(정체) 우리 회수.
-    // dp_mark가 이미 확정한 루트(forcedChoice)는 다시 굴리지 않고 그대로 실행.
-    const forced = dl.forcedChoice; dl.forcedChoice = null;
     const step = applyOpponentBuildStep({ state }, {
-      choice: forced ?? undefined,
       disposition: liveOppDisposition,
       rng: liveOppDisposition ? rng.next : undefined,
     });

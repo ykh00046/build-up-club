@@ -172,14 +172,14 @@ function openDefense(seed, opts = {}) {
   ok(capped, '파울 스팸 → 카드/프리킥 상한 발동 관측');
 }
 
-// 6d) 지목 마크 — 적중(결정적 best는 항상 예상 루트와 일치) / 미스(자리 헌납).
+// 6d) 지목 마크 — 적중률 = markP × pred. 적중(선점 회수) / 미스(자리 헌납).
 {
   const { e } = openDefense(41);
-  e.state.defenseLoop.markP = 1;                      // 적중 시 회수 강제
+  e.state.defenseLoop.markP = 1; e.state.defenseLoop.pred = 1;   // 적중 강제
   const r = e.chooseSituationOption('dp_mark');
-  ok(r.recovered === true, '지목 적중(null 성향=결정적 best) → 선점 회수');
+  ok(r.recovered === true, '지목 적중(markP×pred=1) → 선점 회수');
   const { e: e2 } = openDefense(43);
-  e2.state.defenseLoop.routeTargetId = 'no-such-id';  // 예측 강제 실패
+  e2.state.defenseLoop.markP = 0;                                // 적중 확률 0 → 미스 강제
   const before = e2.state.defenseLoop.beaten;
   const r2 = e2.chooseSituationOption('dp_mark');
   if (r2.recovered) {
