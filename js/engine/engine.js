@@ -1437,14 +1437,24 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
 
       const scoreOption = (actionId, target) => {
         let risk = 1, targetX = target.x;
+        // 추천의 합법성 — dispatch가 거부할 옵션은 후보에서 제외한다. 이 목록은
+        // UI 힌트와 AI 정책이 그대로 실행하므로, 여기서 새면 사람에겐 "실행 불가
+        // 추천"이, 자기대국엔 결정적 거부 루프(교착)가 된다. (자기대국 감사)
+        if (isOffside(target)) return null;
         if (actionId === 'to_feet') {
           const ev = evaluateLane(h, target, opps(), { rewardWindow: w });
           risk = clamp(ev.risk * (1.15 - (h.traits?.pass ?? 0.7) * 0.3), 0.02, 0.97);
           targetX = target.x;
         } else if (actionId === 'pass_space') {
           // 동료 앞 공간으로 — 공간 패스. 멀면 자동 로빙(롱패스 능력 필요).
-          const aim = { x: target.x + 10, y: target.y };
+          // 조준점은 dispatch(pass_space)와 같은 경계 클램프·최소거리 게이트를 통과해야 한다.
+          const aim = { x: clamp(target.x + 10, 2, PITCH_W - 2), y: clamp(target.y, 2, PITCH_H - 2) };
+          if (dist(h, aim) < 4) return null;
           if (dist(h, aim) > 28 && (h.traits?.longPass ?? 0) < LONG_PASS_GATE) return null;
+          // 실제 수신자는 착지점 최근접 us(조준 동료가 아닐 수 있음) — dispatch의
+          // 오프사이드 판정 대상과 같은 선수로 검사해야 추천이 안 새어 나간다.
+          const receiver = mates.reduce((a, p) => (dist(p, aim) < dist(a, aim) ? p : a), target);
+          if (isOffside(receiver)) return null;
           const ev = evaluateLane(h, aim, opps(), { lofted: dist(h, aim) > 28, rewardWindow: w });
           risk = clamp(ev.risk * (1.1 - (h.traits?.pass ?? 0.7) * 0.25), 0.02, 0.97);
           targetX = aim.x;
