@@ -32,15 +32,21 @@ function openDefense(seed, opts = {}) {
   ok(e.dispatch('to_feet', mate.id).rejected === true, '수비 결정 중 일반 액션 거부');
 }
 
-// 2) 강압박 회수 — 성공 시 우리 볼로 공격 재개(시도 계속).
+// 2) 강압박 회수 — 성공 시 우리 볼로 공격 재개(시도 계속). 회수 롤 난이도 배율
+//    (REGAIN_ROLL_MULT)이 걸려 regainP=1도 확정 성공이 아니므로, 성공하는 시드를
+//    찾아 회수 계약을 검증한다(메커닉 테스트 — 확률 무관).
 {
-  const { e } = openDefense(23);
-  e.state.defenseLoop.regainP = 1;
-  const r = e.chooseSituationOption('dp_press');
-  ok(r.recovered === true, '강압박 성공 → 회수');
-  ok(e.state.status === 'live' && e.holder()?.side === 'us', '회수 후 우리 볼·시도 계속');
-  ok(e.state.defenseLoop === null && e.state.matchDecision === null, '수비 상태 정리');
-  ok(e.state.possession === 'us', '점유 복귀');
+  let e = null, r = null;
+  for (let seed = 20; seed <= 120 && !r?.recovered; seed++) {
+    const d = openDefense(seed);
+    d.e.state.defenseLoop.regainP = 1;
+    const res = d.e.chooseSituationOption('dp_press');
+    if (res.recovered) { e = d.e; r = res; }
+  }
+  ok(r?.recovered === true, '강압박 성공 → 회수(성공 시드)');
+  ok(e && e.state.status === 'live' && e.holder()?.side === 'us', '회수 후 우리 볼·시도 계속');
+  ok(e && e.state.defenseLoop === null && e.state.matchDecision === null, '수비 상태 정리');
+  ok(e && e.state.possession === 'us', '점유 복귀');
 }
 
 // 3) 실패 누적 — 상대가 전진하고 새 결정이 열리거나 슛에 도달한다.
@@ -174,10 +180,14 @@ function openDefense(seed, opts = {}) {
 
 // 6d) 지목 마크 — 적중률 = markP × pred. 적중(선점 회수) / 미스(자리 헌납).
 {
-  const { e } = openDefense(41);
-  e.state.defenseLoop.markP = 1; e.state.defenseLoop.pred = 1;   // 적중 강제
-  const r = e.chooseSituationOption('dp_mark');
-  ok(r.recovered === true, '지목 적중(markP×pred=1) → 선점 회수');
+  let e = null, r = null;   // 배율 적용 후에도 적중하는 시드에서 회수 계약 검증
+  for (let seed = 40; seed <= 140 && !r?.recovered; seed++) {
+    const d = openDefense(seed);
+    d.e.state.defenseLoop.markP = 1; d.e.state.defenseLoop.pred = 1;   // 적중 강제(×배율)
+    const res = d.e.chooseSituationOption('dp_mark');
+    if (res.recovered) { e = d.e; r = res; }
+  }
+  ok(r?.recovered === true, '지목 적중(markP×pred=1) → 선점 회수(성공 시드)');
   const { e: e2 } = openDefense(43);
   e2.state.defenseLoop.markP = 0;                                // 적중 확률 0 → 미스 강제
   const before = e2.state.defenseLoop.beaten;

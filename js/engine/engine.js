@@ -290,6 +290,13 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
   // 상실지점 진입+direct burst 조합이 1결정 슛으로 붕괴. 22면 MF 수신 후에도
   // 결정이 하나 더 남는다(전방 x≈19가 진짜 사거리).
   const DEFENSE_SHOT_X = 22;        // 상대 캐리어가 이 x 아래로 오면 사거리(우리 골 x=0)
+  // 회수 난이도(8R concede-band): 각 수비 결정의 회수 성공률(regainP/cutP/markP)이
+  // ~0.5라 다결정 국면 누적 회수가 ~95%로 치솟아 볼 상실이 거의 처벌 안 됐다(수비
+  // 실점 밴드 8~18% 대비 ~3%). 이 배율은 '실제 회수 롤'에만 걸어 성공률만 낮춘다 —
+  // 정책값(dl.regainP 등)은 안 건드려 5택 상대균형·press 존재감을 보존하고, 상대가
+  // 전개를 이어갈 여지(슛 도달률↑)를 준다. (정책값까지 낮추면 회수 3택이 파울 밸브에
+  // 밀려 press 0%·foul 폭증 — 실패한 접근.)
+  const REGAIN_ROLL_MULT = 0.63;
 
   // 수비 국면의 재배치 — 22명 전원이 공격 대형 그대로 박제된 채 볼만 순간이동
   // 하던 문제(자기대국 감사: 국면 전체 이동량 0.00, 상대 GK의 최근접 '헌터'가
@@ -464,7 +471,7 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
       return { ok: true, fouled: true, reset: true };
     }
     if (choiceId === 'dp_press' || choiceId === 'dp_cut') {
-      const p = choiceId === 'dp_press' ? dl.regainP : dl.cutP;
+      const p = (choiceId === 'dp_press' ? dl.regainP : dl.cutP) * REGAIN_ROLL_MULT;
       if (rng.next() < p) {
         // 회수 위치가 두 선택의 보상을 가른다: 강압박=캐리어 지점(높은 회수 —
         // 그대로 역공), 차단=패스길 중간(더 깊음 — 안전하지만 재시작이 낮다).
@@ -486,7 +493,7 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
       // safe(73%)보다 회수가 높은 역설을 낳았다(니치 중복 정리). pred는 성향에서
       // 곧장 나오므로 robust: safe 0.95 → 잘 읽힘, direct 0.6 → 도박.
       dl.markUses = (dl.markUses ?? 0) + 1;
-      const markHitP = clamp(dl.markP * (dl.pred ?? 1), 0.08, 0.9);
+      const markHitP = clamp(dl.markP * (dl.pred ?? 1) * REGAIN_ROLL_MULT, 0.08, 0.9);
       if (rng.next() < markHitP) {
         // 클린 인터셉트 — 수신자 앞에서 끊어 그대로 역공(모멘텀).
         logLine(t('log.defense.markWin'), 'success');
@@ -542,10 +549,13 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
     const d = dist(shooter, { x: 0, y: PITCH_H / 2 });
     const gk = ours().find((p) => p.role === 'GK');
     const keeping = gk?.traits?.keeping ?? 0.72;
-    // 티어 0.34/0.22/0.12 → 0.30/0.18/0.10 (재배치 도입 보정): 지원 전진으로
-    // 슈터가 한 티어 가까워져 전 선택지 실점이 ~2배 뛰었다 — 위험 순증만 상쇄.
+    // 티어 0.30/0.18/0.10 → 0.42/0.34/0.26 (8R concede-band): 회수 난이도↑로 슛
+    // 도달이 늘자 저-xG 원거리 슛이 전환율을 희석(P(goal|shot) 11%)해 실점이 여전히
+    // 밴드(8~18%) 미달이었다. 슛이 실제로 위협이 되도록 xG 바닥을 올려 도달한 슛의
+    // 전환을 높인다(회수↓와 쌍 레버). 슈터가 사거리(x≤22)에 들면 d는 대개 22~30이라
+    // 중·원거리 티어(0.34/0.26)를 크게 올려야 효과가 난다.
     // + back 오버랩이면 뒷문 노출(+0.04) — defensivePressProb의 +0.05와 쌍.
-    const base = (d < 16 ? 0.30 : d < 26 ? 0.18 : 0.10) + intDef
+    const base = (d < 16 ? 0.42 : d < 26 ? 0.34 : 0.26) + intDef
       + (state.lineIntents.back === 'overlap' ? 0.04 : 0);
     // 바닥 0.05: 내려서기만 반복해도 '완전 무료'는 아니게 — 안전하되 긴장은 남긴다.
     const xg = clamp(base + dl.beaten * 0.06 - dl.contained * 0.04 - (keeping - 0.7) * 0.4, 0.05, 0.55);
