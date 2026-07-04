@@ -40,7 +40,7 @@ export function buildPolicyView(engine, side = 'us') {
     pressRead: dp ? { regainP: dp.regainP, cutP: dp.cutP }
       : dl ? {
           regainP: dl.regainP, cutP: dl.cutP, markP: dl.markP ?? 0.7, pred: dl.pred ?? 1,
-          steps: dl.steps, beaten: dl.beaten, contained: dl.contained,
+          steps: dl.steps, beaten: dl.beaten, strained: dl.strained ?? dl.beaten, contained: dl.contained,
           fouls: s.facts?.fouls ?? 0,
         }
       : null,
@@ -161,7 +161,10 @@ export function pressPolicy(view) {
     // (3) 파울까지 소진했으면 내려서기로 데미지 컨트롤(블록으로 슛 xG를 깎는 최후
     // 수단) — base보다 클 때만 승격. drop은 순EV로 늘 열등이라 이 지점에서만 최선.
     const bestOdds = Math.max(pr.regainP ?? 0, pr.cutP ?? 0, (pr.markP ?? 0) * (pr.pred ?? 1));
-    const beatenDeep = (pr.beaten ?? 0) >= 1 && (pr.steps ?? 0) >= 1;
+    // 위기 게이트는 '뚫림'(strained: press/cut/mark 실패 전부)으로 판정 — beaten만
+    // 쓰면 cut 실패가 안 세져 cut 지배 성향(aggressive/direct)에서 사다리가 영영 안 열린다
+    // (8R 감사 근본원인). safe/balanced는 cut을 거의 안 써 strained==beaten이라 불변.
+    const beatenDeep = (pr.strained ?? pr.beaten ?? 0) >= 1 && (pr.steps ?? 0) >= 1;
     const regainPoor = bestOdds < 0.40;
     const foulLeft = (pr.fouls ?? 0) < 2;
     values.dp_foul = beatenDeep ? (foulLeft ? (regainPoor ? 0.62 : 0.34) : 0.01) : 0.01;

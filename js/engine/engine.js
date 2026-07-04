@@ -398,7 +398,10 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
       }
     }
     clearPassContext();
-    state.defenseLoop = { steps: 0, beaten: 0, contained: 0, regainP: 0, cutP: 0 };
+    // beaten = 슛각 헌납(press/mark 실패, xG 가중). strained = 위기 사다리 게이트용
+    // '뚫림' 카운터(press/cut/mark 실패 모두) — cut 실패는 슛각을 안 내주므로 beaten엔
+    // 안 세지만 사다리 판정엔 세야 cut 지배 성향(aggressive/direct)도 파울/드롭이 열린다.
+    state.defenseLoop = { steps: 0, beaten: 0, strained: 0, contained: 0, regainP: 0, cutP: 0 };
     logLine(t('log.defense.open'), 'warn');
     defendDecisionFor(carrier);
     return true;
@@ -456,7 +459,7 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
       state.turn++;
       state.holderId = deep.id;
       if (state.ball) { state.ball.x = deep.x; state.ball.y = deep.y; }
-      dl.steps = 0; dl.beaten = 0; dl.contained = 0; dl.markUses = 0;
+      dl.steps = 0; dl.beaten = 0; dl.strained = 0; dl.contained = 0; dl.markUses = 0;
       defendDecisionFor(deep);
       return { ok: true, fouled: true, reset: true };
     }
@@ -471,7 +474,9 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
           : { x: carrier.x, y: carrier.y };
         return defenseRegain(at, { viaPress: choiceId === 'dp_press' });
       }
-      // 점프했다 벗겨짐 — 상대에게 전진을 내주고, 강압박 실패는 슛 각까지 헌납.
+      // 점프했다 벗겨짐 — 상대에게 전진을 내준다. 강압박 실패는 슛 각까지 헌납
+      // (beaten, xG↑). cut 실패는 슛각은 안 내주지만 '뚫림'이므로 위기 사다리엔 센다.
+      dl.strained = (dl.strained ?? 0) + 1;
       if (choiceId === 'dp_press') dl.beaten++;
       logLine(choiceId === 'dp_press' ? t('log.defPress.pressFail') : t('log.defPress.cutFail'), 'error');
     } else if (choiceId === 'dp_mark') {
@@ -489,6 +494,7 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
       }
       // 빗나감 — 마커가 자리를 비워 슛각 헌납(press 실패와 같은 통화).
       dl.beaten++;
+      dl.strained = (dl.strained ?? 0) + 1;
       logLine(t('log.defense.markMiss'), 'error');
     } else {
       // 내려서기 — 회수 시도는 없지만 블록을 세워 마지막 슛 질을 깎는다.
@@ -1460,11 +1466,16 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
   function tryBait(h) {
     const scheme = scenario.scheme;
     const manLike = scheme === 'man' || scheme === 'hybrid';
-    // 가장 가까운 마커 후보(대인이면 markId 있는 수비수, 지역이면 아무 필드 수비수).
+    // markId 필수는 순수 'man'만 — 하이브리드 포메이션(build433Hybrid 등)은 어떤
+    // 수비수에도 markId를 안 줘서, hybrid까지 markId를 요구하면 마커를 영영 못 찾아
+    // 유인 콤비가 hybrid 셀 전체에서 죽는다(8R 감사). hybrid는 zonal처럼 최근접
+    // 수비수를 마커로 쓰고, 리시버는 아래에서 markId 있으면 그걸·없으면 공간최근접.
+    const strictMan = scheme === 'man';
+    // 가장 가까운 마커 후보(순수 대인만 markId 필수, 그 외 아무 필드 수비수).
     let marker = null, md = Infinity;
     for (const def of opps()) {
       if (def.line === 'gk') continue;
-      if (manLike && !def.markId) continue;
+      if (strictMan && !def.markId) continue;
       const dd = dist(def, h);
       if (dd < md) { md = dd; marker = def; }
     }
@@ -1528,12 +1539,13 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
     if (!h || h.side !== 'us') return null;
     const scheme = scenario.scheme;
     const manLike = scheme === 'man' || scheme === 'hybrid';
+    const strictMan = scheme === 'man';   // tryBait과 동일: hybrid는 markId 불필요
     const maxCarry = carryRange(h.traits);
     // 캐리로 도발 밴드(≤~BAIT_FAR)에 닿을 수 있는 마커 — 홀더에서 (밴드+사거리) 안.
     let marker = null, md = Infinity;
     for (const def of opps()) {
       if (def.line === 'gk') continue;
-      if (manLike && !def.markId) continue;
+      if (strictMan && !def.markId) continue;
       const dd = dist(def, h);
       if (dd < md && dd <= maxCarry + BAIT_FAR && dd > BAIT_NEAR) { md = dd; marker = def; }
     }
