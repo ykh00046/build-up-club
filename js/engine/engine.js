@@ -520,6 +520,16 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
     const nu = holder();
     logLine(t('log.defense.step').replace('{label}', nu.label), 'warn');
     addPressure(5);
+    // 첫 스텝은 슛으로 직결되지 않는다(≥2결정 보장) — 볼을 막 되찾은 팀도 킬패스
+    // 전에 한 번은 정리한다. 이게 없으면 미드밴드 선수가 없는 포메이션(게겐)의 loss
+    // 진입이 100% 1결정 즉사가 된다(8R D2): 진입 후보가 백4(x≈51)뿐인데 direct의
+    // burst 스텝(STEP_CAP×1.5=48)이 그대로 사거리를 넘겨서다. 첫 스텝이 사거리를
+    // 넘기면 사거리 밖으로 세우고 수비 결정을 한 번 더 준다. (reset 진입은 GK 시작이
+    // 깊어 첫 스텝이 애초에 사거리에 못 닿으므로 실질 영향은 loss 진입 한정.)
+    if (nu.x <= DEFENSE_SHOT_X && dl.steps < 2) {
+      nu.x = DEFENSE_SHOT_X + 8; nu.tx = nu.x;
+      if (state.ball) state.ball.x = nu.x;
+    }
     if (nu.x <= DEFENSE_SHOT_X || dl.steps >= DEFENSE_MAX_STEPS) return resolveOppShot(nu);
     defendDecisionFor(nu);
     return { ok: true, recovered: false, step };

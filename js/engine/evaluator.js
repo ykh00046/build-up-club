@@ -76,7 +76,11 @@ function buildCarryCandidate(engine) {
     const phaseBonus = (state.phase === 'BUILDUP' && p.to.x > PHASE_LINES_EV.PROGRESSION) ? 0.28
       : (state.phase === 'PROGRESSION' && p.to.x > PHASE_LINES_EV.FINAL_THIRD) ? 0.28 : 0;
     const baitBonus = 0.04;   // 커밋 유인 EV — 과대평가 시 carry 스팸(위 주석) 재발
-    const score = (1 - p.risk) * 0.50 + clamp(progress / 55, -0.3, 1) * 0.22 + phaseBonus + baitBonus - 0.03;
+    // 안전 가중 0.50→0.56 (8R A2): carry 실측 risk가 구조적으로 낮은데(0.05) net 랭킹이
+    // 이를 덜 반영해, AI가 net은 근소히 높지만 훨씬 위험한 패스를 안전 carry보다 자주
+    // 골라 실측 goal%가 샜다(carry-greedy +5.2pt). 소폭만 올려 '명백히 안전한' carry만
+    // 넘긴다 — 연속-carry 가드(위 slice(-2))가 스팸은 계속 막는다.
+    const score = (1 - p.risk) * 0.53 + clamp(progress / 55, -0.3, 1) * 0.22 + phaseBonus + baitBonus - 0.03;
     const reward = score + clamp(progress / 48, -0.15, 0.45);
     const cand = {
       type: 'pass',
