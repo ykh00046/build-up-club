@@ -1354,13 +1354,16 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
       // 리시버 드롭 지점 — 마커가 비운 자리(vacated)에서 전진 방향(상대 골 x=105)
       // 으로 한 발. 내려오며 받아 앞을 본다.
       const drop = { x: clamp(b.vacated.x + 4, 2, PITCH_W - 2), y: clamp(b.vacated.y, 2, PITCH_H - 2) };
-      // 자동 릴리서 — 캐리어/리시버 아닌 동료 중 리시버로 가는 레인이 가장 깨끗한
-      // 3자(끌려온 마커가 막은 직접 레인 대신 옆각을 제공).
-      let releaser = null, bestRisk = 1;
-      for (const p of ours()) {
-        if (p.role === 'GK' || p.id === h.id || p.id === receiver.id) continue;
-        const ev = evaluateLane(p, drop, opps(), {});
-        if ((ev.risk ?? 1) < bestRisk) { bestRisk = ev.risk ?? 1; releaser = p; }
+      // 릴리서 — 유인 시 릴레이 런으로 이동한 3자(releaserId), 없으면 가장 깨끗한
+      // 각의 동료. 끌려온 마커가 막은 직접 레인 대신 옆각을 제공한다.
+      let releaser = b.releaserId ? byId(b.releaserId) : null;
+      let bestRisk = releaser ? (evaluateLane(releaser, drop, opps(), {}).risk ?? 1) : 1;
+      if (!releaser) {
+        for (const p of ours()) {
+          if (p.role === 'GK' || p.id === h.id || p.id === receiver.id) continue;
+          const ev = evaluateLane(p, drop, opps(), {});
+          if ((ev.risk ?? 1) < bestRisk) { bestRisk = ev.risk ?? 1; releaser = p; }
+        }
       }
       if (!releaser) { state.baited = null; return fail(t('log.fail.noBait')); }
       const fromPos = { x: releaser.x, y: releaser.y };
@@ -1466,7 +1469,25 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
     const vacated = { x: marker.x, y: marker.y };
     marker.committedTurns = 2;
     marker.tx = (marker.x + h.x) / 2; marker.ty = (marker.y + h.y) / 2;   // 시각 당김
-    state.baited = { markerId: marker.id, receiverId, carrierId: h.id, vacated };
+    // 3자의 릴레이 런(사용자 모델 "3자 움직임이 같이 있어야") — 유인과 동시에
+    // 지원 선수가 뒷공간으로 가는 깨끗한 릴레이 각으로 이동한다. 이게 없으면
+    // 자기대국 AI는 3자 위치를 안 잡아 콤비가 완성 안 됐다(Phase 3 발견).
+    const drop = { x: clamp(vacated.x + 4, 2, PITCH_W - 2), y: vacated.y };
+    let releaser = null, bd = Infinity;
+    for (const p of ours()) {
+      if (p.role === 'GK' || p.id === h.id || p.id === receiverId) continue;
+      const dd = dist(p, drop);
+      if (dd < bd) { bd = dd; releaser = p; }
+    }
+    if (releaser) {
+      // 릴레이 지점 — 캐리어와 드롭 사이, 측면으로 벌려(마커 밖 깨끗한 각).
+      const side = releaser.y >= vacated.y ? 1 : -1;
+      const relay = { x: clamp((h.x + drop.x) / 2, 2, PITCH_W - 2), y: clamp(vacated.y + side * 10, 2, PITCH_H - 2) };
+      releaser.x = relay.x; releaser.y = relay.y; releaser.tx = relay.x; releaser.ty = relay.y;
+      state.baited = { markerId: marker.id, receiverId, releaserId: releaser.id, carrierId: h.id, vacated };
+    } else {
+      state.baited = { markerId: marker.id, receiverId, carrierId: h.id, vacated };
+    }
     logLine(t('log.bait.pulled').replace('{label}', marker.label), 'success');
     return { baited: true, d: md, commitP, markerId: marker.id, receiverId };
   }
@@ -1480,6 +1501,46 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
       if (dd < bd) { bd = dd; best = p; }
     }
     return best?.id ?? null;
+  }
+
+  // 유인 콤비 미리보기(Phase 3) — evaluator가 유인 캐리를 추천할지 판단하는 재료.
+  // 홀더가 캐리 사거리 안에서 도발 밴드로 닿을 수 있는 대인 마커가 있고, 뒷공간
+  // 드롭을 받아줄 3자(깨끗한 각의 릴리서)가 있으면 { point, commitP, value } 반환.
+  // point = 마커에서 3m 남긴 도발 지점. baitCombo off면 null(안 켜지면 추천 무의미).
+  function previewBait() {
+    if (!baitCombo) return null;
+    const h = holder();
+    if (!h || h.side !== 'us') return null;
+    const scheme = scenario.scheme;
+    const manLike = scheme === 'man' || scheme === 'hybrid';
+    const maxCarry = carryRange(h.traits);
+    // 캐리로 도발 밴드(≤~BAIT_FAR)에 닿을 수 있는 마커 — 홀더에서 (밴드+사거리) 안.
+    let marker = null, md = Infinity;
+    for (const def of opps()) {
+      if (def.line === 'gk') continue;
+      if (manLike && !def.markId) continue;
+      const dd = dist(def, h);
+      if (dd < md && dd <= maxCarry + BAIT_FAR && dd > BAIT_NEAR) { md = dd; marker = def; }
+    }
+    if (!marker) return null;
+    // 도발 지점 — 마커를 향해 3m 남기고(스위트스폿). 홀더→마커 방향.
+    const dx = marker.x - h.x, dy = marker.y - h.y, dd = Math.hypot(dx, dy) || 1;
+    const gap = 3;
+    const point = { x: marker.x - dx / dd * gap, y: marker.y - dy / dd * gap };
+    // 릴레이 런이 3자 각을 만들어주므로(tryBait), 사전 깨끗한 레인은 요구하지
+    // 않는다. 다만 릴레이·리시버가 될 지원 선수가 아예 없으면 콤비 불가.
+    const support = ours().some((p) => p.role !== 'GK' && p.id !== h.id && p.id !== marker.markId);
+    if (!support) return null;
+    // 가치 = 커밋 확률 × 드롭 전진도. 깊은 마커(수비수, x큰쪽)를 깨면 파이널서드로
+    // 진입 = 고가치(마지막 라인 돌파). 미드필더를 깨면 미드필드에 그쳐 저가치 —
+    // 직접 전진 패스를 밀어내면 오히려 손해라 이때는 추천 안 되게(drop.x 비례).
+    // 값은 보수적으로 — 콤비는 순EV 최적이 아니라 플레이어의 전술 도구(2턴 маневر라
+    // 직접 전진 패스가 있으면 그게 낫다). 직접 플레이가 약할 때만 이 후보가 이기게
+    // 낮게 둔다(자기대국 goal% 중립 유지). 깊은 마커(파이널 진입)일수록만 소폭↑.
+    const commitP = clamp((BAIT_FAR - gap) / (BAIT_FAR - BAIT_NEAR) * 0.5 + 0.35, 0.2, 0.9);
+    const advance = clamp((marker.x + 4 - 42) / 38, 0, 1);   // 드롭(마커+4) x42 미드 0 → x80 파이널 1
+    const value = commitP * advance * 0.22;
+    return { point, commitP, value, markerId: marker.id };
   }
 
   function distToSegmentLocal(p, a, b) {
@@ -1653,6 +1714,8 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
       const { to, risk } = planCarry(h, point);
       return { to, risk };
     },
+
+    previewBait,   // 유인 콤비 후보 재료(Phase 3) — evaluator가 유인 캐리 추천에 사용.
 
     previewShot() {
       if (state.phase !== 'FINAL_THIRD') return null;

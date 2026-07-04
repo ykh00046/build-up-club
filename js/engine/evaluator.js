@@ -122,6 +122,27 @@ function buildHoldCandidate(engine) {
   };
 }
 
+// 유인 캐리 후보(Phase 3) — 유인–3자 콤비가 성립하는 자리에서 마커를 향한 캐리를
+// 추천한다. previewBait가 도발 지점·커밋 확률·릴리서 존재를 계산하므로, 그 value를
+// 후보 보상으로 얹는다. 이 캐리가 성공하면 유인 창이 열리고(state.baited) 다음 수
+// release로 라인 브레이크. (baitCombo off면 previewBait null → 후보 없음.)
+function buildBaitCandidate(engine) {
+  const h = engine.holder?.();
+  if (!h || typeof engine.previewBait !== 'function') return null;
+  const pv = engine.previewBait();
+  if (!pv || !pv.point) return null;
+  const p = engine.previewCarry?.(pv.point);
+  if (!p || p.risk >= 0.6) return null;   // 도발 캐리 자체가 위험하면(태클) 제외
+  // 보상 = 콤비 기대 전진 가치(previewBait가 이미 성공 사슬로 보수 산정) + 캐리
+  // 안전 소폭. 구식 flat 0.30 base가 콤비를 과대평가해 좋은 일반 패스를 밀어냈다.
+  const reward = pv.value + (1 - p.risk) * 0.12;
+  return {
+    type: 'pass', action: 'carry', target: h, point: p.to,
+    risk: p.risk, safety: 1 - p.risk, score: reward, progress: 6, reward,
+    engine, reason: 'bait the marker — third-man combo',
+  };
+}
+
 function buildShotCandidate(engine) {
   const shot = engine.previewShot?.();
   if (!shot) return null;
@@ -166,6 +187,7 @@ export function evaluateBoard(engine, options = {}) {
   const candidates = [
     ...buildPassCandidates(engine, limit),
     buildCarryCandidate(engine),
+    buildBaitCandidate(engine),
     buildHoldCandidate(engine),
     buildShotCandidate(engine),
   ].filter(Boolean).map((candidate) => annotate(candidate, state));

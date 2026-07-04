@@ -47,12 +47,14 @@ export function buildPolicyView(engine, side = 'us') {
     situation: md
       ? { id: md.id, choices: md.choices.map((c) => ({ id: c.id, label: c.label, desc: c.desc })) }
       : null,
+    baited: s.baited ? { receiverId: s.baited.receiverId } : null,   // 유인 창(release 대기)
   };
 }
 
 function legalActionsFor(engine, md, holder) {
   if (md) return md.choices.map((c) => c.id);
   if (holder?.side !== 'us') return [];
+  if (engine.state?.baited) return ['release'];   // 유인 창은 릴리스로만 완성
   const acts = ['to_feet', 'pass_space', 'carry', 'hold', 'press_mode'];
   if (engine.shotZoneNow?.()) acts.push('shoot');
   return acts;
@@ -73,6 +75,11 @@ export function executePolicyAction(engine, action) {
 
 // 공격: boardRead.best 를 고른다. 좋은 슛이면 슛, 좋은 패스면 패스, 없으면 기다리기.
 export function attackPolicy(view) {
+  // 유인 창이 열려 있으면(직전 유인 캐리 성공) 3자 릴리스로 완성한다 —
+  // 뒷공간 드롭 + FACING = 라인 브레이크(유인–3자 콤비 Phase 3).
+  if (view.baited) {
+    return { kind: 'engine_action', actionId: 'release', confidence: 0.8, reason: 'bait armed — third-man release into the space' };
+  }
   const b = chooseAttackCandidate(view);
   if (!b) return { kind: 'engine_action', actionId: 'hold', confidence: 0.2, reason: 'no good option, recycle' };
   if (b.type === 'shot') {
