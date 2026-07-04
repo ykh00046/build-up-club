@@ -335,14 +335,14 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
     const route = oppBuildDryRun({ state })?.best ?? null;
     const PREDICTABILITY = { safe: 0.95, balanced: 0.85, aggressive: 0.7, direct: 0.6 };
     const pred = liveOppDisposition ? (PREDICTABILITY[liveOppDisposition] ?? 0.85) : 1;
-    // 차단(cut)은 존 커버 — 채널을 막는다. 예측 가능한 상대일수록 어느 길목으로
-    // 올지 알아 덮기 쉽고, 럭비공(direct)은 어디로 튈지 몰라 채널 커버가 어렵다.
-    // 구식은 route.risk를 읽었으나 수비 국면 dry-run risk가 0.95 클램프 포화라
-    // 사실상 상수(0.41)였다 — 성향이 cut에 전혀 반영 안 됨(6R 감사: balanced≡
-    // aggressive). pred(성향 예측 가능성)로 대체: safe 0.44 ~ direct 0.32.
-    // mark(강한 pred 의존, 대인 도박)과 달리 cut은 약한 pred 의존 + offLaneThreat
-    // (위험 길목 차단)이라 역할은 여전히 구분된다. 실패 무비용(존 유지 — 벗겨짐 없음).
-    const cutP = clamp(0.10 + pred * 0.34 + (state.lineIntents.mid === 'support' ? 0.08 : 0), 0.1, 0.56);
+    // 차단(cut)은 존 커버 — 성향 독립(flat). cut/mark 니치의 핵심: cut은 어느
+    // 상대든 채널을 덮는 신뢰형, mark(markP×pred)은 예측 가능 상대 대인 도박.
+    // 예측 불가(aggressive/direct) 상대에선 mark이 약해 cut이 이기고, 예측 가능
+    // (safe/balanced)에선 mark이 이긴다 — 이 분리는 cut이 flat일 때만 성립한다.
+    // 7R 감사: cutP를 pred 기반으로 바꿨더니(e72de93) cut이 예측 불가 상대에서
+    // 오히려 낮아져 loss 진입 cut 0% 소멸·reset balanced 니치 역전 → flat 복귀.
+    // (성향은 이미 "예측가능→mark, 불가→cut" 선택 자체로 반영됨.)
+    const cutP = clamp(0.12 + (route?.risk ?? 0.4) * 0.32 + (state.lineIntents.mid === 'support' ? 0.08 : 0), 0.1, 0.56);
     state.defenseLoop.route = route?.targetReal ? { x: route.targetReal.x, y: route.targetReal.y } : null;
     state.defenseLoop.regainP = regainP;
     state.defenseLoop.cutP = cutP;
@@ -1354,6 +1354,15 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
       // 리시버 드롭 지점 — 마커가 비운 자리(vacated)에서 전진 방향(상대 골 x=105)
       // 으로 한 발. 내려오며 받아 앞을 본다.
       const drop = { x: clamp(b.vacated.x + 4, 2, PITCH_W - 2), y: clamp(b.vacated.y, 2, PITCH_H - 2) };
+      // 오프사이드 정직성 — 마커가 비운 뒷공간이 곧 최종라인 뒤라 드롭이 라인을
+      // 넘으면 반칙(7R 감사: 릴리스 86%가 오프사이드였는데 release 경로가 isOffside를
+      // 안 탐). 드롭을 최종라인 살짝 앞으로 당긴다: 끌려나간 마커의 공간에서 전진
+      // 방향으로 받되 라인은 넘지 않는다(온사이드 라인 브레이크).
+      // 온사이드 상한 = max(볼 x, 최종라인-0.5). 캐리어가 이미 라인 뒤로 들어갔으면
+      // (h.x가 라인보다 깊음) 리시버는 볼과 나란히(볼 뒤=항상 온사이드)로 당기고,
+      // 아니면 최종라인 살짝 앞으로. 어느 경우든 offside 없이 전진 방향으로 받는다.
+      const offLine = offsideLine(opps());
+      drop.x = Math.min(drop.x, Math.max(h.x, offLine - 0.5));
       // 릴리서 — 유인 시 릴레이 런으로 이동한 3자(releaserId), 없으면 가장 깨끗한
       // 각의 동료. 끌려온 마커가 막은 직접 레인 대신 옆각을 제공한다.
       let releaser = b.releaserId ? byId(b.releaserId) : null;
@@ -1465,7 +1474,13 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
     if (rng.next() >= commitP) { state.baited = null; return { baited: false, d: md, commitP, markerId: marker.id }; }
     // 유인 성공 — 리시버를 정하고 마커를 커밋시킨다(캐리어 쪽으로 시각적 당김).
     // vacated는 마커의 '원자리'라 리시버가 그리로 내려오면 뒷공간을 쓴다.
-    const receiverId = manLike && marker.markId ? marker.markId : nearestReceiverToVacated(marker);
+    // 리시버 = 끌려나온 마커의 담당(대인). 단 그 담당이 홀더 자신이면(내 1v1 마커를
+    // 당긴 경우) 리시버가 나 자신이 돼 "자기에게 릴리스"로 퇴화한다(7R 감사: 97.3%).
+    // 그때는 비워진 공간 최근접의 '다른' 팀원이 3자로 내려온다(nearestReceiverToVacated
+    // 는 홀더 제외). 이러면 어느 경우든 리시버 ≠ 홀더가 보장된다.
+    const receiverId = (manLike && marker.markId && marker.markId !== h.id)
+      ? marker.markId : nearestReceiverToVacated(marker);
+    if (!receiverId) { state.baited = null; return { baited: false, d: md, commitP, markerId: marker.id }; }
     const vacated = { x: marker.x, y: marker.y };
     marker.committedTurns = 2;
     marker.tx = (marker.x + h.x) / 2; marker.ty = (marker.y + h.y) / 2;   // 시각 당김
@@ -1528,8 +1543,8 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
     const gap = 3;
     const point = { x: marker.x - dx / dd * gap, y: marker.y - dy / dd * gap };
     // 릴레이 런이 3자 각을 만들어주므로(tryBait), 사전 깨끗한 레인은 요구하지
-    // 않는다. 다만 릴레이·리시버가 될 지원 선수가 아예 없으면 콤비 불가.
-    const support = ours().some((p) => p.role !== 'GK' && p.id !== h.id && p.id !== marker.markId);
+    // 않는다. 다만 릴레이·리시버가 될 지원 선수(홀더 아닌 필드 팀원)가 없으면 불가.
+    const support = ours().some((p) => p.role !== 'GK' && p.id !== h.id);
     if (!support) return null;
     // 가치 = 커밋 확률 × 드롭 전진도. 깊은 마커(수비수, x큰쪽)를 깨면 파이널서드로
     // 진입 = 고가치(마지막 라인 돌파). 미드필더를 깨면 미드필드에 그쳐 저가치 —
@@ -1538,7 +1553,11 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
     // 직접 전진 패스가 있으면 그게 낫다). 직접 플레이가 약할 때만 이 후보가 이기게
     // 낮게 둔다(자기대국 goal% 중립 유지). 깊은 마커(파이널 진입)일수록만 소폭↑.
     const commitP = clamp((BAIT_FAR - gap) / (BAIT_FAR - BAIT_NEAR) * 0.5 + 0.35, 0.2, 0.9);
-    const advance = clamp((marker.x + 4 - 42) / 38, 0, 1);   // 드롭(마커+4) x42 미드 0 → x80 파이널 1
+    // 전진도는 실제 드롭(release와 동일한 온사이드 클램프 적용)으로 계산 — 깊은
+    // 마커는 드롭이 최종라인 앞으로 당겨지므로 가치를 부풀리지 않는다.
+    const offLine = offsideLine(opps());
+    const dropX = Math.min(marker.x + 4, Math.max(h.x, offLine - 0.5));   // release와 동일 온사이드
+    const advance = clamp((dropX - 42) / 38, 0, 1);   // 드롭 x42 미드 0 → x80 파이널 1
     const value = commitP * advance * 0.22;
     return { point, commitP, value, markerId: marker.id };
   }
