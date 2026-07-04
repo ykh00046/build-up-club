@@ -334,13 +334,14 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
     const route = oppBuildDryRun({ state })?.best ?? null;
     const PREDICTABILITY = { safe: 0.95, balanced: 0.85, aggressive: 0.7, direct: 0.6 };
     const pred = liveOppDisposition ? (PREDICTABILITY[liveOppDisposition] ?? 0.85) : 1;
-    // 차단(cut)은 존 커버 — 특정 수신자를 읽는 게 아니라 위험한 패스길(채널)을
-    // 막는다. 그래서 성향 무관(예측 할인 없음): 럭비공 상대든 정석 상대든 위험한
-    // 루트는 똑같이 끊기 쉽다. 지목(mark)이 "예측 의존 대인 도박"을 맡으므로 cut은
-    // "성향 독립 신뢰형 중간 회수"로 역할을 나눈다(니치 중복 정리, 4R 후속).
-    // 실패는 무비용(존을 지켰을 뿐 — 벗겨짐 없음)이라 press보다 안전하고, 회수
-    // 상한은 press보다 낮다.
-    const cutP = clamp(0.12 + (route?.risk ?? 0.4) * 0.32 + (state.lineIntents.mid === 'support' ? 0.08 : 0), 0.1, 0.56);
+    // 차단(cut)은 존 커버 — 채널을 막는다. 예측 가능한 상대일수록 어느 길목으로
+    // 올지 알아 덮기 쉽고, 럭비공(direct)은 어디로 튈지 몰라 채널 커버가 어렵다.
+    // 구식은 route.risk를 읽었으나 수비 국면 dry-run risk가 0.95 클램프 포화라
+    // 사실상 상수(0.41)였다 — 성향이 cut에 전혀 반영 안 됨(6R 감사: balanced≡
+    // aggressive). pred(성향 예측 가능성)로 대체: safe 0.44 ~ direct 0.32.
+    // mark(강한 pred 의존, 대인 도박)과 달리 cut은 약한 pred 의존 + offLaneThreat
+    // (위험 길목 차단)이라 역할은 여전히 구분된다. 실패 무비용(존 유지 — 벗겨짐 없음).
+    const cutP = clamp(0.10 + pred * 0.34 + (state.lineIntents.mid === 'support' ? 0.08 : 0), 0.1, 0.56);
     state.defenseLoop.route = route?.targetReal ? { x: route.targetReal.x, y: route.targetReal.y } : null;
     state.defenseLoop.regainP = regainP;
     state.defenseLoop.cutP = cutP;
