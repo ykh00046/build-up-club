@@ -12,12 +12,16 @@
 //   calm  = 후보 중 최저 risk (safe의 정체성 — best가 위험하면 덜 위험한 우회로)
 //   burst = 후보 중 최대 progress (direct의 정체성 — 한 방에 전진 크게)
 
+// aim   = 목표 전진도(0=최단 유지 ~ 1=최대 전진). 위험이 포화(수비 조밀 → 모든
+//         레인 risk≈0.95)돼 저위험 옵션이 없을 때도 '전진 정도' 축으로 성향을 가른다.
+// riskW  = 위험 회피 계수(위험이 유의미하게 다를 때 추가 분화 — safe는 크게 회피).
+// capDelta = best.risk 대비 허용 추가 위험(위험 캡 — 비포화 국면에서 safe가 고위험
+//         레인을 원천 배제하는 정체성; 포화 국면에선 사실상 무력화돼 aim이 주도).
 export const OPP_DISPOSITIONS = {
-  //          best   gamble trap  calm  burst  capDelta(best.risk 대비 허용 추가 위험)
-  safe:       { best: 0.3,  gamble: 0.0,  trap: 0.0,  calm: 0.7,  burst: 0.0,  capDelta: 0.02 },
-  balanced:   { best: 0.55, gamble: 0.3,  trap: 0.0,  calm: 0.15, burst: 0.0,  capDelta: 0.12 },
-  aggressive: { best: 0.25, gamble: 0.55, trap: 0.2,  calm: 0.0,  burst: 0.0,  capDelta: 0.45 },
-  direct:     { best: 0.15, gamble: 0.45, trap: 0.0,  calm: 0.0,  burst: 0.4,  capDelta: 0.35 },
+  safe:       { aim: 0.20, riskW: 0.50, capDelta: 0.02 },
+  balanced:   { aim: 0.50, riskW: 0.30, capDelta: 0.12 },
+  aggressive: { aim: 0.85, riskW: 0.12, capDelta: 0.45 },
+  direct:     { aim: 1.00, riskW: 0.05, capDelta: 0.35 },
 };
 
 export function isDisposition(name) {
@@ -32,42 +36,35 @@ export function chooseOppBuild(read, disposition, rng = Math.random) {
   if (!disposition || !isDisposition(disposition) || !cands.length) return best;
 
   const profile = OPP_DISPOSITIONS[disposition];
-  const calm = cands.reduce((a, c) => (((c.risk ?? 1) < (a?.risk ?? 1)) ? c : a), null);
-  const burst = cands.reduce((a, c) => (((c.progress ?? -1) > (a?.progress ?? -1)) ? c : a), null);
-  const cap = (best?.risk ?? 0) + profile.capDelta;
-  const lanes = [
-    { c: best, w: profile.best },
-    { c: read.gamble, w: profile.gamble },
-    { c: read.trap, w: profile.trap },
-    { c: calm, w: profile.calm },
-    { c: burst, w: profile.burst },
-  ].filter((l) => l.c && l.w > 0 && (l.c.risk ?? 0) <= cap);
-  if (!lanes.length) return best;                          // 전부 걸러지면 안전하게 best
-  // 전진 불가(정체) 레인은 대안이 있으면 스스로 피한다 — 상대 AI 수준(자기대국
-  // 감사: D2 safe가 prog=0 레인을 골라 국면의 49%를 자멸, 수비가 무이벤트).
-  // 진짜 출구가 없을 때만 정체 = 회수는 상대 실수가 아니라 세운 블록의 몫.
-  const viable = lanes.filter((l) => (l.c.progress ?? 0) >= 1);
-  const pool = viable.length ? viable : lanes;
-  // 스텝 전진 캡(4R 플랜 A-1) — 한 패스로 26m 넘게 못 건너뛴다(대안이 있을 때).
-  // 국면 길이의 지지대를 "GK 고정 진입"에서 스텝 물리로 옮기는 토대: CB→ST
-  // 원패스 스피드런이 잘리고 결정 수가 자연 확보된다. direct의 burst 레인만
-  // 캡 1.5배 — "직선 역습은 캡을 뚫는다"는 성향 질감. 전 레인이 캡 초과면
-  // 통과(GK처럼 모든 동료가 멀 때 — 첫 전개까지 막지는 않는다).
+  // 스텝 전진 캡(4R 플랜 A-1) — 한 패스로 32m 넘게 못 건너뛴다(대안이 있을 때).
+  // direct만 1.5배(직선 역습이 캡을 뚫는 질감).
   const STEP_CAP = 32;
-  const capOf = (l) => (disposition === 'direct' && l.c === burst ? STEP_CAP * 1.5 : STEP_CAP);
-  const inCap = pool.filter((l) => (l.c.progress ?? 0) <= capOf(l));
-  // 전 레인이 캡 초과면 "최단 전진 출구"를 강제하되, 역할 레인 풀이 아니라
-  // 전체 후보(cands)에서 찾는다 — 역할 레인(best/calm 등)이 전부 같은 원거리
-  // 타깃을 가리키는 국면에서 풀 내 최단은 여전히 31m+ ST라 1결정 슛이 샜다.
-  const shortOutlet = cands
-    .filter((c) => (c.progress ?? 0) >= 1 && (c.progress ?? 99) <= STEP_CAP)
-    .reduce((a, c) => (a === null || (c.progress ?? 99) < (a.progress ?? 99) ? c : a), null);
-  const finalPool = inCap.length ? inCap
-    : shortOutlet ? [{ c: shortOutlet, w: 1 }]
-    : [pool.reduce((a, l) => (((l.c.progress ?? 99) < (a.c.progress ?? 99)) ? l : a))];
+  const stepCap = disposition === 'direct' ? STEP_CAP * 1.5 : STEP_CAP;
+  const cap = (best?.risk ?? 0) + profile.capDelta;   // 위험 캡(best 대비 상대값)
 
-  const total = finalPool.reduce((s, l) => s + l.w, 0);
+  // 도달 가능 후보 = 전진(≥1) + 스텝 캡 안 + 위험 캡 안. 성향 레인을 이 위에서
+  // 구성해야 캡에 걸린 원거리 타깃이 빠진 뒤에도 성향이 서로 다른 도달 가능
+  // 타깃을 고른다(8R D3: 위험 포화 + 캡 필터가 role 레인을 전부 걷어내
+  // safe/balanced/aggressive가 같은 최단 출구로 붕괴하던 수렴 해소).
+  let pool = cands.filter((c) => (c.progress ?? 0) >= 1 && (c.progress ?? 99) <= stepCap && (c.risk ?? 0) <= cap);
+  if (!pool.length) pool = cands.filter((c) => (c.progress ?? 0) >= 1 && (c.progress ?? 99) <= stepCap);
+  if (!pool.length) {
+    // 스텝 캡 안 전진 출구 전무 — 최단 전진 출구 하나로(1결정 슛 누수 방지, 원 shortOutlet).
+    const shortOutlet = cands
+      .filter((c) => (c.progress ?? 0) >= 1)
+      .reduce((a, c) => (a === null || (c.progress ?? 99) < (a.progress ?? 99) ? c : a), null);
+    return shortOutlet ?? best;
+  }
+  if (pool.length === 1) return pool[0];
+
+  // 성향 점수 = 목표 전진도(aim)에 가까울수록 + 위험 낮을수록↑. softmax 샘플로
+  // 결정성(시드 고정)·다양성(여러 루트) 동시 확보. safe=짧게 유지, direct=길게 직선.
+  const maxP = Math.max(...pool.map((c) => c.progress ?? 0), 1);
+  const TEMP = 0.25;
+  const weights = pool.map((c) =>
+    Math.exp((-Math.abs((c.progress ?? 0) / maxP - profile.aim) - profile.riskW * (c.risk ?? 0)) / TEMP));
+  const total = weights.reduce((s, w) => s + w, 0);
   let r = rng() * total;
-  for (const l of finalPool) { if ((r -= l.w) <= 0) return l.c; }
-  return finalPool[finalPool.length - 1].c;
+  for (let i = 0; i < pool.length; i++) { if ((r -= weights[i]) <= 0) return pool[i]; }
+  return pool[pool.length - 1];
 }
