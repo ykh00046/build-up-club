@@ -39,7 +39,7 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
   // defenseLoop(기본 ON, 2026-07 A단계): 볼 상실 후 공격이 그냥 끝나는 대신 상대가
   // 실제로 전개해 오고(잠자던 턴오버 루프 활성화) 매 스텝 수비 3택으로 저지한다 —
   // 실패가 쌓이면 상대 슛(실점 위험), 회수하면 공격 재개. 한 판 안의 공수 왕복.
-  const { intensityOverride, possessionTurnoverLoop = false, opponentBuildDisposition = null, defenseLoop: defenseLoopEnabled = true, defenseEntry = 'reset' } = options;
+  const { intensityOverride, possessionTurnoverLoop = false, opponentBuildDisposition = null, defenseLoop: defenseLoopEnabled = true, defenseEntry = 'reset', baitCombo = false } = options;
   // 수비 국면의 상대 전개 성향 — setOpponentDisposition으로 경기 중 교체 가능
   // (에이전트 듀얼/추후 B단계: 상대 지휘를 외부에 개방). null = 결정적 best 루트.
   let liveOppDisposition = opponentBuildDisposition;
@@ -82,6 +82,7 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
     transition: null,        // 카운터프레스 5초 창 (E1): { kind, detail, loss, msLeft, regainP }
     defensivePress: null,    // 상대 소유 압박 창: { carrierId, msLeft, regainP, cutP }
     defenseLoop: null,       // 수비 국면(A): { steps, beaten, contained, regainP, cutP }
+    baited: null,            // 유인–3자 콤비(Phase 0): { markerId, receiverId, carrierId, vacated }
     transitionUsed: false,
     lastPassFromByline: false,
     lastPassLofted: false,
@@ -1318,10 +1319,11 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
       addPressure(4);
       state.facts.baits++; // a carry at the block is an invitation
       pressReact({ type: 'carry', trigger: 'carry', dist: dist(h, to) });
+      const bait = baitCombo ? tryBait(h) : null;   // 유인–3자 콤비 Phase 0
       maybeAdvancePhase();
       startAnim({ from: fromPos, to, lofted: false, withHolder: true }, 650, null);
       logLine(t('log.carry.probe').replace('{label}', jl(h.label, '이', '가')), 'info');
-      return { ok: true };
+      return { ok: true, bait };
     },
 
     shoot() {
@@ -1381,6 +1383,48 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
     }
     risk = clamp(risk * tacRiskMul(state.currentAction), 0.02, 0.97);
     return { to, risk, tackler };
+  }
+
+  // 유인–3자 콤비 Phase 0 (docs/bait-third-man-design.md) — 마커를 향한 캐리가
+  // 임계 거리(닿기 직전)에서 그 마커를 끌어낸다. 캐리 착지 후 캐리어에 가장 가까운
+  // 대인 마커(markId 있음)를 보고, 도발 밴드(2~5m) 안이면 커밋 롤. 가까울수록
+  // 커밋 확률↑(단 <2m은 planCarry 태클 위험이 이미 처벌). 성공 시 state.baited로
+  // Phase 1(리시버 드롭 + 3자 릴리스)을 arm하고, 마커를 캐리어 쪽으로 당긴다.
+  // 리시버 = 대인이면 markId 담당 선수, 지역이면 vacated 공간 최근접(결정 #1).
+  const BAIT_NEAR = 2, BAIT_FAR = 5;
+  function tryBait(h) {
+    const scheme = scenario.scheme;
+    const manLike = scheme === 'man' || scheme === 'hybrid';
+    // 가장 가까운 마커 후보(대인이면 markId 있는 수비수, 지역이면 아무 필드 수비수).
+    let marker = null, md = Infinity;
+    for (const def of opps()) {
+      if (def.line === 'gk') continue;
+      if (manLike && !def.markId) continue;
+      const dd = dist(def, h);
+      if (dd < md) { md = dd; marker = def; }
+    }
+    if (!marker || md < BAIT_NEAR || md > BAIT_FAR) { state.baited = null; return { baited: false, d: md }; }
+    // 커밋 확률 — 밴드 안에서 가까울수록↑ (5m 0.35 ~ 2m 0.85). 마커 jumpiness 가미.
+    const commitP = clamp((BAIT_FAR - md) / (BAIT_FAR - BAIT_NEAR) * 0.5 + 0.35 + (marker.jumpiness ?? 0.5) * 0.1 - 0.05, 0.2, 0.9);
+    if (rng.next() >= commitP) { state.baited = null; return { baited: false, d: md, commitP, markerId: marker.id }; }
+    // 유인 성공 — 마커를 캐리어 쪽으로 당기고(슬롯 비움), 리시버를 정한다.
+    const receiverId = manLike && marker.markId ? marker.markId : nearestReceiverToVacated(marker);
+    marker.committedTurns = 2;
+    marker.tx = (marker.x + h.x) / 2; marker.ty = (marker.y + h.y) / 2;
+    state.baited = { markerId: marker.id, receiverId, carrierId: h.id, vacated: { x: marker.x, y: marker.y } };
+    logLine(t('log.bait.pulled').replace('{label}', marker.label), 'success');
+    return { baited: true, d: md, commitP, markerId: marker.id, receiverId };
+  }
+
+  // 지역 방어용 리시버 — 마커가 비운 자리(vacated) 최근접 우리 필드 선수.
+  function nearestReceiverToVacated(marker) {
+    let best = null, bd = Infinity;
+    for (const p of ours()) {
+      if (p.role === 'GK' || p.id === state.holderId) continue;
+      const dd = dist(p, marker);
+      if (dd < bd) { bd = dd; best = p; }
+    }
+    return best?.id ?? null;
   }
 
   function distToSegmentLocal(p, a, b) {
