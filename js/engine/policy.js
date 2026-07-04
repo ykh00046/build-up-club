@@ -166,9 +166,16 @@ export function pressPolicy(view) {
     // (8R 감사 근본원인). safe/balanced는 cut을 거의 안 써 strained==beaten이라 불변.
     const beatenDeep = (pr.strained ?? pr.beaten ?? 0) >= 1 && (pr.steps ?? 0) >= 1;
     const regainPoor = bestOdds < 0.40;
+    // 강한 밸브 문턱 = 회수 가망 없음(regainPoor) '또는' 실질 위기(deepCrisis). 8R D1b:
+    // bestOdds가 ~0.45에 몰려 regainPoor(<0.4)만으로는 강한 파울(0.62)·drop이 거의 안 열려,
+    // 반복 뚫림(strained≥2)/깊은 침투(steps≥2) — 명목 확률과 무관하게 '이 소유를 실제로
+    // 내주고 있다'는 신호 — 로도 승격시킨다. 파울 예산(2)에 묶여 남발은 안 된다.
+    const deepCrisis = (pr.strained ?? 0) >= 2 || (pr.steps ?? 0) >= 2;
+    const strongValve = regainPoor || deepCrisis;
     const foulLeft = (pr.fouls ?? 0) < 2;
-    values.dp_foul = beatenDeep ? (foulLeft ? (regainPoor ? 0.62 : 0.34) : 0.01) : 0.01;
-    if (regainPoor && (pr.steps ?? 0) >= 1 && !foulLeft) {
+    values.dp_foul = beatenDeep ? (foulLeft ? (strongValve ? 0.62 : 0.34) : 0.01) : 0.01;
+    // drop = 데미지 컨트롤 최후 수단: 강한 위기인데 파울 예산까지 소진했을 때만.
+    if (strongValve && (pr.steps ?? 0) >= 1 && !foulLeft) {
       values.dp_drop = Math.max(values.dp_drop, 0.40 + (pr.contained ?? 0) * 0.10 + (1 - bestOdds) * 0.25);
     }
   }
