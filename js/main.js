@@ -219,6 +219,9 @@ function newAttempt() {
     // 상실 지점 진입(4R 플랜 A): 커리어에선 어디서 뺏겼는지가 수비 국면의 위험을
     // 결정한다 — 깊은 상실 = 위험한 진입. 자유 플레이는 기존 GK 리셋 유지.
     defenseEntry: careerActive ? 'loss' : 'reset',
+    // 유인–3자 콤비(갈래 1 — 플레이어 전술 도구): 마커를 향한 캐리로 유인→릴리스.
+    // 항상 켜 사람이 읽고 실행하게(AI 최적수 아님 — 자기대국 측정과 무관).
+    baitCombo: true,
   });
   lastCommanded = careerActive ? oppDisposition : null;
   // 통합 글루: 클럽 업그레이드를 'us' 선수 traits로 반영 → 강해질수록 전술이 쉬워짐.
@@ -602,7 +605,7 @@ function activateAction(id) {
     }
     return;
   }
-  if (id === 'hold' || id === 'shoot') {
+  if (id === 'hold' || id === 'shoot' || id === 'release') {
     const r = engine.dispatch(id);
     if (r.ok) (id === 'shoot' ? sfx.kick(0.95) : sfx.tick());
     afterDispatch();
@@ -623,7 +626,7 @@ function updateGuide() {
   // 결정 창(전환·수비 국면·압박)이 열리면 코치 카드를 숨긴다 — 그 카드는 공격
   // 빌드업 기본기 팁이라 수비 상황줄과 무관하고, 같은 좌상단에서 겹친다.
   // (첫 경기에서 볼을 잃으면 코치가 "짧은 패스로 유인" 팁을 수비 결정 위에 덮었음.)
-  const decisionActive = !!engine.state.matchDecision;
+  const decisionActive = !!engine.state.matchDecision || !!engine.state.baited;   // 유인 창도 결정으로 취급(코치 카드 숨김)
   const stage = engine.state.phase === 'FINAL_THIRD' || engine.state.phase === 'SHOT'
     ? 3
     : engine.state.turn > 0 || engine.state.phase !== 'BUILDUP' ? 2 : 1;
@@ -682,6 +685,10 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); kbCycleTarget(-1); return; }
   if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); kbCycleTarget(1); return; }
   if (e.key === 'Enter') { e.preventDefault(); kbExecute(); return; }
+  // 유인 창이 열려 있으면 E(또는 Space)로 릴리스 — 뒷공간 3자 콤비 완성.
+  if (engine.state.baited && (e.key === 'e' || e.key === 'E' || e.code === 'Space')) {
+    e.preventDefault(); activateAction('release'); return;
+  }
   if (e.code === 'Space') { e.preventDefault(); activateAction('hold'); return; }
   if (e.key === 'r' || e.key === 'R') { retryAttempt(); return; }
   if (e.key === 'Escape') { selectAction('to_feet'); return; }
@@ -1716,6 +1723,19 @@ function loop(ts) {
     defenseRoute: (s.defenseLoop?.route && s.matchDecision?.id === 'defend' && engine.holder())
       ? { from: { x: engine.holder().x, y: engine.holder().y }, to: s.defenseLoop.route, confident: (s.defenseLoop.pred ?? 1) >= 0.8 }
       : null,
+    // 유인 창 시각화(Phase 2) — 유인 성공(state.baited) 시 리시버 드롭 지점 +
+    // 릴리스 방향을 피치에 그려 "여기로 릴리스"를 읽게 한다. from=캐리어(볼),
+    // drop=뒷공간(마커 원자리+전진), receiver/releaser 위치.
+    baitArmed: s.baited ? (() => {
+      const recv = s.players.find((p) => p.id === s.baited.receiverId);
+      const rel = s.baited.releaserId ? s.players.find((p) => p.id === s.baited.releaserId) : null;
+      return {
+        drop: { x: Math.min(s.baited.vacated.x + 4, 103), y: s.baited.vacated.y },
+        receiver: recv ? { x: recv.x, y: recv.y } : null,
+        releaser: rel ? { x: rel.x, y: rel.y } : null,
+        carrier: engine.holder() ? { x: engine.holder().x, y: engine.holder().y } : null,
+      };
+    })() : null,
     // Input is single-surface(2026-07 액션바 삭제): 모든 뷰포트에서 피치 링이 유일한
     // 조작면. 링 항목의 enabled/armed/guide-lock 상태는 비표시 [data-action] 상태
     // 모델에서 읽는다.

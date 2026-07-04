@@ -74,6 +74,7 @@ export function render(view, dtMs) {
   // 열린 공간(리워드 윈도우): main.js가 쉬움(mid)에서만 view.rewardWindow를 채움(난이도 학습 보조).
   if (view.rewardWindow) drawRewardWindow(view.rewardWindow);
   if (view.defenseRoute) drawDefenseRoute(view.defenseRoute);
+  if (view.baitArmed) drawBaitArmed(view.baitArmed);
   if (view.shotZone) drawShotZoneBadge(view.shotZone, view.holder, view.shotXg);
   if (toggles.shadows) drawCoverShadows(view);
   if (view.hover) drawHover(view.hover, view.holder);
@@ -442,6 +443,32 @@ function drawDefenseRoute(route) {
     }
     ctx.setLineDash([]); ctx.lineDashOffset = 0;
   }
+}
+
+// 유인 창 시각화(Phase 2) — 유인 성공 시 뒷공간 드롭 지점 + 릴리스 경로를 그려
+// "여기로 릴리스(E)"를 읽게 한다. 리시버 드롭(녹색 타깃 링) + 릴리서→드롭 경로.
+function drawBaitArmed(b) {
+  const dx = mx(b.drop.x), dy = my(b.drop.y);
+  const march = -pulse * 24;
+  // 드롭 타깃 링(맥동, 녹색=열린 뒷공간).
+  const rr = (scale * TOKEN_R_M + 8) * (1 + Math.sin(pulse * 5) * 0.14);
+  ctx.strokeStyle = 'rgba(93, 214, 197, 0.85)';
+  ctx.lineWidth = 2; ctx.setLineDash([5, 5]); ctx.lineDashOffset = march;
+  ctx.beginPath(); ctx.arc(dx, dy, rr, 0, Math.PI * 2); ctx.stroke();
+  ctx.setLineDash([]); ctx.lineDashOffset = 0;
+  // 릴리서→드롭 경로(3자 릴레이) — 녹색 점선.
+  if (b.releaser) {
+    const rx = mx(b.releaser.x), ry = my(b.releaser.y);
+    ctx.strokeStyle = 'rgba(93, 214, 197, 0.6)';
+    ctx.lineWidth = 1.6; ctx.setLineDash([6, 5]); ctx.lineDashOffset = march;
+    ctx.beginPath(); ctx.moveTo(rx, ry); ctx.lineTo(dx, dy); ctx.stroke();
+    ctx.setLineDash([]); ctx.lineDashOffset = 0;
+  }
+  // 라벨 "릴리스 E".
+  ctx.fillStyle = 'rgba(190, 250, 240, 0.95)';
+  ctx.font = `600 ${Math.max(10, scale * 1.1)}px ui-sans-serif, system-ui, sans-serif`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+  ctx.fillText('릴리스 ▸ E', dx, dy - rr - 4);
 }
 
 function drawShotZoneBadge(zone, holder, xg) {
