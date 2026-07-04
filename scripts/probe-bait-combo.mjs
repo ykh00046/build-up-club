@@ -61,3 +61,29 @@ for (const cell of ['A1', 'B1', 'B2']) {
   console.log(`  ${cell}: 경기당 유인 ${(baits / games).toFixed(2)}회, 유인 1+ 경기 ${(gamesWithBait / games * 100).toFixed(0)}%`);
 }
 console.log('참고: Phase 3에서 evaluator가 유인 캐리를 의도적으로 추천하면 빈도↑. 지금은 우연 발동 기준.');
+
+// (3) Phase 1 릴리스 — 유인 성공 후 3자 릴리스가 리시버를 뒷공간으로 내려보내
+// FACING(전진 방향)으로 받게 하나(A안: 가치=오리엔테이션+전진, 레인 차단 아님).
+// 현실적 위치(리시버=마커 옆 마킹, 3자 지원=측면 깨끗한 각)로 검증.
+console.log('\n=== Phase 1 릴리스 (A안: 드롭→FACING→라인브레이크) ===');
+{
+  let baited = 0, relOk = 0, facing = 0, lb = 0;
+  for (let i = 0; i < N; i++) {
+    const e = createEngine(getScenario('B1'), 4000 + i, { baitCombo: true });
+    const marker = e.state.players.find((p) => p.side === 'opp' && p.markId && p.line === 'mid');
+    if (!marker) continue;
+    const recv = e.state.players.find((p) => p.id === marker.markId);
+    if (recv) { recv.x = marker.x + 2; recv.y = marker.y; recv.tx = recv.x; recv.ty = recv.y; }
+    const support = e.state.players.find((p) => p.side === 'us' && p.role !== 'GK' && p.id !== (recv && recv.id));
+    if (support) { support.x = marker.x - 2; support.y = marker.y + 18; support.tx = support.x; support.ty = support.y; }
+    const h = e.holder(); h.x = marker.x - 6; h.y = marker.y; h.tx = h.x; h.ty = h.y;
+    e.dispatch('carry', null, { x: marker.x - 3, y: marker.y }); settle(e);
+    if (!e.state.baited) continue;
+    baited++;
+    const lb0 = e.state.facts.linesBroken;
+    const r = e.dispatch('release'); settle(e);
+    if (r.ok) { relOk++; const rc = e.holder(); if (rc && rc.orientation === 'FACING') facing++; if (e.state.facts.linesBroken > lb0) lb++; }
+  }
+  console.log(`  유인 ${baited}/${N} | 릴리스 성공 ${(relOk / Math.max(1, baited) * 100).toFixed(0)}% | FACING ${(facing / Math.max(1, relOk) * 100).toFixed(0)}% | 라인브레이크 ${(lb / Math.max(1, relOk) * 100).toFixed(0)}%`);
+  console.log('  기대: 릴리스 성공 시 FACING 100%(내려와 전진 방향) + 라인브레이크 100%(마커 라인 넘어 전진).');
+}

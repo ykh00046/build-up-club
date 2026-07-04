@@ -1340,6 +1340,59 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
       logLine(t('log.shot').replace('{label}', h.label).replace('{zone}', getLang() === 'en' ? (zone.en ?? zone.ko) : zone.ko), 'info');
       return { ok: true };
     },
+
+    // 유인–3자 릴리스(Phase 1) — 유인 성공(state.baited)이 arm된 상태에서만.
+    // 리시버가 마커가 비운 뒷공간으로 내려오고, 3자(자동 선정 릴리서)를 거쳐
+    // 연결한다. 직접 패스는 끌려온 마커가 막으므로(고위험) 이 경로로만 뒷공간이
+    // 열린다. 리시버가 내려오며 받아 FACING(전진) → 라인 브레이크(전진 가치).
+    release() {
+      const b = state.baited;
+      if (!b) return fail(t('log.fail.noBait'));
+      const h = holder();
+      const receiver = byId(b.receiverId);
+      if (!receiver || receiver.side !== 'us') { state.baited = null; return fail(t('log.fail.noBait')); }
+      // 리시버 드롭 지점 — 마커가 비운 자리(vacated)에서 전진 방향(상대 골 x=105)
+      // 으로 한 발. 내려오며 받아 앞을 본다.
+      const drop = { x: clamp(b.vacated.x + 4, 2, PITCH_W - 2), y: clamp(b.vacated.y, 2, PITCH_H - 2) };
+      // 자동 릴리서 — 캐리어/리시버 아닌 동료 중 리시버로 가는 레인이 가장 깨끗한
+      // 3자(끌려온 마커가 막은 직접 레인 대신 옆각을 제공).
+      let releaser = null, bestRisk = 1;
+      for (const p of ours()) {
+        if (p.role === 'GK' || p.id === h.id || p.id === receiver.id) continue;
+        const ev = evaluateLane(p, drop, opps(), {});
+        if ((ev.risk ?? 1) < bestRisk) { bestRisk = ev.risk ?? 1; releaser = p; }
+      }
+      if (!releaser) { state.baited = null; return fail(t('log.fail.noBait')); }
+      const fromPos = { x: releaser.x, y: releaser.y };
+      // 릴리스 위험 = 릴리서→리시버 레인(3자 옆각, 마커 밖). 캐리어→리시버 직접
+      // 레인보다 낮다(마커가 직접 레인을 막았으므로).
+      const risk = clamp(bestRisk * (1.1 - (releaser.traits?.pass ?? 0.7) * 0.25), 0.02, 0.95);
+      state.baited = null;
+      if (rollFail(risk)) {
+        pressReact({ type: 'pass', trigger: 'third_man' });
+        startAnim({ from: fromPos, to: drop, lofted: false }, 620, () => {
+          endAttempt('intercepted', { interceptor: nearestDefender(drop, opps()).defender, reason: 'contest', risk });
+        });
+        return { ok: false };
+      }
+      // 성공 — 리시버가 뒷공간에서 전진 방향으로 받는다.
+      const carrierPos = { x: h.x, y: h.y };
+      receiver.x = drop.x; receiver.y = drop.y; receiver.tx = drop.x; receiver.ty = drop.y;
+      receiver.orientation = 'FACING';   // 내려오며 받아 앞을 본다(핵심 가치)
+      state.holderId = receiver.id;
+      state.consecutiveHolds = 0;
+      // 라인 브레이크 = 볼의 실제 전진(캐리어→드롭). 커밋한 마커 라인을 넘어
+      // 뒷공간으로 들어갔으므로 전진 가치. (릴리서는 옆 릴레이라 무관.)
+      state.facts.linesBroken += linesBroken(carrierPos, drop, opps());
+      state.facts.thirdMan = (state.facts.thirdMan || 0) + 1;
+      clearPassContext();
+      addPressure(-8);
+      pressReact({ type: 'pass', trigger: 'third_man' });
+      maybeAdvancePhase();
+      startAnim({ from: fromPos, to: drop, lofted: false }, 560, null);
+      logLine(t('log.bait.release').replace('{label}', receiver.label), 'success');
+      return { ok: true };
+    },
   };
 
   function fail(message) {
@@ -1407,11 +1460,13 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
     // 커밋 확률 — 밴드 안에서 가까울수록↑ (5m 0.35 ~ 2m 0.85). 마커 jumpiness 가미.
     const commitP = clamp((BAIT_FAR - md) / (BAIT_FAR - BAIT_NEAR) * 0.5 + 0.35 + (marker.jumpiness ?? 0.5) * 0.1 - 0.05, 0.2, 0.9);
     if (rng.next() >= commitP) { state.baited = null; return { baited: false, d: md, commitP, markerId: marker.id }; }
-    // 유인 성공 — 마커를 캐리어 쪽으로 당기고(슬롯 비움), 리시버를 정한다.
+    // 유인 성공 — 리시버를 정하고 마커를 커밋시킨다(캐리어 쪽으로 시각적 당김).
+    // vacated는 마커의 '원자리'라 리시버가 그리로 내려오면 뒷공간을 쓴다.
     const receiverId = manLike && marker.markId ? marker.markId : nearestReceiverToVacated(marker);
+    const vacated = { x: marker.x, y: marker.y };
     marker.committedTurns = 2;
-    marker.tx = (marker.x + h.x) / 2; marker.ty = (marker.y + h.y) / 2;
-    state.baited = { markerId: marker.id, receiverId, carrierId: h.id, vacated: { x: marker.x, y: marker.y } };
+    marker.tx = (marker.x + h.x) / 2; marker.ty = (marker.y + h.y) / 2;   // 시각 당김
+    state.baited = { markerId: marker.id, receiverId, carrierId: h.id, vacated };
     logLine(t('log.bait.pulled').replace('{label}', marker.label), 'success');
     return { baited: true, d: md, commitP, markerId: marker.id, receiverId };
   }
@@ -1507,6 +1562,7 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
       state.turn++;
       state.currentAction = actionId;
       if (actionId !== 'pass_space') state.lastWasSwitch = false;   // 비-전환 액션은 쿨다운 리셋
+      if (actionId !== 'release') state.baited = null;   // 유인 창은 다음 한 수뿐(carry가 재설정)
       logSituationEvents(prepareSituations(state, actionId));
       state.lastTacticalFactors = tacticalFactors(state, actionId);
       // Buildup clock: dawdling lets the press settle — with fair warning.
