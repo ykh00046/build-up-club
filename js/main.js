@@ -1678,7 +1678,7 @@ const PRESS_STANDOFF = 2.6;
 const paceSpeed = (p, base) => base * (0.6 + (p.traits?.pace ?? 0.6) * 0.6);
 function syncRender(p) { p.rx = p.tx = p.fx = p.x; p.ry = p.ty = p.fy = p.y; }
 function applyRealtimePress(s, dt, active) {
-  if (!active) return;
+  if (!active) { for (const p of s.players) { p._bx = undefined; p._by = undefined; } return; }
   const h = engine.holder(); if (!h) return;
   const dts = dt / 1000;
   // 오프사이드 라인(2nd-최심 상대 x) — 우리 각 만들기 온사이드 클램프용.
@@ -1699,22 +1699,25 @@ function applyRealtimePress(s, dt, active) {
     near.x += dx / d * move; near.y += dy / d * move; syncRender(near);
   }
 
-  // 1.5) 우리 오프볼 — 압박이 오면 마커에서 벗어나 '각을 만든다'(옵션 개방). 마킹이
-  //    풀리면(분리 ~7m) 멈춘다. 마커 반대 방향 + 살짝 전방, 온사이드 유지. pace 속도.
-  //    → 팀원이 풀리면 그 패스 위험이 내려가 새 초록 옵션이 열린다(장식 아님).
+  // 1.5) 우리 오프볼 — '모든' 선수가 각을 만들러 움직인다(마커 반대 + 전방). 각 턴
+  //    시작 위치(base)에 앵커해 그 반경 안에서만 오퍼(유계·유턴마다 리셋). 타이트하게
+  //    마킹될수록 크게 벗어난다(open run), 여유 있으면 작게 조정. 온사이드 유지, pace
+  //    속도. → 팀원이 풀리면 그 패스 위험이 내려가 옵션이 열린다(장식 아니라 실제 개선).
   for (const p of s.players) {
     if (p.side !== 'us' || p.role === 'GK' || p.id === s.holderId) continue;
+    if (p._bx === undefined) { p._bx = p.x; p._by = p.y; }
     let mk = null, md = Infinity;
     for (const o of s.players) { if (o.side !== 'opp' || o.role === 'GK') continue; const d = Math.hypot(o.x - p.x, o.y - p.y); if (d < md) { md = d; mk = o; } }
-    if (!mk || md >= 7) continue;                     // 이미 풀렸으면 안 움직임
-    let vx = p.x - mk.x, vy = p.y - mk.y; const vl = Math.hypot(vx, vy) || 1;
-    vx = vx / vl * 0.8 + 0.5;                          // 마커 반대 + 전방 성분
-    vy = vy / vl * 0.8;
-    const vl2 = Math.hypot(vx, vy) || 1;
-    const step = paceSpeed(p, 2.4) * dts;
-    let nx = p.x + vx / vl2 * step, ny = p.y + vy / vl2 * step;
-    if (nx > h.x) nx = Math.min(nx, offLine - 0.5);   // 온사이드
-    p.x = nx; p.y = Math.max(4, Math.min(64, ny)); syncRender(p);
+    let ax = 0.55, ay = 0;                             // 기본: 살짝 전방으로 각 제공
+    if (mk && md < 12) { const dx = p._bx - mk.x, dy = p._by - mk.y, dl = Math.hypot(dx, dy) || 1; ax += dx / dl * 1.2; ay += dy / dl * 1.2; }
+    const al = Math.hypot(ax, ay) || 1;
+    const offMag = md < 7 ? 5.5 : md < 12 ? 3.0 : 1.6; // 마킹 빡셀수록 크게
+    let tx = p._bx + ax / al * offMag, ty = p._by + ay / al * offMag;
+    if (tx > h.x) tx = Math.min(tx, offLine - 0.5);    // 온사이드
+    ty = Math.max(4, Math.min(64, ty));
+    const dx = tx - p.x, dy = ty - p.y, d = Math.hypot(dx, dy) || 1;
+    const mv = Math.min(d, paceSpeed(p, 2.6) * dts);   // base 오퍼 지점으로 이징
+    p.x += dx / d * mv; p.y += dy / d * mv; syncRender(p);
   }
   // 2) 결정 시계 — 뭉갤수록 압박 게이지가 '실시간'으로 찬다(압박이 가까울수록 빠르게).
   //    엔진의 기존 소비를 그대로 씀: 압박 100 → 다음 액션에서 붕괴(볼 상실). 즉 오래
