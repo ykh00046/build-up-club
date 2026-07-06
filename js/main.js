@@ -1667,6 +1667,37 @@ const PITCH_COVER_SEL = '#title-overlay.visible, #outcome-overlay.visible, #sele
 function renderPaused() {
   return document.hidden || !!document.querySelector(PITCH_COVER_SEL);
 }
+// 턴 사이 '살아있는 피치'(2026-07 실시간 실험) — 결정 대기(턴이 끊긴) 동안 선수들이
+// 미세하게 움직여 얼어붙은 보드를 실시간처럼 만든다. 오직 렌더 위치(rx/ry)만 건드리고
+// 논리 위치(x/y — 위험·유인·밸런스 전부 여기서 계산)는 불변 → 결정/밸런스 0 영향.
+// dispatch가 다음 애니메이션을 rx에서 시작하므로(fx=rx) 움직임이 매끄럽게 이어진다.
+let ambientClock = 0;
+function applyAmbientLife(s, dt, idle) {
+  ambientClock += dt;
+  const h = engine.holder();
+  const ballX = h?.x ?? 0, ballY = h?.y ?? 34;
+  for (const p of s.players) {
+    if (!idle || p.role === 'GK' || p.id === s.holderId) {
+      if (!engine.busy) { p.rx = p.x; p.ry = p.y; }   // 엔진 anim이 소유하지 않을 때만 논리위치로 고정
+      continue;
+    }
+    const phase = (p.num ?? p.id.length) * 1.3;
+    const sway = Math.sin(ambientClock * 0.0016 + phase);
+    let ox, oy;
+    if (p.side === 'us') {                              // 우리 오프볼: 각 제공하듯 미세 재배치
+      ox = 1.5 * sway + 0.7;
+      oy = Math.sin(ambientClock * 0.0012 + phase) * 1.8;
+    } else {                                            // 수비: 볼 쪽으로 조이며 호흡
+      ox = Math.sign(ballX - p.x) * 0.7 + 0.9 * sway;
+      oy = Math.sign(ballY - p.y) * 0.7;
+    }
+    const cx = p.rx ?? p.x, cy = p.ry ?? p.y;
+    const k = Math.min(1, dt * 0.0045);                // 부드럽게(≈2.5m 이내에서만 배회)
+    p.rx = cx + ((p.x + ox) - cx) * k;
+    p.ry = cy + ((p.y + oy) - cy) * k;
+  }
+}
+
 function loop(ts) {
   requestAnimationFrame(loop);
   const dt = Math.min(50, ts - lastTs);
@@ -1677,6 +1708,8 @@ function loop(ts) {
 
   const s = engine.state;
   const ringLive = s.status === 'live' && !engine.busy && !s.matchDecision;
+  // 턴 사이 살아있는 피치 — us 공격 대기 중일 때만(수비 결정/애니 중엔 미적용).
+  applyAmbientLife(s, dt, ringLive && engine.holder()?.side === 'us');
   const shotZoneNow = engine.shotZoneNow();
   const shotPreview = engine.previewShot();   // { zone, xg } or null
   const boardRead = evaluateBoard(engine);
