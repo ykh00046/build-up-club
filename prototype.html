@@ -28,9 +28,13 @@
     .legend .k { display:inline-block; padding:1px 6px; border-radius:5px; background:#1c2b23; color:#a7f3d0; font-size:11px; }
     .row { display:flex; gap:8px; align-items:center; }
     .dot { width:9px; height:9px; border-radius:50%; display:inline-block; }
-    button { margin-top:12px; background:#1e40af; color:#fff; border:0; padding:8px 16px;
+    .controls { display:flex; gap:8px; align-items:center; margin-top:14px; }
+    button { background:#1e293b; color:#cbd5e1; border:1px solid #334155; padding:7px 14px;
       border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; }
-    button:hover { background:#2563eb; }
+    button:hover { background:#334155; }
+    button.on { background:#1e40af; color:#fff; border-color:#3b82f6; }
+    #reset { background:#166534; color:#fff; border-color:#22c55e; }
+    #reset:hover { background:#15803d; }
   </style>
 </head>
 <body>
@@ -43,12 +47,23 @@
     <div class="row"><span class="k">Space</span> 수동 슬로우(1회)</div>
     <div class="row"><span class="k">R</span> 새 빌드업</div>
     <div class="row"><span class="dot" style="background:#22c55e"></span>안전 <span class="dot" style="background:#eab308"></span>주의 <span class="dot" style="background:#ef4444"></span>위험 레인</div>
+    <div class="row"><span class="dot" style="background:#fb923c"></span>주황링=커밋한 압박수(담당 열림) · <span style="color:#f87171">점선</span>=오프사이드 라인</div>
   </div>
-  <button id="reset">새 빌드업 (R)</button>
+  <div class="controls">
+    <span style="color:#7d918a;font-size:12px;">압박 강도:</span>
+    <button class="int" data-k="mid">중간</button>
+    <button class="int on" data-k="high">높음</button>
+    <button class="int" data-k="vhigh">최고</button>
+    <button id="reset" style="margin-left:14px;">새 빌드업 (R)</button>
+  </div>
   <script type="module">
     import { createRT } from './js/prototype/rt.js';
     const rt = createRT(document.getElementById('pitch'));
     document.getElementById('reset').addEventListener('click', () => rt.reset());
+    document.querySelectorAll('.int').forEach((b) => b.addEventListener('click', () => {
+      rt.setIntensity(b.dataset.k);
+      document.querySelectorAll('.int').forEach((x) => x.classList.toggle('on', x === b));
+    }));
   </script>
 </body>
 </html>
