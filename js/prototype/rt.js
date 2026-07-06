@@ -17,16 +17,23 @@ import { getScenario } from '../data/scenarios.js';
 
 const PITCH = { w: 105, h: 68 };
 const TACKLE_DIST = 1.3;
-const CARRY_SPEED = 3.4;
-const SUPPORT_SPEED = 3.2;
 const BALL_SPEED = 22;
 const SHOOT_X = 88;
 const SLOW_BAND = 6.0;
 
+// 선수별 속도 — 엔진 traits.pace 반영(윙어 0.95 빠름, CB 0.5 / GK 0.3 느림).
+// 캐리(볼 소유)는 자유 주행의 ~절반(볼 갖고 뛰면 느려진다). pressResistance는
+// 태클 저항(느리게 붙어도 덜 뺏김) — TACKLE 판정에 반영.
+const RUN_BASE = 6.4;                                   // pace 기준 자유 주행 m/s
+const paceMul = (p) => 0.55 + (p.traits?.pace ?? 0.6) * 0.6;
+const spd = (p, carry) => RUN_BASE * paceMul(p) * (carry ? 0.46 : 1);
+
 const APPROACH = {
-  highpress: { name: '하이프레스(강팀)', lineX: 52, close: 5.2, engage: 17, press: true,  drop: 0.35 },
-  mid:       { name: '미드블록',        lineX: 66, close: 4.6, engage: 13, press: true,  drop: 0.25 },
-  lowblock:  { name: '로우블록(약팀)',   lineX: 80, close: 4.0, engage: 8,  press: false, drop: 0.15 },
+  // lineX = 백라인 x. front = lineX-22. 하이프레스는 front가 우리 빌드아웃(CB x15)을
+  // 실제로 압박하도록 높게(front≈x22). drop = 뚫렸을 때 후퇴량(작게 — 공격적 유지).
+  highpress: { name: '하이프레스(강팀)', lineX: 44, engage: 20, press: true,  drop: 0.18 },
+  mid:       { name: '미드블록',        lineX: 60, engage: 15, press: true,  drop: 0.20 },
+  lowblock:  { name: '로우블록(약팀)',   lineX: 78, engage: 9,  press: false, drop: 0.12 },
 };
 
 // 후방 빌드아웃 위치(엔진 us id → 좌표).
@@ -122,29 +129,33 @@ export function createRT(canvas) {
     S.presserId = (presser && pd <= ap.engage && (ap.press || pd < 8)) ? presser.id : null;
 
     if (!S.ball.inFlight && h && !holderIsGK()) {
-      const t = carryTarget(h); moveToward(h, t.x, t.y, CARRY_SPEED, dt);
+      const t = carryTarget(h); moveToward(h, t.x, t.y, spd(h, true), dt);   // 캐리=느림+pace
       S.ball.x = h.x; S.ball.y = h.y;
     }
     setHolderOrientation();
 
     for (const o of oppOut()) {
-      if (o.id === S.presserId) { moveToward(o, S.ball.x, S.ball.y, ap.close, dt); continue; }
+      if (o.id === S.presserId) { moveToward(o, S.ball.x, S.ball.y, spd(o, false), dt); continue; }
       const home = slotHome(o);
       let tx = home.x, ty = home.y, near = null, nd = 4.0;
       for (const u of teammates()) { const d = dist(u, o); if (d < nd) { nd = d; near = u; } }
       if (near) { tx = home.x * 0.55 + (near.x + 1.5) * 0.45; ty = home.y * 0.55 + near.y * 0.45; }
-      moveToward(o, tx, clampY(ty), ap.close * 0.8, dt);
+      moveToward(o, tx, clampY(ty), spd(o, false) * 0.85, dt);
     }
 
+    // 우리 오프볼 — 대형이 '볼 전진'에 맞춰 함께 올라간다(GK가 홀드하는 동안엔 안
+    // 올라감: 볼 x가 안 움직이니 shift=0). 패스로 볼이 전진하면 그만큼 대형이 전진.
+    // 마커가 커밋해 존이 열리면 3자가 뒷공간 온사이드로 파고든다.
     const line = offsideLine();
+    const shift = Math.max(0, S.ball.x - 8) * 0.6;
     for (const p of teammates()) {
       const presserP = S.presserId ? byId(S.presserId) : null;
       const zoneOpen = presserP && dist(presserP, p) > 7 && p.x > S.ball.x - 4 && p.x < line - 2;
       let aimX, aimY;
       if (zoneOpen) { aimX = Math.min(S.ball.x + 12, line - 1.5); aimY = clampY(p.hy + (S.ball.y - p.hy) * 0.2); }
-      else { aimX = p.x + 2 + Math.max(0, S.ball.x - p.x) * 0.22; aimY = p.hy; }
+      else { aimX = p.hx + shift; aimY = clampY(p.hy + (S.ball.y - 34) * 0.1); }
       if (aimX > S.ball.x) aimX = Math.min(aimX, line - 0.5);
-      moveToward(p, aimX, clampY(aimY), SUPPORT_SPEED, dt);
+      moveToward(p, aimX, clampY(aimY), spd(p, false), dt);
     }
   }
 
@@ -200,7 +211,9 @@ export function createRT(canvas) {
     const h = holder();
     if (h && !S.ball.inFlight && !holderIsGK()) {
       let nd = Infinity; for (const o of oppOut()) nd = Math.min(nd, dist(o, h));
-      if (nd < TACKLE_DIST) return flashResult('태클 당함 — 볼 상실', false);
+      // pressResistance 높은 선수는 더 붙어야 뺏긴다(느리게 압박해도 잘 안 잃음).
+      const tackleAt = TACKLE_DIST * (1.35 - (h.traits?.pressResistance ?? 0.5) * 0.7);
+      if (nd < tackleAt) return flashResult('태클 당함 — 볼 상실', false);
       if (S.mode === 'flow' && S.cooldown <= 0 && nd < SLOW_BAND) enterSlow(false);
       if (S.mode === 'slow' && !S.manualActive && nd > SLOW_BAND + 1.5) exitSlow();
     }
