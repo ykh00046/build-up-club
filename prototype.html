@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>빌드업 클럽 · 실시간 프로토타입</title>
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; background: #0a0f0d; color: #e6efe9;
+      font-family: system-ui, -apple-system, sans-serif;
+      display: flex; flex-direction: column; align-items: center;
+      min-height: 100vh; padding: 20px;
+    }
+    h1 { font-size: 18px; font-weight: 800; letter-spacing: -0.02em; margin: 4px 0 2px; }
+    h1 span { color: #34d399; }
+    .sub { color: #7d918a; font-size: 12px; margin-bottom: 14px; }
+    canvas {
+      background: #0a1711; border-radius: 12px; cursor: pointer;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.5); max-width: 100%; height: auto;
+    }
+    .legend {
+      display: flex; gap: 18px; flex-wrap: wrap; justify-content: center;
+      margin-top: 14px; font-size: 12.5px; color: #9db3aa; max-width: 960px;
+    }
+    .legend b { color: #cfe3d8; }
+    .legend .k { display:inline-block; padding:1px 6px; border-radius:5px; background:#1c2b23; color:#a7f3d0; font-size:11px; }
+    .row { display:flex; gap:8px; align-items:center; }
+    .dot { width:9px; height:9px; border-radius:50%; display:inline-block; }
+    button { margin-top:12px; background:#1e40af; color:#fff; border:0; padding:8px 16px;
+      border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; }
+    button:hover { background:#2563eb; }
+  </style>
+</head>
+<body>
+  <h1>빌드업 클럽 · <span>실시간 프로토타입</span></h1>
+  <div class="sub">자동 캐리 → 압박 붙으면 슬로우 → 패스 → 다시 캐리 · 느낌 검증용(정식 게임과 별개)</div>
+  <canvas id="pitch" width="960" height="620"></canvas>
+  <div class="legend">
+    <div class="row"><b>팀원 탭</b> = 그쪽으로 패스</div>
+    <div class="row"><b>흐름 중 탭</b> = <b>빠른 콤비</b>(위험↑)</div>
+    <div class="row"><span class="k">Space</span> 수동 슬로우(1회)</div>
+    <div class="row"><span class="k">R</span> 새 빌드업</div>
+    <div class="row"><span class="dot" style="background:#22c55e"></span>안전 <span class="dot" style="background:#eab308"></span>주의 <span class="dot" style="background:#ef4444"></span>위험 레인</div>
+  </div>
+  <button id="reset">새 빌드업 (R)</button>
+  <script type="module">
+    import { createRT } from './js/prototype/rt.js';
+    const rt = createRT(document.getElementById('pitch'));
+    document.getElementById('reset').addEventListener('click', () => rt.reset());
+  </script>
+</body>
+</html>
