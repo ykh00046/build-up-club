@@ -1667,35 +1667,42 @@ const PITCH_COVER_SEL = '#title-overlay.visible, #outcome-overlay.visible, #sele
 function renderPaused() {
   return document.hidden || !!document.querySelector(PITCH_COVER_SEL);
 }
-// 턴 사이 '살아있는 피치'(2026-07 실시간 실험) — 결정 대기(턴이 끊긴) 동안 선수들이
-// 미세하게 움직여 얼어붙은 보드를 실시간처럼 만든다. 오직 렌더 위치(rx/ry)만 건드리고
-// 논리 위치(x/y — 위험·유인·밸런스 전부 여기서 계산)는 불변 → 결정/밸런스 0 영향.
-// dispatch가 다음 애니메이션을 rx에서 시작하므로(fx=rx) 움직임이 매끄럽게 이어진다.
-let ambientClock = 0;
-function applyAmbientLife(s, dt, idle) {
-  ambientClock += dt;
-  const h = engine.holder();
-  const ballX = h?.x ?? 0, ballY = h?.y ?? 34;
+// 실시간 압박(2026-07 실험) — 결정 대기(턴이 끊긴) 동안 '가장 가까운 상대'가 볼로
+// 실제로 조여온다. 논리 위치(x/y)를 함께 움직여(rx/ry 동기화) 패스 옵션이 진짜로
+// 나빠진다 → 오래 뭉갤수록 손해, 제때 결정하게 만든다("가만히 뱅뱅"이 아니라 시간이
+// 상황을 바꾼다). 스탠드오프(2.6m)까지만 조여 즉시 태클은 없다(옵션 악화가 압박).
+// 밸런스 튜닝된 액션(패스·운반)은 그대로 dispatch로 처리 — 여기선 상대만 조인다.
+const PRESS_STANDOFF = 2.6;
+function applyRealtimePress(s, dt, active) {
+  if (!active) return;
+  const h = engine.holder(); if (!h) return;
+  // 1) 가장 가까운 상대가 볼로 조여온다 — 압박이 붙는 걸 눈으로 보이게(왜 시간이
+  //    쫓기는지 legible). 엔진은 근접 수비수를 '레인 차단'이 아니라 '태클 위협'으로
+  //    모델링하므로(유인 콤비 인사이트), 옵션이 나빠지는 게 아니라 시간이 쫓긴다.
+  let near = null, nd = Infinity;
   for (const p of s.players) {
-    if (!idle || p.role === 'GK' || p.id === s.holderId) {
-      if (!engine.busy) { p.rx = p.x; p.ry = p.y; }   // 엔진 anim이 소유하지 않을 때만 논리위치로 고정
-      continue;
-    }
-    const phase = (p.num ?? p.id.length) * 1.3;
-    const sway = Math.sin(ambientClock * 0.0016 + phase);
-    let ox, oy;
-    if (p.side === 'us') {                              // 우리 오프볼: 각 제공하듯 미세 재배치
-      ox = 1.5 * sway + 0.7;
-      oy = Math.sin(ambientClock * 0.0012 + phase) * 1.8;
-    } else {                                            // 수비: 볼 쪽으로 조이며 호흡
-      ox = Math.sign(ballX - p.x) * 0.7 + 0.9 * sway;
-      oy = Math.sign(ballY - p.y) * 0.7;
-    }
-    const cx = p.rx ?? p.x, cy = p.ry ?? p.y;
-    const k = Math.min(1, dt * 0.0045);                // 부드럽게(≈2.5m 이내에서만 배회)
-    p.rx = cx + ((p.x + ox) - cx) * k;
-    p.ry = cy + ((p.y + oy) - cy) * k;
+    if (p.side !== 'opp' || p.role === 'GK') continue;
+    const d = Math.hypot(p.x - h.x, p.y - h.y);
+    if (d < nd) { nd = d; near = p; }
   }
+  if (near && nd > PRESS_STANDOFF) {
+    const dx = h.x - near.x, dy = h.y - near.y, d = Math.hypot(dx, dy) || 1;
+    const move = Math.min(nd - PRESS_STANDOFF, 1.9 * (dt / 1000));   // ~1.9 m/s로 조여옴
+    near.x += dx / d * move; near.y += dy / d * move;
+    near.rx = near.tx = near.fx = near.x;
+    near.ry = near.ty = near.fy = near.y;
+  }
+  // 2) 결정 시계 — 뭉갤수록 압박 게이지가 '실시간'으로 찬다(압박이 가까울수록 빠르게).
+  //    엔진의 기존 소비를 그대로 씀: 압박 100 → 다음 액션에서 붕괴(볼 상실). 즉 오래
+  //    들고 있으면 뺏긴다 → 턴이 시간으로 불린다("가만히 뱅뱅"이 아니라 시간이 판단을
+  //    강제). GK 방출 시작은 여유(느리게), 필드 선수는 압박 근접일수록 빠르게.
+  // 시계 속도(튜닝 노브) — 압박이 가까울수록 빠르게. GK 방출은 여유. /ms 단위,
+  // 압박 20→100 기준 대략 8s(먼 압박)~5s(코앞)면 "몇 초 안에 결정" 리듬.
+  const gk = h.role === 'GK';
+  const rate = (gk ? 0.003 : (nd < 5 ? 0.016 : nd < 9 ? 0.010 : 0.006));
+  s.pressure = Math.min(100, (s.pressure ?? 0) + rate * dt);
+  // 100 도달 & 유휴면 hold를 자동 디스패치 → 엔진이 붕괴 처리(짓눌림). 한 번만 발동.
+  if ((s.pressure ?? 0) >= 100 && !engine.busy && s.status === 'live') engine.dispatch('hold');
 }
 
 function loop(ts) {
@@ -1708,8 +1715,8 @@ function loop(ts) {
 
   const s = engine.state;
   const ringLive = s.status === 'live' && !engine.busy && !s.matchDecision;
-  // 턴 사이 살아있는 피치 — us 공격 대기 중일 때만(수비 결정/애니 중엔 미적용).
-  applyAmbientLife(s, dt, ringLive && engine.holder()?.side === 'us');
+  // 실시간 압박 — us 공격 대기 중일 때만 상대가 볼로 조여온다(수비/애니 중엔 미적용).
+  applyRealtimePress(s, dt, ringLive && engine.holder()?.side === 'us');
   const shotZoneNow = engine.shotZoneNow();
   const shotPreview = engine.previewShot();   // { zone, xg } or null
   const boardRead = evaluateBoard(engine);
