@@ -4,7 +4,7 @@
 // 깊이 정렬 토큰. 다크 피치·체화된 압박 큐(홀더 링·비네트·GK 샤우트)는 유지.
 
 import {
-  PITCH_W, PITCH_H, CHANNEL_BOUNDS_Y, THIRD_BOUNDS_X, CHANNEL_LABELS, THIRD_LABELS,
+  PITCH_W, PITCH_H, CHANNEL_BOUNDS_Y, THIRD_BOUNDS_X,
   COLORS, TOKEN_R_M, PHASE_LINES, clamp,
 } from '../data/pitch.js';
 import { prefersReducedMotion } from '../util/motion.js';
@@ -356,20 +356,8 @@ function drawChannelGrid() {
   for (let i = 1; i < CHANNEL_BOUNDS_Y.length - 1; i++) line(0, CHANNEL_BOUNDS_Y[i], PITCH_W, CHANNEL_BOUNDS_Y[i]);
   for (let i = 1; i < THIRD_BOUNDS_X.length - 1; i++) line(THIRD_BOUNDS_X[i], 0, THIRD_BOUNDS_X[i], PITCH_H);
   ctx.setLineDash([]);
-  if (!toggles.labels) return;
-  ctx.fillStyle = COLORS.channelLabel;
-  ctx.font = `600 ${Math.max(10, gs * 1.25)}px ui-sans-serif, system-ui, sans-serif`;
-  ctx.textAlign = 'left'; ctx.textBaseline = 'top';
-  for (let i = 0; i < CHANNEL_LABELS.length; i++) {
-    const q = P(1.2, (CHANNEL_BOUNDS_Y[i] + CHANNEL_BOUNDS_Y[i + 1]) / 2);
-    ctx.fillText(CHANNEL_LABELS[i], q.x, q.y - 7);
-  }
-  ctx.fillStyle = COLORS.thirdLabel;
-  ctx.textAlign = 'center';
-  for (let i = 0; i < THIRD_LABELS.length; i++) {
-    const q = P((THIRD_BOUNDS_X[i] + THIRD_BOUNDS_X[i + 1]) / 2, PITCH_H);
-    ctx.fillText(THIRD_LABELS[i], q.x, q.y + 6);
-  }
+  // 존/레인 텍스트 라벨 제거(정보 다이어트 2026-07) — 그리드 선이 구조를 충분히
+  // 전달하고, 3D 원근에서 영문 라벨은 판독 부담만 더한다.
 }
 
 // The next phase objective line, so progress is legible at a glance.
@@ -920,11 +908,13 @@ function drawToken(p, isHolder, pressureExpr, isPresser = false) {
   ctx.font = `700 ${Math.max(10, s * 1.05).toFixed(1)}px ui-sans-serif, system-ui, sans-serif`;
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.fillText(String(p.num), feet.x, bodyTop + bodyH * 0.34);
-  // 역할 태그(발밑 아래) — 고대비+어두운 그림자.
+  // 역할 태그(발밑 아래) — 우리 선수만(정보 다이어트 2026-07). 클릭 타깃 판별에
+  // 필요한 건 우리 라벨이고, 상대 22명 전원 태그는 시각 밀도의 주범이었다.
+  if (!us) return;
   ctx.save();
   ctx.shadowColor = 'rgba(0, 0, 0, 0.85)';
   ctx.shadowBlur = 3;
-  ctx.fillStyle = us ? COLORS.usTag : COLORS.oppTag;
+  ctx.fillStyle = COLORS.usTag;
   const tagPx = Math.max(8.5, s * 0.55);
   ctx.font = `700 ${tagPx.toFixed(1)}px ui-sans-serif, system-ui, sans-serif`;
   ctx.fillText(p.label, feet.x, feet.y + tagPx + 3);

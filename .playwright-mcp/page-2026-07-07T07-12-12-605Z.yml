@@ -1,0 +1,96 @@
+- generic [ref=e1]:
+  - banner [ref=e2]:
+    - generic [ref=e3]: 빌드업 클럽압박을 깨고, 클럽을 키워라
+    - generic [ref=e4]:
+      - button "← 클럽 허브" [ref=e5] [cursor=pointer]
+      - button "다시 도전" [ref=e6] [cursor=pointer]
+  - main [ref=e7]:
+    - generic [ref=e8]:
+      - generic [ref=e9]:
+        - generic [ref=e11]: BUILDUP
+        - generic [ref=e13]:
+          - text: "턴:"
+          - strong [ref=e14]: "0"
+        - generic "압박 — 가득 차면 블록이 안정화되어 공격이 끝납니다" [ref=e16]:
+          - generic [ref=e17]: 압박
+          - progressbar "상대 압박" [ref=e18]
+        - generic "모멘텀 — 좋은 선택을 이어가면 위험이 줄어듭니다" [ref=e20]:
+          - generic [ref=e21]: 모멘텀
+        - generic "피로 — 전진·침투·강한 돌파를 쓸수록 공격적 액션이 위험해집니다" [ref=e24]:
+          - generic [ref=e25]: 피로
+        - group [ref=e28]:
+          - generic "보기 ⚙" [ref=e29] [cursor=pointer]
+        - button "상대·전술 ▾" [ref=e30] [cursor=pointer]
+      - generic [ref=e31]:
+        - generic [ref=e32]: CURRENT OBJECTIVE
+        - strong [ref=e33]: 압박을 끌어낸 뒤 첫 라인을 통과하세요.
+        - button "플레이 가이드" [ref=e34] [cursor=pointer]
+      - generic [ref=e35]:
+        - application "11대11 전술 보드 — 방향키로 받을 동료 선택, Enter로 패스, 1~9 액션, Space 기다리기" [ref=e36]
+        - button "기본 압박 → 컷백 (도착하는 8번)" [ref=e38] [cursor=pointer]:
+          - generic [ref=e40]: 기본 압박
+          - generic [ref=e41]: →
+          - generic [ref=e42]: 컷백 (도착하는 8번)
+          - generic [ref=e43]: ⓘ
+      - generic [ref=e44]:
+        - generic [ref=e45]: 동료를 클릭하면 발밑, 빈 공간을 클릭하면 공간 패스 — 피치 안에서 자동 판별.
+        - generic [ref=e46]: Space 기다리기 · 1 발밑 · 2 공간 · 4 운반 · 5 압박 · 9 슛 · R 다시
+    - complementary [ref=e47]:
+      - button "드로어 닫기" [ref=e48] [cursor=pointer]:
+        - generic [ref=e49]: 상대 정보 · 전술
+        - generic [ref=e50]: ✕
+      - generic [ref=e51]:
+        - heading "매치 모먼트" [level=3] [ref=e52]
+        - generic [ref=e53]: Salida 3-2 vs 4-3-3 하이브리드 압박
+        - generic [ref=e54]:
+          - generic [ref=e55]: 상대 상태
+          - generic [ref=e56]: 기본 압박
+        - generic [ref=e57]:
+          - generic [ref=e58]: 추천 마무리
+          - generic [ref=e59]: 컷백 (도착하는 8번)
+        - generic [ref=e60]:
+          - generic [ref=e61]: 위험 요소
+          - generic [ref=e63]: 중원 라인 사이 배치 ↑
+      - generic [ref=e64]:
+        - heading "우리 전략 경기 중 변경 가능" [level=3] [ref=e65]
+        - generic [ref=e66]:
+          - generic [ref=e67]: 전방
+          - button "라인 밀어내기" [pressed] [ref=e68] [cursor=pointer]
+          - button "내려와 연결" [ref=e69] [cursor=pointer]
+        - generic [ref=e70]:
+          - generic [ref=e71]: 중원
+          - button "라인 사이" [pressed] [ref=e72] [cursor=pointer]
+          - button "빌드업 보조" [ref=e73] [cursor=pointer]
+        - generic [ref=e74]:
+          - generic [ref=e75]: 후방
+          - button "풀백 전진" [ref=e76] [cursor=pointer]
+          - button "후방 안정" [pressed] [ref=e77] [cursor=pointer]
+      - generic [ref=e78]:
+        - heading "전술 기록" [level=3] [ref=e79]
+        - generic [ref=e81]: 아직 기록이 없습니다
+      - group [ref=e82]:
+        - generic "브리핑 · 매치 정보 ▾" [ref=e83] [cursor=pointer]
+      - group [ref=e84]:
+        - generic "Tactical Archive 0 ▾" [ref=e85] [cursor=pointer]:
+          - text: Tactical Archive
+          - generic [ref=e86]: "0"
+          - text: ▾
+        - option "전체" [selected]
+        - option "A1"
+        - option "A2"
+        - option "B1"
+        - option "B2"
+  - dialog "BUILD‑UP CLUB" [ref=e87] [cursor=pointer]:
+    - generic [ref=e88]:
+      - generic [ref=e91]: LIVE
+      - generic [ref=e92]: TACTICAL FOOTBALL · SEASON 2025 / 26
+      - generic [ref=e95]: BC
+    - generic [ref=e96]:
+      - generic [ref=e98]: TACTICAL FOOTBALL CLUB
+      - heading "BUILD‑UP CLUB" [level=1] [ref=e99]:
+        - text: BUILD‑UP
+        - emphasis [ref=e100]: CLUB
+      - paragraph [ref=e101]: 압박을 깨고 클럽을 키워라. 매 경기는 한 번의 결정적 빌드업 모먼트 — 이겨서 선수를 강화하고, 디비전을 올라 1부 우승까지.
+      - generic [ref=e102]:
+        - button "킥오프 ▸" [active] [ref=e103]
+        - generic [ref=e104]: 아무 곳이나 눌러 시작

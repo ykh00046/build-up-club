@@ -105,7 +105,7 @@ export function renderLog(engine) {
 
 // ─── outcome card ────────────────────────────────────────────────────────────
 
-export function showOutcome(engine, onRetry, onNextCell, { nextLabel = null, onReplay = null } = {}) {
+export function showOutcome(engine, onRetry, onNextCell, { nextLabel = null, onReplay = null, reportMode = 'full' } = {}) {
   const o = engine.state.outcome;
   if (!o) return;
   const overlay = document.getElementById('outcome-overlay');
@@ -114,7 +114,7 @@ export function showOutcome(engine, onRetry, onNextCell, { nextLabel = null, onR
   overlay.querySelector('.oc-body').textContent = o.body;
   overlay.querySelector('.oc-facts').textContent = o.facts || '—';
   const report = overlay.querySelector('.oc-report');
-  if (report) report.innerHTML = renderReport(o.report);
+  if (report) report.innerHTML = renderReport(o.report, reportMode);
   overlay.dataset.tone = o.tone;
   const retryBtn = overlay.querySelector('.oc-retry');
   openModal(overlay, retryBtn);
@@ -140,11 +140,14 @@ export function showOutcome(engine, onRetry, onNextCell, { nextLabel = null, onR
   if (o.tone === 'goal') spawnConfetti(overlay);
 }
 
-export function renderTacticalReport(report) {
-  return renderReport(report);
+export function renderTacticalReport(report, mode = 'full') {
+  return renderReport(report, mode);
 }
 
-function renderReport(report) {
+// mode(정보 다이어트 2026-07): 'full'=코치 한 줄+상세, 'coach'=코치 한 줄만(커리어
+// 결말 카드 — 재도전/정산 판단용), 'details'=상세만(커리어 결과 카드 — 코치 줄은
+// 결말 카드가 이미 말했다). 결말→결과가 연속으로 같은 내용을 두 번 보이던 것 정리.
+function renderReport(report, mode = 'full') {
   if (!report) return '';
   const rows = [
     [t('trh.worked'), report.worked],
@@ -155,11 +158,11 @@ function renderReport(report) {
   const sup = report.superiority ? `<div class="tr-sup">${escapeHtml(t('trh.superiority'))} · <b>${escapeHtml(report.superiority)}</b></div>` : '';
   const trans = report.transition ? `<div class="tr-sup tr-trans">${escapeHtml(t('trh.transition'))} · <b>${escapeHtml(report.transition)}</b></div>` : '';
   // "그래서 다음엔?" — 가장 먼저 보이는 1순위 학습 CTA (P2).
-  const next = report.next
+  const next = (mode !== 'details' && report.next)
     ? `<div class="tr-next"><span class="tr-next-k">${escapeHtml(t('trh.next'))}</span><strong>${escapeHtml(report.next)}</strong></div>`
     : '';
   // 상세 분석(지표·우위·전환·리포트행)은 접어서 온디맨드 — 결과 카드를 한눈에 들어오게.
-  const details = renderMetrics(report.metrics) + sup + trans + body;
+  const details = mode === 'coach' ? '' : renderMetrics(report.metrics) + sup + trans + body;
   const detailsBlock = details
     ? `<details class="tr-details"><summary>${escapeHtml(t('rep.details'))}</summary><div class="tr-details-body">${details}</div></details>`
     : '';

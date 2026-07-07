@@ -136,6 +136,8 @@
     .actionbar .btn.shot-ready { border-color: var(--warn); color: var(--warn); animation: glow 1.2s ease-in-out infinite; }
     @keyframes glow { 50% { box-shadow: 0 0 8px rgba(255, 194, 75, 0.5); } }
     .actionbar .hint { margin-left: auto; color: var(--text-muted); font-size: 11px; font-style: italic; max-width: 320px; }
+    /* 조작 도움말 졸업제 — 완주 8회 뒤 키 레전드 숨김(main.js가 클래스 부여). */
+    .actionbar.kb-graduated .keys { display: none; }
     .actionbar .keys { display: none; }
     @media (min-width: 901px) {
       .actionbar { padding: 8px 14px; }
@@ -380,6 +382,11 @@
       font-size: 10px; color: var(--text-muted); letter-spacing: 0.8px;
       text-transform: uppercase; margin-bottom: 2px; font-weight: 700;
     }
+    /* 스카우팅 <details> — 기본 접힘, 펼침 표시자만. */
+    summary.tactics-scout-label { cursor: pointer; list-style: none; user-select: none; }
+    summary.tactics-scout-label::-webkit-details-marker { display: none; }
+    summary.tactics-scout-label::after { content: ' ▾'; color: var(--text-muted); }
+    .tactics-scout[open] summary.tactics-scout-label::after { content: ' ▴'; }
     .tactics-scout-style, .tactics-scout-weak, .tactics-scout-caution,
     .tactics-scout-trap, .tactics-scout-rec, .tactics-scout-train {
       display: flex; gap: 7px; font-size: 11.5px; line-height: 1.5;
@@ -1343,8 +1350,10 @@
             <div class="tactics-opp-plan-text" id="tactics-opp-plan-text">—</div>
             <div class="tactics-edge-line"><span data-i18n="brief.ourEdge">우리가 만들 우위</span>: <strong id="tactics-edge-text">—</strong></div>
             <div class="tactics-target-line"><span data-i18n="brief.recShot">추천 마무리</span>: <strong id="tactics-target-shot">—</strong></div>
-            <div class="tactics-scout" id="tactics-scout">
-              <div class="tactics-scout-label" data-i18n="brief.scouting">상대 스카우팅</div>
+            <!-- 스카우팅 표 기본 접힘(정보 다이어트 2026-07) — 성향/약점/추천 행이
+                 위의 상대 전술 카드·허브 공략 포인트와 크게 겹쳐, 상세는 온디맨드로. -->
+            <details class="tactics-scout" id="tactics-scout">
+              <summary class="tactics-scout-label" data-i18n="brief.scouting">상대 스카우팅</summary>
               <div class="tactics-scout-style"><span class="ts-k" data-i18n="brief.style">성향</span><span id="tactics-scout-style">—</span></div>
               <div class="tactics-scout-weak"><span class="ts-k" data-i18n="brief.weakness">약점</span><span id="tactics-scout-weak">—</span></div>
               <div class="tactics-scout-caution"><span class="ts-k" data-i18n="brief.caution">주의</span><span id="tactics-scout-caution">—</span></div>
@@ -1354,7 +1363,7 @@
                 <span class="ts-k" data-i18n="brief.activeTraining">활성 훈련</span>
                 <span class="tactics-scout-train-list" id="tactics-scout-train-list">—</span>
               </div>
-            </div>
+            </details>
           </div>
           <div class="tactics-difficulty">
             <div class="tactics-section-label" data-i18n="brief.difficulty">난이도</div>
