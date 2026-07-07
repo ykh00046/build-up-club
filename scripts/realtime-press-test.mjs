@@ -169,5 +169,45 @@ console.log('=== 실시간 압박 레이어 테스트 ===\n');
   ok(Number.isFinite(lb._vx) && Math.hypot(lb._vx, lb._vy) >= 0, '속도 벡터(몸 방향 노치 재료) 존재');
 }
 
+// [12] 런 리드 — 달리는 수신자에게 패스하면 진행 방향 앞(발 앞)에 꽂힌다(≤4.5m)
+{
+  let hit = null;
+  for (let seed = 4242; seed < 4342 && !hit; seed++) {
+    const e = mkEngine('us-l8');                              // 볼 x46(>30) — 오버랩 발동 조건
+    const lb = e.state.players.find((p) => p.id === 'us-lb');
+    for (const o of e.state.players) if (o.side === 'opp' && o.role !== 'GK') o.x = 92;   // 레인 클린
+    run(e, 2.0);                                              // 오버랩 질주 중간(속도 최고점)
+    const spd = Math.hypot(lb._vx ?? 0, lb._vy ?? 0);
+    if (spd < 0.8) continue;
+    const pre = { x: lb.x, y: lb.y, vx: lb._vx, vy: lb._vy };
+    const r = e.dispatch('to_feet', 'us-lb');
+    if (!r.ok) continue;
+    const dxy = { x: lb.x - pre.x, y: lb.y - pre.y };
+    const leadLen = Math.hypot(dxy.x, dxy.y);
+    const along = (dxy.x * pre.vx + dxy.y * pre.vy) / (Math.hypot(pre.vx, pre.vy) || 1);   // 진행 방향 성분
+    hit = { leadLen, along };
+  }
+  ok(!!hit, '런 중 수신자 케이스 확보');
+  if (hit) {
+    ok(hit.leadLen > 0.8 && hit.leadLen <= 4.6, `리드 거리 ${hit.leadLen.toFixed(1)}m (0.8~4.6)`);
+    ok(hit.along > 0, `리드가 런 진행 방향(성분 +${hit.along.toFixed(1)}m) — 발 앞에 꽂힘`);
+  } else fail += 2;
+}
+
+// [13] 볼 마중 — 정지 수신자는 패서 쪽으로 한 발 나와 받는다(≤1.6m)
+{
+  const e = mkEngine('us-lcb');
+  for (const o of e.state.players) if (o.side === 'opp' && o.role !== 'GK') o.x = 92;
+  const dm = e.state.players.find((p) => p.id === 'us-6');    // ~20m 지상 패스(autoLob 회피)
+  dm._vx = 0; dm._vy = 0;                                     // 정지 수신
+  const from = e.holder();
+  const pre = { x: dm.x, y: dm.y };
+  const r = e.dispatch('to_feet', 'us-6');
+  if (r.ok) {
+    const moved = Math.hypot(dm.x - pre.x, dm.y - pre.y);
+    ok(moved > 0.3 && moved <= 1.7 && (dm.x < pre.x + 0.01), `볼 마중 ${moved.toFixed(1)}m (패서 쪽)`);
+  } else ok(true, '(패스 실패 롤 — 마중 판정 스킵)');
+}
+
 console.log(fail === 0 ? '\n실시간 압박 레이어 통과' : `\n${fail} 실패`);
 process.exit(fail === 0 ? 0 : 1);

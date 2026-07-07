@@ -1073,6 +1073,13 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
     return point.x > offsideLine(opps()) + 0.2;
   }
 
+  // 볼 물리(2026-07 실시간 v2): 비행시간 = 거리 비례(지상 ~30m/s대, 로빙은 느리고
+  // 최소 체공 보장). 고정 650/900ms는 5m 리턴패스와 40m 대각을 같은 속도로 그려
+  // 물리감이 없었다.
+  function flightMs(len, lofted) {
+    return lofted ? clamp(420 + len * 38, 650, 1700) : clamp(200 + len * 30, 340, 1300);
+  }
+
   // ─── shared pass resolution ───────────────────────────────────────────────
   function resolvePassTo(target, { lofted = false, viaLabel = null, extraRisk = 0, autoLob = false } = {}) {
     const from = holder();
@@ -1114,13 +1121,35 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
         ? { x: (from.x + target.x) / 2 * 0.4 + interceptor.x * 0.6, y: (from.y + target.y) / 2 * 0.4 + interceptor.y * 0.6 }
         : { x: target.x, y: target.y };
       pressReact({ type: 'pass', trigger: 'pass' });
-      startAnim({ from: { x: from.x, y: from.y }, to: cutPoint, lofted: useLofted }, useLofted ? 900 : 650, () => {
+      startAnim({ from: { x: from.x, y: from.y }, to: cutPoint, lofted: useLofted }, flightMs(dist(from, cutPoint), useLofted), () => {
         endAttempt('intercepted', { interceptor, reason: ev.reason, risk });
       });
       return { ok: false };
     }
 
     const fromPos = { x: from.x, y: from.y };
+    // 런과 패스의 연결(2026-07 실시간 v2) — 수신 지점 결정:
+    //  · 리시버가 런 중(실시간 속도 벡터 >0.6m/s — 오버랩·어깨런 등)이면 진행 방향
+    //    '앞'으로 리드해 발 앞에 꽂는다. 패스 순간 온사이드였으므로(위 isOffside)
+    //    착지가 라인 뒤라도 적법 — 런 온투 더 볼, 축구 규칙 그대로.
+    //  · 정지 수신이면 볼을 마중 나와 터치(패서 쪽으로 한 발) — 서서 기다리지 않는다.
+    // 위험(risk)은 패스 순간 지오메트리로 이미 롤됨 — 리드는 ≤4.5m 소폭이라 근사 유지.
+    const lenRaw = dist(from, target);
+    const durMs = flightMs(lenRaw, useLofted);
+    {
+      const vx = target._vx ?? 0, vy = target._vy ?? 0, spd = Math.hypot(vx, vy);
+      let rx = target.x, ry = target.y;
+      if (spd > 0.6) {
+        const lead = Math.min(4.5, spd * (durMs / 1000) * 0.9);
+        rx += vx / spd * lead; ry += vy / spd * lead;
+      } else if (!useLofted && lenRaw > 8) {
+        const meet = Math.min(1.6, lenRaw * 0.1);
+        rx += (from.x - target.x) / (lenRaw || 1) * meet;
+        ry += (from.y - target.y) / (lenRaw || 1) * meet;
+      }
+      rx = clamp(rx, 1.5, PITCH_W - 1.5); ry = clamp(ry, 1.5, PITCH_H - 1.5);
+      target.x = rx; target.y = ry; target.tx = rx; target.ty = ry;
+    }
     const broken = linesBroken(fromPos, target, opps());
     state.facts.linesBroken += broken;
     // 바이라인 컷백 판정은 pass_space 경로(아래)와 술어를 일치시킨다 — 수신 지점이
@@ -1154,7 +1183,7 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
     maybeAdvancePhase();
 
     const trapped = receiverTrapCheck(target);
-    startAnim({ from: fromPos, to: { x: target.x, y: target.y }, lofted: useLofted }, useLofted ? 900 : 650, () => {
+    startAnim({ from: fromPos, to: { x: target.x, y: target.y }, lofted: useLofted }, durMs, () => {
       if (trapped) {
         endAttempt('trapped', { holder: target });
       }
@@ -1409,7 +1438,7 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
       state.baited = null;
       if (rollFail(risk)) {
         pressReact({ type: 'pass', trigger: 'third_man' });
-        startAnim({ from: fromPos, to: drop, lofted: false }, 620, () => {
+        startAnim({ from: fromPos, to: drop, lofted: false }, flightMs(dist(fromPos, drop), false), () => {
           endAttempt('intercepted', { interceptor: nearestDefender(drop, opps()).defender, reason: 'contest', risk });
         });
         return { ok: false };
@@ -1428,7 +1457,7 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
       addPressure(-8);
       pressReact({ type: 'pass', trigger: 'third_man' });
       maybeAdvancePhase();
-      startAnim({ from: fromPos, to: drop, lofted: false }, 560, null);
+      startAnim({ from: fromPos, to: drop, lofted: false }, flightMs(dist(fromPos, drop), false), null);
       logLine(t('log.bait.release').replace('{label}', receiver.label), 'success');
       return { ok: true };
     },
