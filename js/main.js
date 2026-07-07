@@ -1695,7 +1695,7 @@ function applyRealtimePress(s, dt, active) {
   }
   if (near && nd > PRESS_STANDOFF) {
     const dx = h.x - near.x, dy = h.y - near.y, d = Math.hypot(dx, dy) || 1;
-    const move = Math.min(nd - PRESS_STANDOFF, paceSpeed(near, 2.2) * dts);
+    const move = Math.min(nd - PRESS_STANDOFF, paceSpeed(near, 1.6) * dts);   // 우리 오퍼와 같은 스케일(압박 프리미엄 소폭)
     near.x += dx / d * move; near.y += dy / d * move; syncRender(near);
   }
 
@@ -1716,7 +1716,7 @@ function applyRealtimePress(s, dt, active) {
     if (tx > h.x) tx = Math.min(tx, offLine - 0.5);    // 온사이드
     ty = Math.max(4, Math.min(64, ty));
     const dx = tx - p.x, dy = ty - p.y, d = Math.hypot(dx, dy) || 1;
-    const mv = Math.min(d, paceSpeed(p, 1.3) * dts);   // base 오퍼 지점으로 천천히 이징(느린 걸음)
+    const mv = Math.min(d, paceSpeed(p, 1.4) * dts);   // 압박수와 같은 속도 스케일(비대칭 제거)
     p.x += dx / d * mv; p.y += dy / d * mv; syncRender(p);
   }
   // 2) 결정 시계 — 뭉갤수록 압박 게이지가 '실시간'으로 찬다(압박이 가까울수록 빠르게).
