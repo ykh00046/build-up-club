@@ -9,7 +9,7 @@ import {
 } from './club.js';
 import { ROLES } from '../data/roles.js';
 import { matchSetup, upgradePreview } from './mods.js';
-import { opponentName, scenarioForMatchday, opponentDisposition } from './season.js';
+import { opponentName, scenarioForMatchday, opponentDisposition, rivalName, isRivalMatchday } from './season.js';
 import { t, loc, getLang, toggleLang } from './i18n.js';
 import { currentMission, effectsSummary } from './events.js';
 import { currentPhilosophy } from './philosophy.js';
@@ -378,8 +378,10 @@ export function nextMatchInfo() {
   const oppOVR = oppBaseOVR();
   const setup = matchSetup(oppOVR);
   const scn = scenarioForMatchday(club.divIdx, club.matchday);
+  const rival = isRivalMatchday(club.divIdx, club.matchday);   // B3 라이벌전(더비)
   return {
-    oppName: opponentName(club.divIdx, club.matchday),
+    oppName: rival ? rivalName(club.divIdx) : opponentName(club.divIdx, club.matchday),
+    rival,
     oppOVR, setup, scenario: scn,
     // 상대 전개 성향 페르소나 — 수비 국면에서 상대 루트 선택의 기본값 (C단계)
     disposition: opponentDisposition(club.divIdx, club.matchday),
@@ -388,7 +390,7 @@ export function nextMatchInfo() {
 
 function renderNextMatch() {
   const info = nextMatchInfo();
-  setText('hub-next-opp', info.oppName);
+  setText('hub-next-opp', (info.rival ? '🔥 ' : '') + info.oppName);   // 더비 표식(B3)
   const o = info.setup.odds;
   setHtml('hub-next-odds',
     `<span class="od w">${t('match.win')} ${o.win}%</span>`

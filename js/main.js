@@ -1201,6 +1201,14 @@ function settleCareerMatch() {
   const score = resolveScoreline(perf, setup, careerRng);
   const lockedBefore = Object.keys(FORMATION_UNLOCKS).filter((k) => !isFormationUnlocked(k, Club.club));
   const income = Club.settleMatch(score.result, score.cleanSheet);
+  // 라이벌전(B3 더비) — 이긴 더비는 판이 컸던 만큼 +50% 보너스. 결과 노트로 표기.
+  let rivalBonus = 0;
+  if (lastMatch?.rival && score.result === 'w') {
+    rivalBonus = Math.round(income * 0.5);
+    Club.club.cash += rivalBonus;
+    Club.club.totalEarned += rivalBonus;
+    Club.club.runEarned += rivalBonus;
+  }
   // 포메이션 해금 체크 — 이번 정산(승수/경기수 증가)으로 새로 열린 포메이션 축하.
   const newlyUnlocked = lockedBefore.filter((k) => isFormationUnlocked(k, Club.club));
   for (const k of newlyUnlocked) {
@@ -1324,6 +1332,7 @@ function showCareerResult({ tone, score, income, prog, oppName, mission, seasonG
     else if (tone === 'goal' && score.dominance >= 0.5) parts.push(t('cr.note.decisive'));
     else if (tone === 'fail') parts.push(t('cr.note.lost'));
     if (score.setPieceGoal) parts.push(t('cr.note.setpiece'));
+    if (rivalBonus > 0) parts.push(t('cr.note.rival').replace('{amt}', Club.formatNum(rivalBonus)));
     if (mission && !bannerText.includes(loc(mission.title))) parts.push(t('cr.note.mission').replace('{title}', loc(mission.title)).replace('{reward}', Club.formatNum(mission.reward)));
     if (cond) parts.push((cond.tone === 'bad' ? '⚠ ' : '✨ ') + loc(cond.text));
     for (const goal of seasonGoals) {

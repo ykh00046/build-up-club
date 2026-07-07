@@ -43,6 +43,18 @@ export function opponentDisposition(divIdx, matchday) {
   return SCHEME_DISPOSITION[scenarioForMatchday(divIdx, matchday)?.scheme] ?? 'balanced';
 }
 
+// ── 라이벌전(B3 시즌 서사) ────────────────────────────────────────────────
+// 디비전마다 고정 라이벌 1팀 — 두 풀 사이클마다 한 번 재회하는 더비. 성향·스킴은
+// 그 매치데이 로테이션 그대로(변장 없음), 대신 판이 커진다: 승리 정산 보너스 +50%,
+// 허브·결과 카드에 더비 표식. 이름이 고정이라 "또 너냐"의 서사가 생긴다.
+const RIVALS = ['Union Holt', 'Racing Brakka', 'Dynamo Kessel', 'Atlético Castellón', 'Inter Verdano'];
+export function rivalName(divIdx) { return RIVALS[Math.min(divIdx, RIVALS.length - 1)]; }
+export function isRivalMatchday(divIdx, matchday) {
+  const pool = DIV_POOLS[Math.min(divIdx, DIV_POOLS.length - 1)];
+  const cycle = pool.length * 2;
+  return matchday % cycle === cycle - 1;
+}
+
 // 상대 클럽명 생성 — 디비전이 높을수록 격이 오르는 느낌.
 const PREFIX = ['Real', 'Inter', 'Athletic', 'Sporting', 'Dynamo', 'Olympic', 'United', 'City',
   'Borussia', 'Atlético', 'Racing', 'Union', 'Rovers', 'Wanderers'];
