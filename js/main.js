@@ -1286,7 +1286,7 @@ function settleCareerMatch() {
   trainingTaken = false;
   pendingCareerEvent = maybeCareerEvent(careerRng);
   Club.save();
-  showCareerResult({ tone, score, income, prog, oppName: lastMatch?.oppName ?? '', mission, seasonGoals, cond, report: out?.report, identity, training: pendingTrainingOptions });
+  showCareerResult({ tone, score, income, prog, oppName: lastMatch?.oppName ?? '', mission, seasonGoals, cond, report: out?.report, identity, training: pendingTrainingOptions, rivalBonus, cupNote });
 }
 
 // 색종이 파티클 — Web Animations API로 자체 낙하/회전(추가 CSS 불필요).
@@ -1310,7 +1310,7 @@ function spawnConfetti(host, n = 42) {
   }
 }
 
-function showCareerResult({ tone, score, income, prog, oppName, mission, seasonGoals = [], cond, report, identity, training = [] }) {
+function showCareerResult({ tone, score, income, prog, oppName, mission, seasonGoals = [], cond, report, identity, training = [], rivalBonus = 0, cupNote = null }) {
   const r = score.result;
   careerResult.dataset.tone = r;
   setText('cr-result', 'FULL TIME · ' + (r === 'w' ? t('res.win') : r === 'd' ? t('res.draw') : t('res.loss')));
