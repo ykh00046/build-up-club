@@ -10,6 +10,7 @@ import { getScenario, SCENARIOS } from './data/scenarios.js';
 import { SCOUTING } from './data/scouting.js';
 import { ACTION_LABELS, tacticalFactors } from './engine/tactics.js';
 import { createEngine } from './engine/engine.js';
+import { applyRealtimePress } from './engine/realtime.js';
 import { evaluateBoard } from './engine/evaluator.js';
 import { boardReadText } from './util/board-read-i18n.js';
 import { initRenderer, render, resize, toPitch, toggles, pickActionAt } from './ui/renderer.js';
@@ -1667,69 +1668,13 @@ const PITCH_COVER_SEL = '#title-overlay.visible, #outcome-overlay.visible, #sele
 function renderPaused() {
   return document.hidden || !!document.querySelector(PITCH_COVER_SEL);
 }
-// 실시간 압박(2026-07 실험) — 결정 대기(턴이 끊긴) 동안 '가장 가까운 상대'가 볼로
-// 실제로 조여온다. 논리 위치(x/y)를 함께 움직여(rx/ry 동기화) 패스 옵션이 진짜로
-// 나빠진다 → 오래 뭉갤수록 손해, 제때 결정하게 만든다("가만히 뱅뱅"이 아니라 시간이
-// 상황을 바꾼다). 스탠드오프(2.6m)까지만 조여 즉시 태클은 없다(옵션 악화가 압박).
-// 밸런스 튜닝된 액션(패스·운반)은 그대로 dispatch로 처리 — 여기선 상대만 조인다.
-const PRESS_STANDOFF = 2.6;
-// 선수별 속도 — 엔진 traits.pace 반영(윙어 빠르고 CB/GK 느림). "같은 속도"가 아니라
-// 선수마다 다르게. 양 팀 모두 이걸 쓴다.
-const paceSpeed = (p, base) => base * (0.6 + (p.traits?.pace ?? 0.6) * 0.6);
-function syncRender(p) { p.rx = p.tx = p.fx = p.x; p.ry = p.ty = p.fy = p.y; }
-function applyRealtimePress(s, dt, active) {
-  if (!active) { for (const p of s.players) { p._bx = undefined; p._by = undefined; } return; }
-  const h = engine.holder(); if (!h) return;
-  const dts = dt / 1000;
-  // 오프사이드 라인(2nd-최심 상대 x) — 우리 각 만들기 온사이드 클램프용.
-  const oxs = s.players.filter(p => p.side === 'opp').map(p => p.x).sort((a, b) => b - a);
-  const offLine = oxs[1] ?? 105;
-
-  // 1) 가장 가까운 상대가 볼로 조여온다(pace 속도). 근접 수비수는 레인 차단이 아니라
-  //    태클 위협(유인 콤비 인사이트) — 옵션이 나빠지는 게 아니라 시간이 쫓긴다.
-  let near = null, nd = Infinity;
-  for (const p of s.players) {
-    if (p.side !== 'opp' || p.role === 'GK') continue;
-    const d = Math.hypot(p.x - h.x, p.y - h.y);
-    if (d < nd) { nd = d; near = p; }
-  }
-  if (near && nd > PRESS_STANDOFF) {
-    const dx = h.x - near.x, dy = h.y - near.y, d = Math.hypot(dx, dy) || 1;
-    const move = Math.min(nd - PRESS_STANDOFF, paceSpeed(near, 1.6) * dts);   // 우리 오퍼와 같은 스케일(압박 프리미엄 소폭)
-    near.x += dx / d * move; near.y += dy / d * move; syncRender(near);
-  }
-
-  // 1.5) 우리 오프볼 — '모든' 선수가 각을 만들러 움직인다(마커 반대 + 전방). 각 턴
-  //    시작 위치(base)에 앵커해 그 반경 안에서만 오퍼(유계·유턴마다 리셋). 타이트하게
-  //    마킹될수록 크게 벗어난다(open run), 여유 있으면 작게 조정. 온사이드 유지, pace
-  //    속도. → 팀원이 풀리면 그 패스 위험이 내려가 옵션이 열린다(장식 아니라 실제 개선).
-  for (const p of s.players) {
-    if (p.side !== 'us' || p.role === 'GK' || p.id === s.holderId) continue;
-    if (p._bx === undefined) { p._bx = p.x; p._by = p.y; }
-    let mk = null, md = Infinity;
-    for (const o of s.players) { if (o.side !== 'opp' || o.role === 'GK') continue; const d = Math.hypot(o.x - p.x, o.y - p.y); if (d < md) { md = d; mk = o; } }
-    let ax = 0.55, ay = 0;                             // 기본: 살짝 전방으로 각 제공
-    if (mk && md < 12) { const dx = p._bx - mk.x, dy = p._by - mk.y, dl = Math.hypot(dx, dy) || 1; ax += dx / dl * 1.2; ay += dy / dl * 1.2; }
-    const al = Math.hypot(ax, ay) || 1;
-    const offMag = md < 7 ? 5.5 : md < 12 ? 3.0 : 1.6; // 마킹 빡셀수록 크게
-    let tx = p._bx + ax / al * offMag, ty = p._by + ay / al * offMag;
-    if (tx > h.x) tx = Math.min(tx, offLine - 0.5);    // 온사이드
-    ty = Math.max(4, Math.min(64, ty));
-    const dx = tx - p.x, dy = ty - p.y, d = Math.hypot(dx, dy) || 1;
-    const mv = Math.min(d, paceSpeed(p, 1.4) * dts);   // 압박수와 같은 속도 스케일(비대칭 제거)
-    p.x += dx / d * mv; p.y += dy / d * mv; syncRender(p);
-  }
-  // 2) 결정 시계 — 뭉갤수록 압박 게이지가 '실시간'으로 찬다(압박이 가까울수록 빠르게).
-  //    엔진의 기존 소비를 그대로 씀: 압박 100 → 다음 액션에서 붕괴(볼 상실). 즉 오래
-  //    들고 있으면 뺏긴다 → 턴이 시간으로 불린다("가만히 뱅뱅"이 아니라 시간이 판단을
-  //    강제). GK 방출 시작은 여유(느리게), 필드 선수는 압박 근접일수록 빠르게.
-  // 시계 속도(튜닝 노브) — 압박이 가까울수록 빠르게. GK 방출은 여유. /ms 단위,
-  // 압박 20→100 기준 대략 8s(먼 압박)~5s(코앞)면 "몇 초 안에 결정" 리듬.
-  const gk = h.role === 'GK';
-  const rate = (gk ? 0.003 : (nd < 5 ? 0.016 : nd < 9 ? 0.010 : 0.006));
-  s.pressure = Math.min(100, (s.pressure ?? 0) + rate * dt);
-  // 100 도달 & 유휴면 hold를 자동 디스패치 → 엔진이 붕괴 처리(짓눌림). 한 번만 발동.
-  if ((s.pressure ?? 0) >= 100 && !engine.busy && s.status === 'live') engine.dispatch('hold');
+// 실시간 압박 레이어 — js/engine/realtime.js로 추출(헤드리스 테스트 가능, 게이트:
+// scripts/realtime-press-test.mjs). 여기선 active 판정만: 결정 대기(ringLive)·us 공격·
+// 첫 플레이 가이드-락 중이 아닐 때(가이드 읽는 동안 시계가 차는 함정 방지 — 검토 R5).
+function realtimeActive(s, ringLive) {
+  if (!ringLive || engine.holder()?.side !== 'us') return false;
+  if (document.querySelector('[data-action].guide-locked')) return false;   // 첫 플레이 가이드 중
+  return true;
 }
 
 function loop(ts) {
@@ -1742,8 +1687,8 @@ function loop(ts) {
 
   const s = engine.state;
   const ringLive = s.status === 'live' && !engine.busy && !s.matchDecision;
-  // 실시간 압박 — us 공격 대기 중일 때만 상대가 볼로 조여온다(수비/애니 중엔 미적용).
-  applyRealtimePress(s, dt, ringLive && engine.holder()?.side === 'us');
+  // 실시간 압박 — us 공격 대기 중일 때만 상대가 볼로 조여온다(수비/애니/가이드 중엔 미적용).
+  applyRealtimePress(engine, dt, realtimeActive(s, ringLive));
   const shotZoneNow = engine.shotZoneNow();
   const shotPreview = engine.previewShot();   // { zone, xg } or null
   const boardRead = evaluateBoard(engine);
