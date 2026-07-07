@@ -1379,6 +1379,9 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
       maybeAdvancePhase();
       startAnim({ from: fromPos, to, lofted: false, withHolder: true }, 650, null);
       logLine(t('log.carry.probe').replace('{label}', jl(h.label, '이', '가')), 'info');
+      // F2(온보딩): 도발 밴드까지 들이댔는데 마커가 안 물었으면(커밋 롤 실패 —
+      // commitP 존재가 그 증거) 말해준다. 침묵하면 "유인이 고장났나"로 읽힌다.
+      if (bait && !bait.baited && bait.commitP != null) logLine(t('log.bait.missed'), 'warn');
       return { ok: true, bait };
     },
 
