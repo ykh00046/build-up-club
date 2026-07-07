@@ -1,5 +1,7 @@
-// Canvas renderer. Broadcast-tactics look: dark pitch, positional grid,
-// embodied pressure cues (holder ring, vignette, GK shout) — never a number.
+// Canvas renderer — 3D 투영 기반(2026-07-08 전환). 브로드캐스트 시점 원근 카메라를
+// 모든 세계 좌표가 통과한다(camera.js). 게임 로직·밸런스는 평면 그대로, 표현만 3D:
+// 기울어진 피치, 깊이 스케일(가까울수록 큼), 높이 있는 골대, 로빙볼의 실제 z 궤적,
+// 깊이 정렬 토큰. 다크 피치·체화된 압박 큐(홀더 링·비네트·GK 샤우트)는 유지.
 
 import {
   PITCH_W, PITCH_H, CHANNEL_BOUNDS_Y, THIRD_BOUNDS_X, CHANNEL_LABELS, THIRD_LABELS,
@@ -7,8 +9,9 @@ import {
 } from '../data/pitch.js';
 import { prefersReducedMotion } from '../util/motion.js';
 import { t, getLang } from '../career/i18n.js';
+import { setupCamera, proj, unprojGround, groundScale } from './camera.js';
 
-let canvas, ctx, dpr = 1, viewW = 0, viewH = 0, scale = 1, offsetX = 0, offsetY = 0;
+let canvas, ctx, dpr = 1, viewW = 0, viewH = 0, gs = 6;   // gs = 피치 중심 스케일(px/m)
 let pulse = 0;
 let usColor = null;   // 우리 팀 킷 색(클럽 컬러) — render()에서 view로 주입
 
@@ -41,19 +44,36 @@ export function resize() {
   canvas.style.width = viewW + 'px';
   canvas.style.height = viewH + 'px';
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  const m = 26;
-  scale = Math.min((viewW - m * 2) / PITCH_W, (viewH - m * 2) / PITCH_H);
-  offsetX = (viewW - PITCH_W * scale) / 2;
-  offsetY = (viewH - PITCH_H * scale) / 2;
+  setupCamera(viewW, viewH);
+  gs = groundScale();
 }
 
-function mx(x) { return offsetX + x * scale; }
-function my(y) { return offsetY + y * scale; }
+// 세계 → 화면. P(x,y[,z]) = {x, y, s}. 원근이라 mx/my 분리형은 폐기.
+const P = (wx, wy, wz = 0) => proj(wx, wy, wz);
 
-// Inverse mapping for input handling.
+// Inverse mapping for input handling — 지면(z=0) 역투영.
 export function toPitch(clientX, clientY) {
   const rect = canvas.getBoundingClientRect();
-  return { x: (clientX - rect.left - offsetX) / scale, y: (clientY - rect.top - offsetY) / scale };
+  return unprojGround(clientX - rect.left, clientY - rect.top);
+}
+
+// 투영 피치 코너(자주 씀) — [TL, TR, BR, BL] (세계 y=0이 화면 위/멀리).
+function pitchCorners() {
+  return [P(0, 0), P(PITCH_W, 0), P(PITCH_W, PITCH_H), P(0, PITCH_H)];
+}
+function quadPath(a, b, c, d) {
+  ctx.beginPath();
+  ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.lineTo(c.x, c.y); ctx.lineTo(d.x, d.y);
+  ctx.closePath();
+}
+// 세계 지면 원 → 투영 폴리라인 경로(원근에서 원은 타원).
+function circlePath(wx, wy, r, segs = 30) {
+  ctx.beginPath();
+  for (let i = 0; i <= segs; i++) {
+    const a = (i / segs) * Math.PI * 2;
+    const q = P(wx + Math.cos(a) * r, wy + Math.sin(a) * r);
+    i === 0 ? ctx.moveTo(q.x, q.y) : ctx.lineTo(q.x, q.y);
+  }
 }
 
 export function render(view, dtMs) {
@@ -113,8 +133,9 @@ function drawActionRing(view) {
   if (!list.length) return;
 
   const h = view.holder;
-  const cx = mx(h.rx ?? h.x), cy = my(h.ry ?? h.y);
-  const ringR = scale * TOKEN_R_M + 44;
+  const q = P(h.rx ?? h.x, h.ry ?? h.y);
+  const cx = q.x, cy = q.y;
+  const ringR = q.s * TOKEN_R_M + 44;
 
   // Back-side arc keeps the forward (goal-side) view clear. Near the left
   // edge there is no back side — flip the arc to the right hemisphere.
@@ -171,7 +192,7 @@ function drawActionRing(view) {
 // ─── 경기장 분위기: 스탠드·관중·플러드라이트 (피치 바깥 여백) ───────────────────
 let crowdCanvas = null, crowdKey = '';
 function buildCrowd() {
-  const key = `${viewW}x${viewH}x${Math.round(offsetX)}x${Math.round(offsetY)}`;
+  const key = `${viewW}x${viewH}`;
   if (key === crowdKey && crowdCanvas) return;
   crowdKey = key;
   try { crowdCanvas = document.createElement('canvas'); } catch (e) { crowdCanvas = null; return; }
@@ -183,7 +204,11 @@ function buildCrowd() {
   const cols = ['#3a4654', '#46586b', '#2f3a47', '#5a6b7e', '#404d5c', '#6878d0', '#c0556a', '#d8b24a', '#e8edf0'];
   let s = 987654321;
   const rnd = () => (s = (s * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
-  const px0 = mx(0), py0 = my(0), px1 = mx(PITCH_W), py1 = my(PITCH_H);
+  // 투영 피치의 화면 bbox — 관중은 그 바깥 여백을 채운다(원근이라 위 여백이 넓다 =
+  // 먼 스탠드가 크게 보이는 실제 중계 화면 느낌).
+  const cs = pitchCorners();
+  const px0 = Math.min(...cs.map((q) => q.x)), px1 = Math.max(...cs.map((q) => q.x));
+  const py0 = Math.min(...cs.map((q) => q.y)), py1 = Math.max(...cs.map((q) => q.y));
   const place = (x0, y0, x1, y1) => {
     const area = Math.max(0, x1 - x0) * Math.max(0, y1 - y0);
     const n = Math.min(1400, Math.floor(area / 22));
@@ -193,8 +218,8 @@ function buildCrowd() {
       c.fillRect(x0 + rnd() * (x1 - x0), y0 + rnd() * (y1 - y0), 1.5, 1.5);
     }
   };
-  place(0, 0, viewW, py0 - 7);                 // 상단
-  place(0, py1 + 7, viewW, viewH);             // 하단
+  place(0, 0, viewW, py0 - 7);                 // 상단(먼 스탠드)
+  place(0, py1 + 7, viewW, viewH);             // 하단(근접 스탠드)
   place(0, py0 - 7, px0 - 7, py1 + 7);         // 좌
   place(px1 + 7, py0 - 7, viewW, py1 + 7);     // 우
 }
@@ -203,70 +228,99 @@ function drawStadium() {
   const sg = ctx.createLinearGradient(0, 0, 0, viewH);
   sg.addColorStop(0, '#0c131b'); sg.addColorStop(1, '#070b10');
   ctx.fillStyle = sg; ctx.fillRect(0, 0, viewW, viewH);
-  const px0 = mx(0), py0 = my(0), px1 = mx(PITCH_W), py1 = my(PITCH_H);
   buildCrowd();
   if (crowdCanvas) { ctx.globalAlpha = 1; ctx.drawImage(crowdCanvas, 0, 0, viewW, viewH); }
-  // 스탠드 벽(피치를 감싸는 어두운 띠) — 피치는 이후 drawPitch가 덮는다.
+  // 스탠드 벽 — 투영 피치를 감싸는 트라페조이드 띠(피치는 이후 drawPitch가 덮는다).
+  const [tl, tr, br, bl] = pitchCorners();
+  const out = 11;
   ctx.fillStyle = '#10171f';
-  ctx.fillRect(px0 - 11, py0 - 11, (px1 - px0) + 22, (py1 - py0) + 22);
+  quadPath(
+    { x: tl.x - out, y: tl.y - out }, { x: tr.x + out, y: tr.y - out },
+    { x: br.x + out, y: br.y + out }, { x: bl.x - out, y: bl.y + out },
+  );
+  ctx.fill();
   // 플러드라이트 코너 글로우.
-  const glow = (gx, gy) => {
-    const g = ctx.createRadialGradient(gx, gy, 0, gx, gy, Math.max(viewW, viewH) * 0.32);
+  const glow = (q) => {
+    const g = ctx.createRadialGradient(q.x, q.y, 0, q.x, q.y, Math.max(viewW, viewH) * 0.32);
     g.addColorStop(0, 'rgba(200, 225, 255, 0.09)'); g.addColorStop(1, 'rgba(200, 225, 255, 0)');
     ctx.fillStyle = g; ctx.fillRect(0, 0, viewW, viewH);
   };
-  glow(px0, py0); glow(px1, py0); glow(px0, py1); glow(px1, py1);
+  glow(tl); glow(tr); glow(bl); glow(br);
 }
 
-// 골네트 + 코너 깃발 (피치 그린 뒤 호출).
+// 골대 — 진짜 높이(크로스바 2.44m)를 가진 3D 프레임 + 뒤로 처지는 네트.
 function drawGoalsAndFlags() {
   const gy0 = (PITCH_H - 7.32) / 2, gy1 = (PITCH_H + 7.32) / 2;
-  const depth = 2.1;
+  const BAR = 2.44, depth = 1.9;
   for (const side of [0, 1]) {
     const gx = side === 0 ? 0 : PITCH_W;
     const dir = side === 0 ? -1 : 1;
-    const x0 = mx(gx), x1 = mx(gx + dir * depth);
+    const bx = gx + dir * depth;             // 네트 뒤 지점
+    const p0 = P(gx, gy0, 0), p1 = P(gx, gy1, 0);
+    const t0 = P(gx, gy0, BAR), t1 = P(gx, gy1, BAR);
+    const b0 = P(bx, gy0, 0), b1 = P(bx, gy1, 0);
+    const n0 = P(bx, gy0, BAR * 0.45), n1 = P(bx, gy1, BAR * 0.45);   // 네트 상단(처짐)
+    // 네트 면(옆+뒤) — 옅은 채움.
     ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
-    ctx.fillRect(Math.min(x0, x1), my(gy0), Math.abs(x1 - x0), my(gy1) - my(gy0));
+    quadPath(t0, t1, n1, n0); ctx.fill();
+    quadPath(n0, n1, b1, b0); ctx.fill();
+    // 네트 격자.
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.20)'; ctx.lineWidth = 0.6;
     ctx.beginPath();
-    for (let yy = gy0; yy <= gy1 + 0.01; yy += 0.7) { ctx.moveTo(x0, my(yy)); ctx.lineTo(x1, my(yy)); }
-    for (let t = 0; t <= depth + 0.01; t += 0.7) { const xx = mx(gx + dir * t); ctx.moveTo(xx, my(gy0)); ctx.lineTo(xx, my(gy1)); }
+    for (let i = 0; i <= 10; i++) {
+      const yy = gy0 + (gy1 - gy0) * (i / 10);
+      const a = P(gx, yy, BAR), b = P(bx, yy, BAR * 0.45), c = P(bx, yy, 0);
+      ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.lineTo(c.x, c.y);
+    }
+    for (const zz of [0.6, 1.2, 1.8]) {
+      const a = P(bx, gy0, zz * 0.45), b = P(bx, gy1, zz * 0.45);
+      ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y);
+    }
     ctx.stroke();
+    // 프레임: 포스트 2 + 크로스바(흰색, 도톰).
     ctx.strokeStyle = '#eef3f5'; ctx.lineWidth = 2.6;
-    ctx.beginPath(); ctx.moveTo(mx(gx), my(gy0)); ctx.lineTo(mx(gx), my(gy1)); ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(p0.x, p0.y); ctx.lineTo(t0.x, t0.y);
+    ctx.lineTo(t1.x, t1.y);
+    ctx.lineTo(p1.x, p1.y);
+    ctx.stroke();
   }
+  // 코너 깃발(살짝 세운 3D 기둥 + 깃발).
   for (const [cxp, cyp] of [[0, 0], [PITCH_W, 0], [0, PITCH_H], [PITCH_W, PITCH_H]]) {
-    const cx = mx(cxp), cy = my(cyp);
-    const dirx = cxp === 0 ? 1 : -1, diry = cyp === 0 ? -1 : 1;
+    const base = P(cxp, cyp, 0), top = P(cxp, cyp, 1.5);
+    const dirx = cxp === 0 ? 1 : -1;
     ctx.strokeStyle = 'rgba(230, 235, 238, 0.85)'; ctx.lineWidth = 1.1;
-    ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx, cy + diry * 7); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(base.x, base.y); ctx.lineTo(top.x, top.y); ctx.stroke();
     ctx.fillStyle = '#f5a623';
     ctx.beginPath();
-    ctx.moveTo(cx, cy + diry * 7);
-    ctx.lineTo(cx + dirx * 5, cy + diry * 7 + diry * 2);
-    ctx.lineTo(cx, cy + diry * 7 + diry * 4);
+    ctx.moveTo(top.x, top.y);
+    ctx.lineTo(top.x + dirx * 5, top.y + 2);
+    ctx.lineTo(top.x, top.y + 4);
     ctx.closePath(); ctx.fill();
   }
 }
 
 function drawPitch() {
+  const [tl, tr, br, bl] = pitchCorners();
+  // 잔디 본체(투영 사다리꼴).
   ctx.fillStyle = COLORS.pitch;
-  ctx.fillRect(mx(0), my(0), PITCH_W * scale, PITCH_H * scale);
-  // 유사 3D: 잔디 깎기 스트라이프(세로 밴드) — 잔디 결의 입체감.
+  quadPath(tl, tr, br, bl); ctx.fill();
+  // 잔디 깎기 스트라이프(세로 밴드) — 각 밴드를 투영 사변형으로.
   const STRIPES = 12;
   const bw = PITCH_W / STRIPES;
   for (let i = 0; i < STRIPES; i++) {
     ctx.fillStyle = i % 2 === 0 ? 'rgba(255, 255, 255, 0.045)' : 'rgba(0, 0, 0, 0.055)';
-    ctx.fillRect(mx(i * bw), my(0), bw * scale + 1, PITCH_H * scale);
+    quadPath(P(i * bw, 0), P((i + 1) * bw, 0), P((i + 1) * bw, PITCH_H), P(i * bw, PITCH_H));
+    ctx.fill();
   }
-  // 방향 조명(위쪽 밝게 → 아래쪽 어둡게) — 조명 받은 경기장 깊이.
-  const litG = ctx.createLinearGradient(mx(0), my(0), mx(0), my(PITCH_H));
+  // 방향 조명(멀리 밝게 → 가까이 어둡게) — 원근 깊이 강조.
+  const topY = Math.min(tl.y, tr.y), botY = Math.max(bl.y, br.y);
+  const litG = ctx.createLinearGradient(0, topY, 0, botY);
   litG.addColorStop(0, 'rgba(255, 255, 255, 0.06)');
   litG.addColorStop(0.5, 'rgba(255, 255, 255, 0)');
   litG.addColorStop(1, 'rgba(0, 0, 0, 0.11)');
   ctx.fillStyle = litG;
-  ctx.fillRect(mx(0), my(0), PITCH_W * scale, PITCH_H * scale);
+  quadPath(tl, tr, br, bl); ctx.fill();
   ctx.strokeStyle = COLORS.pitchLine;
   ctx.lineWidth = 1.2;
   strokeRect(0, 0, PITCH_W, PITCH_H);
@@ -286,21 +340,13 @@ function drawPitch() {
   line(0, (PITCH_H - 7.32) / 2, 0, (PITCH_H + 7.32) / 2);
   line(PITCH_W, (PITCH_H - 7.32) / 2, PITCH_W, (PITCH_H + 7.32) / 2);
   // Subtle radial gradient overlay — broadcast-style spotlight depth.
-  const pcx = mx(PITCH_W / 2), pcy = my(PITCH_H / 2);
-  const maxR = Math.hypot(PITCH_W * scale, PITCH_H * scale) / 2;
-  const spotG = ctx.createRadialGradient(pcx, pcy, maxR * 0.15, pcx, pcy, maxR);
+  const pc = P(PITCH_W / 2, PITCH_H / 2);
+  const maxR = Math.max(br.x - tl.x, br.y - tl.y) / 1.6;
+  const spotG = ctx.createRadialGradient(pc.x, pc.y, maxR * 0.15, pc.x, pc.y, maxR);
   spotG.addColorStop(0, 'rgba(180, 220, 200, 0.04)');
   spotG.addColorStop(1, 'rgba(0, 0, 0, 0.03)');
   ctx.fillStyle = spotG;
-  ctx.fillRect(mx(0), my(0), PITCH_W * scale, PITCH_H * scale);
-  // 베벨: 상/좌 하이라이트 + 하/우 그림자로 경기장이 살짝 솟아 보이게.
-  ctx.save();
-  ctx.lineWidth = 2;
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.07)';
-  ctx.beginPath(); ctx.moveTo(mx(0) + 1, my(PITCH_H) - 1); ctx.lineTo(mx(0) + 1, my(0) + 1); ctx.lineTo(mx(PITCH_W) - 1, my(0) + 1); ctx.stroke();
-  ctx.strokeStyle = 'rgba(0, 0, 0, 0.16)';
-  ctx.beginPath(); ctx.moveTo(mx(PITCH_W) - 1, my(0) + 1); ctx.lineTo(mx(PITCH_W) - 1, my(PITCH_H) - 1); ctx.lineTo(mx(0) + 1, my(PITCH_H) - 1); ctx.stroke();
-  ctx.restore();
+  quadPath(tl, tr, br, bl); ctx.fill();
 }
 
 function drawChannelGrid() {
@@ -312,15 +358,17 @@ function drawChannelGrid() {
   ctx.setLineDash([]);
   if (!toggles.labels) return;
   ctx.fillStyle = COLORS.channelLabel;
-  ctx.font = `600 ${Math.max(10, scale * 1.25)}px ui-sans-serif, system-ui, sans-serif`;
+  ctx.font = `600 ${Math.max(10, gs * 1.25)}px ui-sans-serif, system-ui, sans-serif`;
   ctx.textAlign = 'left'; ctx.textBaseline = 'top';
   for (let i = 0; i < CHANNEL_LABELS.length; i++) {
-    ctx.fillText(CHANNEL_LABELS[i], mx(1.2), my((CHANNEL_BOUNDS_Y[i] + CHANNEL_BOUNDS_Y[i + 1]) / 2) - 7);
+    const q = P(1.2, (CHANNEL_BOUNDS_Y[i] + CHANNEL_BOUNDS_Y[i + 1]) / 2);
+    ctx.fillText(CHANNEL_LABELS[i], q.x, q.y - 7);
   }
   ctx.fillStyle = COLORS.thirdLabel;
   ctx.textAlign = 'center';
   for (let i = 0; i < THIRD_LABELS.length; i++) {
-    ctx.fillText(THIRD_LABELS[i], mx((THIRD_BOUNDS_X[i] + THIRD_BOUNDS_X[i + 1]) / 2), my(PITCH_H) + 6);
+    const q = P((THIRD_BOUNDS_X[i] + THIRD_BOUNDS_X[i + 1]) / 2, PITCH_H);
+    ctx.fillText(THIRD_LABELS[i], q.x, q.y + 6);
   }
 }
 
@@ -336,10 +384,11 @@ function drawPhaseLine(phase) {
   line(x, 0, x, PITCH_H);
   ctx.setLineDash([]);
   if (toggles.labels) {
+    const q = P(x, 0);
     ctx.fillStyle = 'rgba(245, 166, 35, 0.75)';
-    ctx.font = `${Math.max(9, scale * 1.1)}px ui-sans-serif, system-ui, sans-serif`;
+    ctx.font = `${Math.max(9, gs * 1.1)}px ui-sans-serif, system-ui, sans-serif`;
     ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
-    ctx.fillText(label, mx(x), my(0) - 4);
+    ctx.fillText(label, q.x, q.y - 4);
   }
 }
 
@@ -354,20 +403,20 @@ const EDGE_STYLE = {
 function drawSuperiorityZones(zones) {
   for (const z of zones) {
     const st = EDGE_STYLE[z.kind] ?? EDGE_STYLE.numerical;
-    const r = (5 + z.value) * scale;
-    const cx = mx(z.x), cy = my(z.y);
+    const rW = 5 + z.value;                       // 세계 반경(m)
+    const q = P(z.x, z.y);
     ctx.fillStyle = st.fill;
-    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
+    circlePath(z.x, z.y, rW); ctx.fill();
     ctx.strokeStyle = st.ring;
     ctx.lineWidth = 1.2;
     ctx.setLineDash([3, 4]);
-    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
+    circlePath(z.x, z.y, rW); ctx.stroke();
     ctx.setLineDash([]);
     if (toggles.labels) {
       ctx.fillStyle = st.ring;
-      ctx.font = `600 ${Math.max(8.5, scale * 0.95)}px ui-sans-serif, system-ui, sans-serif`;
+      ctx.font = `600 ${Math.max(8.5, gs * 0.95)}px ui-sans-serif, system-ui, sans-serif`;
       ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
-      ctx.fillText(getLang() === 'en' ? st.en : st.ko, cx, cy - r - 2);
+      ctx.fillText(getLang() === 'en' ? st.en : st.ko, q.x, q.y - rW * q.s - 2);
     }
   }
 }
@@ -377,24 +426,26 @@ function drawRewardWindow(w) {
   // readable to a player who has learned to look closely.
   const strong = w.kind === 'real';
   const breath = 1 + Math.sin(pulse * (strong ? 5 : 9)) * (strong ? 0.10 : 0.04);
-  const r = w.r * breath * scale;
-  const g = ctx.createRadialGradient(mx(w.x), my(w.y), r * 0.2, mx(w.x), my(w.y), r);
+  const rW = w.r * breath;                      // 세계 반경
+  const q = P(w.x, w.y);
+  const rPx = rW * q.s;
+  const g = ctx.createRadialGradient(q.x, q.y, rPx * 0.2, q.x, q.y, rPx);
   g.addColorStop(0, strong ? 'rgba(77, 139, 255,0.28)' : 'rgba(77, 139, 255,0.16)');
   g.addColorStop(1, 'rgba(77, 139, 255,0)');
   ctx.fillStyle = g;
-  ctx.beginPath(); ctx.arc(mx(w.x), my(w.y), r, 0, Math.PI * 2); ctx.fill();
+  circlePath(w.x, w.y, rW); ctx.fill();
   ctx.strokeStyle = COLORS.windowEdge;
   ctx.lineWidth = strong ? 1.6 : 1;
   ctx.setLineDash([6, 6]);
-  ctx.beginPath(); ctx.arc(mx(w.x), my(w.y), r, 0, Math.PI * 2); ctx.stroke();
+  circlePath(w.x, w.y, rW); ctx.stroke();
   ctx.setLineDash([]);
   // Only REAL windows get named — a false window shimmers but stays
   // anonymous, so the bluff is learnable instead of feeling like a coin flip.
   if (toggles.labels && strong) {
     ctx.fillStyle = 'rgba(190, 250, 240, 0.9)';
-    ctx.font = `${Math.max(9, scale * 1.0)}px ui-sans-serif, system-ui, sans-serif`;
+    ctx.font = `${Math.max(9, gs * 1.0)}px ui-sans-serif, system-ui, sans-serif`;
     ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
-    ctx.fillText(t('pitch.openSpace'), mx(w.x), my(w.y) - r - 3);
+    ctx.fillText(t('pitch.openSpace'), q.x, q.y - rPx - 3);
   }
 }
 
@@ -402,14 +453,14 @@ function drawRewardWindow(w) {
 // ("예상 전개: ST 방향" / "종잡을 수 없는 상대")의 시각 쌍. 상대 위협이므로
 // 적색(laneCut) 계열, 행진 점선으로 "곧 갈 길"을 표현.
 function drawDefenseRoute(route) {
-  const fx = mx(route.from.x), fy = my(route.from.y);
+  const f = P(route.from.x, route.from.y);
   const march = -pulse * 24;   // 점선이 캐리어→타깃으로 흐른다(전개 방향감)
   if (route.confident) {
-    const tx = mx(route.to.x), ty = my(route.to.y);
-    const ang = Math.atan2(ty - fy, tx - fx);
-    const r0 = scale * TOKEN_R_M + 4;      // 캐리어 토큰 밖에서 시작
-    const sx = fx + Math.cos(ang) * r0, sy = fy + Math.sin(ang) * r0;
-    const ex = tx - Math.cos(ang) * (scale * TOKEN_R_M + 3), ey = ty - Math.sin(ang) * (scale * TOKEN_R_M + 3);
+    const tq = P(route.to.x, route.to.y);
+    const ang = Math.atan2(tq.y - f.y, tq.x - f.x);
+    const r0 = f.s * TOKEN_R_M + 4;      // 캐리어 토큰 밖에서 시작
+    const sx = f.x + Math.cos(ang) * r0, sy = f.y + Math.sin(ang) * r0;
+    const ex = tq.x - Math.cos(ang) * (tq.s * TOKEN_R_M + 3), ey = tq.y - Math.sin(ang) * (tq.s * TOKEN_R_M + 3);
     ctx.strokeStyle = 'rgba(255, 92, 92, 0.78)';
     ctx.lineWidth = 2;
     ctx.setLineDash([7, 6]); ctx.lineDashOffset = march;
@@ -424,22 +475,22 @@ function drawDefenseRoute(route) {
     ctx.lineTo(ex - Math.cos(ang + 0.42) * ah, ey - Math.sin(ang + 0.42) * ah);
     ctx.closePath(); ctx.fill();
     // 예상 수신자 타깃 링(맥동)
-    const rr = (scale * TOKEN_R_M + 6) * (1 + Math.sin(pulse * 5) * 0.12);
+    const rr = (tq.s * TOKEN_R_M + 6) * (1 + Math.sin(pulse * 5) * 0.12);
     ctx.strokeStyle = 'rgba(255, 92, 92, 0.55)';
     ctx.lineWidth = 1.6; ctx.setLineDash([4, 4]); ctx.lineDashOffset = march;
-    ctx.beginPath(); ctx.arc(tx, ty, rr, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.arc(tq.x, tq.y, rr, 0, Math.PI * 2); ctx.stroke();
     ctx.setLineDash([]); ctx.lineDashOffset = 0;
   } else {
     // 종잡을 수 없음 — 전방(상대 공격 방향 -x)으로 부채꼴 확산 점선.
-    const fanLen = scale * 12;
+    const fanLen = f.s * 12;
     ctx.strokeStyle = 'rgba(245, 166, 35, 0.45)';   // 앰버(불확실)
     ctx.lineWidth = 1.5; ctx.setLineDash([5, 7]); ctx.lineDashOffset = march;
     for (const spread of [-0.5, -0.17, 0.17, 0.5]) {
       const ang = Math.PI + spread;   // -x 기준 부채꼴
-      const r0 = scale * TOKEN_R_M + 4;
+      const r0 = f.s * TOKEN_R_M + 4;
       ctx.beginPath();
-      ctx.moveTo(fx + Math.cos(ang) * r0, fy + Math.sin(ang) * r0);
-      ctx.lineTo(fx + Math.cos(ang) * fanLen, fy + Math.sin(ang) * fanLen);
+      ctx.moveTo(f.x + Math.cos(ang) * r0, f.y + Math.sin(ang) * r0);
+      ctx.lineTo(f.x + Math.cos(ang) * fanLen, f.y + Math.sin(ang) * fanLen);
       ctx.stroke();
     }
     ctx.setLineDash([]); ctx.lineDashOffset = 0;
@@ -449,27 +500,27 @@ function drawDefenseRoute(route) {
 // 유인 창 시각화(Phase 2) — 유인 성공 시 뒷공간 드롭 지점 + 릴리스 경로를 그려
 // "여기로 릴리스(E)"를 읽게 한다. 리시버 드롭(녹색 타깃 링) + 릴리서→드롭 경로.
 function drawBaitArmed(b) {
-  const dx = mx(b.drop.x), dy = my(b.drop.y);
+  const d = P(b.drop.x, b.drop.y);
   const march = -pulse * 24;
   // 드롭 타깃 링(맥동, 녹색=열린 뒷공간).
-  const rr = (scale * TOKEN_R_M + 8) * (1 + Math.sin(pulse * 5) * 0.14);
+  const rr = (d.s * TOKEN_R_M + 8) * (1 + Math.sin(pulse * 5) * 0.14);
   ctx.strokeStyle = 'rgba(93, 214, 197, 0.85)';
   ctx.lineWidth = 2; ctx.setLineDash([5, 5]); ctx.lineDashOffset = march;
-  ctx.beginPath(); ctx.arc(dx, dy, rr, 0, Math.PI * 2); ctx.stroke();
+  ctx.beginPath(); ctx.arc(d.x, d.y, rr, 0, Math.PI * 2); ctx.stroke();
   ctx.setLineDash([]); ctx.lineDashOffset = 0;
   // 릴리서→드롭 경로(3자 릴레이) — 녹색 점선.
   if (b.releaser) {
-    const rx = mx(b.releaser.x), ry = my(b.releaser.y);
+    const rq = P(b.releaser.x, b.releaser.y);
     ctx.strokeStyle = 'rgba(93, 214, 197, 0.6)';
     ctx.lineWidth = 1.6; ctx.setLineDash([6, 5]); ctx.lineDashOffset = march;
-    ctx.beginPath(); ctx.moveTo(rx, ry); ctx.lineTo(dx, dy); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(rq.x, rq.y); ctx.lineTo(d.x, d.y); ctx.stroke();
     ctx.setLineDash([]); ctx.lineDashOffset = 0;
   }
   // 라벨 "릴리스 E".
   ctx.fillStyle = 'rgba(190, 250, 240, 0.95)';
-  ctx.font = `600 ${Math.max(10, scale * 1.1)}px ui-sans-serif, system-ui, sans-serif`;
+  ctx.font = `600 ${Math.max(10, gs * 1.1)}px ui-sans-serif, system-ui, sans-serif`;
   ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
-  ctx.fillText('릴리스 ▸ E', dx, dy - rr - 4);
+  ctx.fillText('릴리스 ▸ E', d.x, d.y - rr - 4);
 }
 
 function drawShotZoneBadge(zone, holder, xg) {
@@ -477,15 +528,16 @@ function drawShotZoneBadge(zone, holder, xg) {
   // U3: zone QUALITY is part of the read — a low-xG zone shows muted with an
   // honest nudge instead of the hot "shoot now" orange.
   const good = zone.baseXg >= 0.24;
+  const q = P(holder.rx ?? holder.x, holder.ry ?? holder.y);
   ctx.fillStyle = good ? 'rgba(245, 166, 35, 0.92)' : 'rgba(168, 178, 190, 0.85)';
-  ctx.font = `700 ${Math.max(10, scale * 1.2)}px ui-sans-serif, system-ui, sans-serif`;
+  ctx.font = `700 ${Math.max(10, gs * 1.2)}px ui-sans-serif, system-ui, sans-serif`;
   ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
   const pct = xg != null ? ` · ${Math.round(xg * 100)}%` : '';
   const zoneWord = getLang() === 'en' ? zone.en : zone.ko;
   const label = good
     ? `${t('pitch.shotZone')}: ${zoneWord}${pct}`
     : `${t('pitch.shotZone')}: ${zoneWord}${pct}${t('pitch.lowProb')}`;
-  ctx.fillText(label, mx(holder.rx ?? holder.x), my(holder.ry ?? holder.y) - scale * TOKEN_R_M - 14);
+  ctx.fillText(label, q.x, q.y - q.s * TOKEN_R_M - 14);
 }
 
 function drawCoverShadows(view) {
@@ -501,11 +553,12 @@ function drawCoverShadows(view) {
     const shadowLen = 13;
     const half = 0.24;
     const a = Math.atan2(uy, ux);
+    const q0 = P(px, py);
+    const q1 = P(px + Math.cos(a - half) * shadowLen, py + Math.sin(a - half) * shadowLen);
+    const q2 = P(px + Math.cos(a + half) * shadowLen, py + Math.sin(a + half) * shadowLen);
     ctx.fillStyle = 'rgba(255, 92, 92, 0.07)';
     ctx.beginPath();
-    ctx.moveTo(mx(px), my(py));
-    ctx.lineTo(mx(px + Math.cos(a - half) * shadowLen), my(py + Math.sin(a - half) * shadowLen));
-    ctx.lineTo(mx(px + Math.cos(a + half) * shadowLen), my(py + Math.sin(a + half) * shadowLen));
+    ctx.moveTo(q0.x, q0.y); ctx.lineTo(q1.x, q1.y); ctx.lineTo(q2.x, q2.y);
     ctx.closePath();
     ctx.fill();
   }
@@ -537,28 +590,28 @@ function laneLine(from, to, status, dashOffset = 0) {
   ctx.lineDashOffset = 0;
 }
 
-// 공간 패스 — 홀더 기준 범위 그라데이션(멀수록 진한 붉은빛=실패 강조) + 조준점
-// (위험도 색) + 가까운 수신자 강조. 패스 능력치는 위험도(risk)로 반영된다.
+// 공간 패스 — 홀더 기준 범위 로브(세계 좌표 샘플 → 투영: 원근에서도 정확한 모양)
+// + 조준점(위험도 색) + 가까운 수신자 강조. 패스 능력치는 위험도(risk)로 반영된다.
 function drawSpaceAim(hover, h) {
-  const cx = mx(h.x), cy = my(h.y);
-  const ax = mx(hover.aim.x), ay = my(hover.aim.y);
+  const c = P(h.x, h.y);
+  const a2 = P(hover.aim.x, hover.aim.y);
   // 도달 프로필을 능력치 + 몸 방향으로 — maxR(도달 한계)·safeR(정확 구간)은 포지션,
   // 모양은 향한 방향으로 길쭉한 로브(원이 아님). 향한 쪽 멀리, 등 뒤는 짧다.
-  const maxR = (hover.maxR ?? 40) * scale;
+  const maxRW = hover.maxR ?? 40;               // 세계 m
   const safeFrac = clamp((hover.safeR ?? 22) / (hover.maxR ?? 40), 0.2, 0.95);
   const facing = hover.facingAngle ?? 0;
   const baseFrac = hover.baseFrac ?? 0.6;
-  const lobeR = (a) => maxR * (baseFrac + (1 - baseFrac) * (1 + Math.cos(a - facing)) / 2);
+  const lobeRW = (a) => maxRW * (baseFrac + (1 - baseFrac) * (1 + Math.cos(a - facing)) / 2);
   const lobePath = () => {
     ctx.beginPath();
     for (let i = 0; i <= 72; i++) {
-      const a = (i / 72) * Math.PI * 2, r = lobeR(a);
-      const x = cx + Math.cos(a) * r, y = cy + Math.sin(a) * r;
-      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+      const a = (i / 72) * Math.PI * 2, r = lobeRW(a);
+      const q = P(h.x + Math.cos(a) * r, h.y + Math.sin(a) * r);
+      i === 0 ? ctx.moveTo(q.x, q.y) : ctx.lineTo(q.x, q.y);
     }
     ctx.closePath();
   };
-  const grad = ctx.createRadialGradient(cx, cy, 6 * scale, cx, cy, maxR);
+  const grad = ctx.createRadialGradient(c.x, c.y, 6 * c.s, c.x, c.y, maxRW * c.s);
   grad.addColorStop(0, 'rgba(77,139,255,0.06)');
   grad.addColorStop(safeFrac * 0.85, 'rgba(77,139,255,0.05)');
   grad.addColorStop(safeFrac, 'rgba(255,194,75,0.10)');
@@ -576,27 +629,28 @@ function drawSpaceAim(hover, h) {
   const C = !hover.reachable ? '150,160,170' : REC.c;
   ctx.strokeStyle = `rgba(${C},0.95)`; ctx.lineWidth = 2;
   ctx.setLineDash([6, 5]); ctx.lineDashOffset = -pulse * 22;
-  ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(ax, ay); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(c.x, c.y); ctx.lineTo(a2.x, a2.y); ctx.stroke();
   ctx.setLineDash([]); ctx.lineDashOffset = 0;
   ctx.fillStyle = `rgba(${C},0.18)`;
-  ctx.beginPath(); ctx.arc(ax, ay, 5 * scale, 0, Math.PI * 2); ctx.fill();
+  circlePath(hover.aim.x, hover.aim.y, 5); ctx.fill();
   ctx.strokeStyle = `rgba(${C},0.95)`; ctx.lineWidth = 1.6;
-  ctx.beginPath(); ctx.arc(ax, ay, 5 * scale, 0, Math.PI * 2); ctx.stroke();
+  circlePath(hover.aim.x, hover.aim.y, 5); ctx.stroke();
   if (hover.receiver) {
     ctx.strokeStyle = '#ffc24b'; ctx.lineWidth = 2.4;
-    ctx.beginPath(); ctx.arc(mx(hover.receiver.x), my(hover.receiver.y), 2.4 * scale, 0, Math.PI * 2); ctx.stroke();
+    circlePath(hover.receiver.x, hover.receiver.y, 2.4); ctx.stroke();
   }
   ctx.fillStyle = `rgba(${C},1)`;
-  ctx.font = `600 ${Math.max(9.5, scale * 1.05)}px ui-sans-serif, system-ui, sans-serif`;
+  ctx.font = `600 ${Math.max(9.5, gs * 1.05)}px ui-sans-serif, system-ui, sans-serif`;
   ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
-  ctx.fillText(!hover.reachable ? t('pitch.unreachable') : REC.t + (hover.lofted ? lobWord() : ''), ax, ay - 7 * scale);
+  ctx.fillText(!hover.reachable ? t('pitch.unreachable') : REC.t + (hover.lofted ? lobWord() : ''), a2.x, a2.y - 7 * a2.s);
 }
 
 function laneTag(text, p, status) {
+  const q = P(p.x, p.y);
   ctx.fillStyle = LANE_COLORS[status] ?? COLORS.laneRisky;
-  ctx.font = `600 ${Math.max(9.5, scale * 1.05)}px ui-sans-serif, system-ui, sans-serif`;
+  ctx.font = `600 ${Math.max(9.5, gs * 1.05)}px ui-sans-serif, system-ui, sans-serif`;
   ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
-  ctx.fillText(text, mx(p.x), my(p.y) - 6);
+  ctx.fillText(text, q.x, q.y - 6);
 }
 
 // ─── pass-option rings (발밑 패스 무장 시) ──────────────────────────────────
@@ -610,8 +664,8 @@ function drawPassOptions(opts, players) {
   for (const o of opts) {
     const p = byId.get(o.targetId);
     if (!p) continue;
-    const cx = mx(p.rx ?? p.x), cy = my(p.ry ?? p.y);
-    const r = scale * TOKEN_R_M + 9;
+    const q = P(p.rx ?? p.x, p.ry ?? p.y);
+    const r = q.s * TOKEN_R_M + 9;
     let color, alpha;
     if (o.risk < 0.30)      { color = '#5dd6c5'; alpha = 0.88; }
     else if (o.risk < 0.58) { color = '#f5c842'; alpha = 0.68; }
@@ -619,7 +673,7 @@ function drawPassOptions(opts, players) {
     ctx.globalAlpha = alpha;
     ctx.strokeStyle = color;
     ctx.beginPath();
-    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.arc(q.x, q.y, r, 0, Math.PI * 2);
     ctx.stroke();
   }
   ctx.restore();
@@ -627,25 +681,22 @@ function drawPassOptions(opts, players) {
 
 // ─── run destinations (런 무장 시) ──────────────────────────────────────────
 // Off-ball run destinations — thick energetic arrows so runs read as
-// purposeful MOVEMENT, not pass lanes. Each arrow: solid stem → filled
-// arrowhead → pulsing destination ring. Color: orange-amber (#f5a623)
-// so runs are visually distinct from teal pass/space overlays.
+// purposeful MOVEMENT, not pass lanes. Color: orange-amber (#f5a623).
 function drawRunDestinations(dests, players) {
   const byId = new Map(players.map(p => [p.id, p]));
-  // Reuse arrow marker defined once per frame.
   for (const d of dests) {
     const p = byId.get(d.targetId);
     if (!p || !d.zone) continue;
-    const fx = mx(d.from.x), fy = my(d.from.y);
-    const tx = mx(d.zone.x), ty = my(d.zone.y);
-    const len = Math.hypot(tx - fx, ty - fy);
-    if (len < scale * 3) continue;
+    const f = P(d.from.x, d.from.y);
+    const tq = P(d.zone.x, d.zone.y);
+    const len = Math.hypot(tq.x - f.x, tq.y - f.y);
+    if (len < gs * 3) continue;
 
-    const angle = Math.atan2(ty - fy, tx - fx);
+    const angle = Math.atan2(tq.y - f.y, tq.x - f.x);
     const headLen = Math.min(14, len * 0.35);
     // Stem ends slightly before tip so arrowhead sits cleanly.
-    const sx = tx - Math.cos(angle) * headLen * 0.9;
-    const sy = ty - Math.sin(angle) * headLen * 0.9;
+    const sx = tq.x - Math.cos(angle) * headLen * 0.9;
+    const sy = tq.y - Math.sin(angle) * headLen * 0.9;
 
     ctx.save();
 
@@ -655,7 +706,7 @@ function drawRunDestinations(dests, players) {
     ctx.lineWidth = 2.2;
     ctx.setLineDash([]);
     ctx.beginPath();
-    ctx.moveTo(fx, fy);
+    ctx.moveTo(f.x, f.y);
     ctx.lineTo(sx, sy);
     ctx.stroke();
 
@@ -663,25 +714,25 @@ function drawRunDestinations(dests, players) {
     ctx.globalAlpha = 0.88;
     ctx.fillStyle = '#f5a623';
     ctx.beginPath();
-    ctx.moveTo(tx, ty);
+    ctx.moveTo(tq.x, tq.y);
     ctx.lineTo(
-      tx - Math.cos(angle - Math.PI / 7) * headLen,
-      ty - Math.sin(angle - Math.PI / 7) * headLen,
+      tq.x - Math.cos(angle - Math.PI / 7) * headLen,
+      tq.y - Math.sin(angle - Math.PI / 7) * headLen,
     );
     ctx.lineTo(
-      tx - Math.cos(angle + Math.PI / 7) * headLen,
-      ty - Math.sin(angle + Math.PI / 7) * headLen,
+      tq.x - Math.cos(angle + Math.PI / 7) * headLen,
+      tq.y - Math.sin(angle + Math.PI / 7) * headLen,
     );
     ctx.closePath();
     ctx.fill();
 
     // — Destination ring: pulsing circle —
-    const ringR = scale * 3.2 + Math.sin(pulse * 4) * 1.2;
+    const ringR = tq.s * 3.2 + Math.sin(pulse * 4) * 1.2;
     ctx.globalAlpha = 0.45 + Math.sin(pulse * 4) * 0.15;
     ctx.strokeStyle = '#f5a623';
     ctx.lineWidth = 1.8;
     ctx.beginPath();
-    ctx.arc(tx, ty, ringR, 0, Math.PI * 2);
+    ctx.arc(tq.x, tq.y, ringR, 0, Math.PI * 2);
     ctx.stroke();
 
     ctx.restore();
@@ -718,7 +769,7 @@ function drawHover(hover, holder) {
     ctx.strokeStyle = LANE_COLORS[p.landing.status];
     ctx.lineWidth = 1.6;
     ctx.setLineDash([4, 4]);
-    ctx.beginPath(); ctx.arc(mx(p.zone.x), my(p.zone.y), p.zone.r * scale, 0, Math.PI * 2); ctx.stroke();
+    circlePath(p.zone.x, p.zone.y, p.zone.r); ctx.stroke();
     // Runner path.
     const t = { x: p.target.rx ?? p.target.x, y: p.target.ry ?? p.target.y };
     line(t.x, t.y, p.zone.x, p.zone.y);
@@ -731,7 +782,7 @@ function drawHover(hover, holder) {
     ctx.lineWidth = 2;
     ctx.setLineDash([3, 5]);
     arrow(t.x, t.y, p.zone.x, p.zone.y);
-    ctx.beginPath(); ctx.arc(mx(p.zone.x), my(p.zone.y), p.zone.r * scale, 0, Math.PI * 2); ctx.stroke();
+    circlePath(p.zone.x, p.zone.y, p.zone.r); ctx.stroke();
     ctx.setLineDash([]);
     laneTag(`${pierceWord()} ${laneWord(p.landing.status)}`, p.zone, p.landing.status);
   } else if (p.kind === 'chain') {
@@ -750,25 +801,29 @@ function drawHover(hover, holder) {
 function drawKbFocus(view) {
   const p = view.players.find((q) => q.id === view.keyboardTargetId);
   if (!p) return;
-  const cx = mx(p.rx ?? p.x), cy = my(p.ry ?? p.y);
-  const r = scale * TOKEN_R_M + 6 + Math.sin(pulse * 4) * 1.8;
+  const q = P(p.rx ?? p.x, p.ry ?? p.y);
+  const r = q.s * TOKEN_R_M + 6 + Math.sin(pulse * 4) * 1.8;
   ctx.save();
   ctx.strokeStyle = '#5dd6c5';
   ctx.lineWidth = 2.5;
   ctx.setLineDash([]);
-  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
+  ctx.beginPath(); ctx.arc(q.x, q.y, r, 0, Math.PI * 2); ctx.stroke();
   ctx.restore();
 }
 
 function drawPlayers(players, holderId, pressureExpr, presserId) {
-  // Opponents under our tokens.
-  for (const p of players) if (p.side === 'opp') drawToken(p, false, pressureExpr, p.id === presserId);
-  for (const p of players) if (p.side === 'us') drawToken(p, p.id === holderId, pressureExpr);
+  // 3D 깊이 정렬: 먼 선수(작은 y)부터 → 가까운 선수가 자연스럽게 앞에 겹친다.
+  const sorted = [...players].sort((a, b) => (a.ry ?? a.y) - (b.ry ?? b.y));
+  for (const p of sorted) {
+    if (p.side === 'opp') drawToken(p, false, pressureExpr, p.id === presserId);
+    else drawToken(p, p.id === holderId, pressureExpr);
+  }
 }
 
 function drawToken(p, isHolder, pressureExpr, isPresser = false) {
-  const r = scale * TOKEN_R_M;
-  const cx = mx(p.rx ?? p.x), cy = my(p.ry ?? p.y);
+  const q = P(p.rx ?? p.x, p.ry ?? p.y);
+  const r = q.s * TOKEN_R_M;
+  const cx = q.x, cy = q.y;
   const us = p.side === 'us';
   // 유사 3D: 지면 캐스트 그림자(아래로 오프셋된 부드러운 타원) → 토큰이 떠 보이게.
   ctx.save();
@@ -894,14 +949,13 @@ function drawBall(ball) {
   // 공이 늘 보이고, 받는 자리/패스 각도가 선명해진다.
   let px = ball.x, py = ball.y;
   if (!ball.flying) px = clamp(ball.x + TOKEN_R_M * 1.25, 0.6, PITCH_W - 0.6);
-  let r = Math.max(4.5, scale * 0.62);   // 키움 (0.45 → 0.62)
-  let yPitch = py;
-  if (ball.lofted && ball.flying) {
-    const arcT = Math.sin((ball.flightT ?? 0) * Math.PI);
-    yPitch = py - arcT * 6;
-    r *= 1 + arcT * 0.7;
-  }
-  const bx = mx(px), by = my(yPitch);
+  // 3D: 로빙볼은 실제 z(높이 m)로 떠오른다 — 카메라가 원근으로 그린다.
+  let z = 0;
+  if (ball.lofted && ball.flying) z = Math.sin((ball.flightT ?? 0) * Math.PI) * 6;
+  const g = P(px, py, 0);          // 지면(그림자 위치)
+  const q = P(px, py, z);          // 공 본체(높이 반영)
+  const r = Math.max(4.5, q.s * 0.62);
+  const bx = q.x, by = q.y;
   // 패스 궤적 잔상: 비행 중 최근 위치를 페이드로. 정지하면 비운다.
   if (ball.flying) {
     ballTrail.push({ x: bx, y: by });
@@ -914,10 +968,11 @@ function drawBall(ball) {
     ctx.fillStyle = `rgba(255, 255, 255, ${(0.32 * f).toFixed(3)})`;
     ctx.beginPath(); ctx.arc(tp.x, tp.y, r * (0.35 + 0.5 * f), 0, Math.PI * 2); ctx.fill();
   }
-  // 지면 그림자: 항상 지면(py)에 — 로빙볼이 떠올라도 그림자는 바닥에 남는다.
+  // 지면 그림자: 항상 지면(z=0)에 — 로빙볼이 떠올라도 그림자는 바닥에 남는다.
   ctx.save();
   ctx.fillStyle = 'rgba(0, 0, 0, 0.32)';
-  ctx.beginPath(); ctx.ellipse(mx(px), my(py) + r * 0.5, r * 0.9, r * 0.42, 0, 0, Math.PI * 2); ctx.fill();
+  const shR = r * Math.max(0.45, 1 - z * 0.09);   // 높이 오를수록 그림자 작아짐
+  ctx.beginPath(); ctx.ellipse(g.x, g.y + r * 0.3, shR * 0.9, shR * 0.42, 0, 0, Math.PI * 2); ctx.fill();
   ctx.restore();
   // 흰 공 본체 + 접지 그림자.
   ctx.save();
@@ -927,14 +982,14 @@ function drawBall(ball) {
   ctx.beginPath(); ctx.arc(bx, by, r, 0, Math.PI * 2); ctx.fill();
   ctx.restore();
   // 회전: 논리 위치 이동량에 비례해 패널을 굴림(빠른 패스=빠른 스핀, 정지 시 멈춤).
-  const logX = mx(ball.x), logY = my(ball.y);
+  const lg = P(ball.x, ball.y, 0);
   if (ballPrevLog) {
-    const d = Math.hypot(logX - ballPrevLog.x, logY - ballPrevLog.y);
-    if (d > 0.1 && d < r * 6) ballSpin += (d / r) * 0.9 * (Math.sign(logX - ballPrevLog.x) || 1);
+    const d = Math.hypot(lg.x - ballPrevLog.x, lg.y - ballPrevLog.y);
+    if (d > 0.1 && d < r * 6) ballSpin += (d / r) * 0.9 * (Math.sign(lg.x - ballPrevLog.x) || 1);
     // 긴 세션에서 무한 누적 시 sin/cos 부동소수 정밀도 손실 — 2π로 래핑.
     ballSpin %= (Math.PI * 2);
   }
-  ballPrevLog = { x: logX, y: logY };
+  ballPrevLog = { x: lg.x, y: lg.y };
   // 축구공 패널.
   drawFootballPanels(bx, by, r, ballSpin);
   // 구체 음영(클립): 좌상 하이라이트 → 우하 그림자.
@@ -975,10 +1030,11 @@ function drawFreezeFlash(flash) {
 function drawShout(pressureExpr, holder) {
   if (!pressureExpr?.shout || !holder) return;
   const jitter = Math.sin(pulse * 30) * 1.5;
+  const q = P(holder.rx ?? holder.x, holder.ry ?? holder.y);
   ctx.fillStyle = 'rgba(255, 120, 100, 0.95)';
-  ctx.font = `800 ${Math.max(12, scale * 1.6)}px ui-sans-serif, system-ui, sans-serif`;
+  ctx.font = `800 ${Math.max(12, gs * 1.6)}px ui-sans-serif, system-ui, sans-serif`;
   ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
-  ctx.fillText(pressureExpr.shout, mx(holder.rx ?? holder.x) + jitter, my(holder.ry ?? holder.y) - scale * TOKEN_R_M - 4);
+  ctx.fillText(pressureExpr.shout, q.x + jitter, q.y - q.s * TOKEN_R_M - 4);
 }
 
 function drawCue(cue, tone) {
@@ -1003,24 +1059,40 @@ function drawCue(cue, tone) {
   ctx.fillText(cue, viewW / 2, y + 14);
 }
 
-// ─── primitives ──────────────────────────────────────────────────────────────
-function strokeRect(x, y, w, h) { ctx.strokeRect(mx(x), my(y), w * scale, h * scale); }
-function line(x1, y1, x2, y2) { ctx.beginPath(); ctx.moveTo(mx(x1), my(y1)); ctx.lineTo(mx(x2), my(y2)); ctx.stroke(); }
-function circle(x, y, r) { ctx.beginPath(); ctx.arc(mx(x), my(y), r * scale, 0, Math.PI * 2); ctx.stroke(); }
-function arc(x, y, r, a0, a1) { ctx.beginPath(); ctx.arc(mx(x), my(y), r * scale, a0, a1); ctx.stroke(); }
+// ─── primitives (세계 좌표 → 투영) ───────────────────────────────────────────
+function strokeRect(x, y, w, h) {
+  quadPath(P(x, y), P(x + w, y), P(x + w, y + h), P(x, y + h));
+  ctx.stroke();
+}
+function line(x1, y1, x2, y2) {
+  const a = P(x1, y1), b = P(x2, y2);
+  ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+}
+function circle(x, y, r) { circlePath(x, y, r); ctx.stroke(); }
+function arc(x, y, r, a0, a1, segs = 16) {
+  ctx.beginPath();
+  for (let i = 0; i <= segs; i++) {
+    const a = a0 + (a1 - a0) * (i / segs);
+    const q = P(x + Math.cos(a) * r, y + Math.sin(a) * r);
+    i === 0 ? ctx.moveTo(q.x, q.y) : ctx.lineTo(q.x, q.y);
+  }
+  ctx.stroke();
+}
 function dot(x, y) {
-  ctx.beginPath(); ctx.arc(mx(x), my(y), 0.35 * scale, 0, Math.PI * 2);
+  const q = P(x, y);
+  ctx.beginPath(); ctx.arc(q.x, q.y, 0.35 * q.s, 0, Math.PI * 2);
   ctx.fillStyle = COLORS.pitchLine; ctx.fill();
 }
 function arrow(x1, y1, x2, y2) {
-  line(x1, y1, x2, y2);
-  const angle = Math.atan2(my(y2) - my(y1), mx(x2) - mx(x1));
-  const head = Math.max(6, scale * 1.2);
+  const a = P(x1, y1), b = P(x2, y2);
+  ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+  const angle = Math.atan2(b.y - a.y, b.x - a.x);
+  const head = Math.max(6, b.s * 1.2);
   ctx.beginPath();
-  ctx.moveTo(mx(x2), my(y2));
-  ctx.lineTo(mx(x2) - head * Math.cos(angle - Math.PI / 6), my(y2) - head * Math.sin(angle - Math.PI / 6));
-  ctx.moveTo(mx(x2), my(y2));
-  ctx.lineTo(mx(x2) - head * Math.cos(angle + Math.PI / 6), my(y2) - head * Math.sin(angle + Math.PI / 6));
+  ctx.moveTo(b.x, b.y);
+  ctx.lineTo(b.x - head * Math.cos(angle - Math.PI / 6), b.y - head * Math.sin(angle - Math.PI / 6));
+  ctx.moveTo(b.x, b.y);
+  ctx.lineTo(b.x - head * Math.cos(angle + Math.PI / 6), b.y - head * Math.sin(angle + Math.PI / 6));
   ctx.stroke();
 }
 function roundRect(x, y, w, h, r) {
@@ -1030,4 +1102,5 @@ function roundRect(x, y, w, h, r) {
   ctx.lineTo(x + w, y + h - r); ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
   ctx.lineTo(x + r, y + h); ctx.quadraticCurveTo(x, y + h, x, y + h - r);
   ctx.lineTo(x, y + r); ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
 }
