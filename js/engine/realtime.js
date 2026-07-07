@@ -39,28 +39,36 @@ function mover(p, tx, ty, maxSpd, dts) {
 const clampY = (y) => Math.max(4, Math.min(64, y));
 const WIDE_L = 7, WIDE_R = 61;
 
-// 역할 런 목표 — base 앵커에서 상황(볼·라인·마킹)에 맞는 런. {tx, ty, cap} 반환.
+// 역할 런 목표 — base 앵커에서 상황(볼·라인·마킹)+**전술 지침(lineIntents)**에 맞는 런.
+// B1(런 프로파일): 허브/브리핑의 지침 선택이 실제 런 모양을 바꾼다 — 메타→체감의 새 축.
+//   back  'overlap' 풀백 터치라인 질주  / 'hold' 후방 잔류(리셋 출구 보장)
+//   front 'pin'  ST·W가 라인 위에서 밀어냄 / 'drop' ST가 내려와 연결(체크런 위주)
+//   mid   'between' 8/6 라인 사이 전진   / 'support' 내려와 볼 곁 수적 우위
 function runTarget(p, s, h, offLine, runClock) {
   const bx = p._bx, by = p._by;
   const ballX = h.x, ballY = h.y;
   const role = p.role;
+  const it = s.lineIntents ?? {};
   let tx = bx + 2.5, ty = by, cap = 4;
   if (role === 'FB' || role === 'IFB' || role === 'LB' || role === 'RB') {
-    // 오버랩 — 볼이 전진해 있고 같은 측면이면 터치라인을 따라 홀더 앞으로 질주.
     const myWideY = by < 34 ? WIDE_L : WIDE_R;
-    if (ballX > 30 && Math.abs(ballY - by) < 22) { tx = bx + 11; ty = myWideY; cap = 11; }
+    if (it.back === 'hold') { tx = bx + 1; ty = by + (myWideY - by) * 0.15; cap = 2.5; }   // 후방 안정 — 남는다
+    else if (ballX > 30 && Math.abs(ballY - by) < 22) { tx = bx + 11; ty = myWideY; cap = 11; }  // 오버랩 질주
     else { tx = bx + 3; ty = by + (myWideY - by) * 0.3; cap = 5; }
   } else if (role === 'W') {
-    // 폭 유지 + 오프사이드 라인 어깨에 서기(뒷공간 위협).
-    tx = Math.min(offLine - 1.2, bx + 9); cap = 9;
+    // 폭 유지 + 라인 어깨. front 'drop'이면 반 발 내려 연결 각 제공.
+    const push = it.front === 'drop' ? 5 : 9;
+    tx = Math.min(offLine - 1.2, bx + push); cap = push;
     ty = by < 34 ? Math.min(by, WIDE_L + 1) : Math.max(by, WIDE_R - 1);
   } else if (role === 'ST') {
-    // 체크런(발밑으로 내려옴) ↔ 어깨런(라인 위 횡이동) 교대 — 살아있는 9번.
-    if (Math.floor(runClock / 2.4) % 2 === 0) { tx = Math.max(bx - 5, ballX + 8); ty = by + (ballY - by) * 0.25; cap = 6; }
+    // pin=라인 위 어깨런 위주 / drop=내려와 연결(체크런 위주) / 기본=2.4s 교대.
+    const phase = Math.floor(runClock / 2.4) % 2;
+    const check = it.front === 'drop' ? true : it.front === 'pin' ? false : phase === 0;
+    if (check) { tx = Math.max(bx - (it.front === 'drop' ? 9 : 5), ballX + 8); ty = by + (ballY - by) * 0.25; cap = it.front === 'drop' ? 9 : 6; }
     else { tx = Math.min(offLine - 1.0, bx + 7); ty = by + (by >= ballY ? 3.5 : -3.5); cap = 8; }
   } else if (role === '8' || role === '6' || role === 'DM') {
-    // 라인 사이 포켓 — 볼 사이드로 반 발, 전방 반 발(패스 각 제공).
-    tx = bx + 4; ty = by + (ballY - by) * 0.18; cap = 5;
+    if (it.mid === 'support') { tx = bx - 2; ty = by + (ballY - by) * 0.35; cap = 5; }   // 내려와 수적 우위
+    else { tx = bx + 4; ty = by + (ballY - by) * 0.18; cap = 5; }                        // 라인 사이 전진
   }
   return { tx, ty: clampY(ty), cap };
 }

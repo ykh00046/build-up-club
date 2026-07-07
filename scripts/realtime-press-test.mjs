@@ -159,6 +159,7 @@ console.log('=== 실시간 압박 레이어 테스트 ===\n');
 // [11] 역할 런 — 풀백 오버랩: 볼 전진 시 측면으로 크게 질주(cap 11, 유계 ≤12)
 {
   const e = mkEngine('us-l8');                        // 볼 x46(>30) — 오버랩 조건
+  e.state.lineIntents.back = 'overlap';               // B1: 오버랩은 지침 선택(기본 hold=잔류)
   for (const o of e.state.players) if (o.side === 'opp' && o.role !== 'GK') o.x = 90;   // 수비 멀리
   const lb = e.state.players.find((p) => p.id === 'us-lb');
   const b0 = { x: lb.x, y: lb.y };
@@ -174,6 +175,7 @@ console.log('=== 실시간 압박 레이어 테스트 ===\n');
   let hit = null;
   for (let seed = 4242; seed < 4342 && !hit; seed++) {
     const e = mkEngine('us-l8');                              // 볼 x46(>30) — 오버랩 발동 조건
+    e.state.lineIntents.back = 'overlap';                     // B1: 오버랩 지침
     const lb = e.state.players.find((p) => p.id === 'us-lb');
     for (const o of e.state.players) if (o.side === 'opp' && o.role !== 'GK') o.x = 92;   // 레인 클린
     run(e, 2.0);                                              // 오버랩 질주 중간(속도 최고점)
@@ -207,6 +209,38 @@ console.log('=== 실시간 압박 레이어 테스트 ===\n');
     const moved = Math.hypot(dm.x - pre.x, dm.y - pre.y);
     ok(moved > 0.3 && moved <= 1.7 && (dm.x < pre.x + 0.01), `볼 마중 ${moved.toFixed(1)}m (패서 쪽)`);
   } else ok(true, '(패스 실패 롤 — 마중 판정 스킵)');
+}
+
+// [14] 런 프로파일(B1) — 전술 지침이 런 모양을 바꾼다
+{
+  // back 'hold' → 풀백이 남는다(오버랩 조건 동일 지오메트리에서 [11]의 +4.5m와 대비)
+  const e = mkEngine('us-l8');
+  for (const o of e.state.players) if (o.side === 'opp' && o.role !== 'GK') o.x = 90;
+  e.state.lineIntents.back = 'hold';
+  const lb = e.state.players.find((p) => p.id === 'us-lb');
+  const b0 = { x: lb.x, y: lb.y };
+  run(e, 5);
+  const held = Math.hypot(lb.x - b0.x, lb.y - b0.y);
+  ok(held <= 3.2, `back=hold → 풀백 잔류 ${held.toFixed(1)}m ≤ 3.2 (오버랩 기본값은 +7.6)`);
+
+  // mid 'support' → 8번이 내려와 볼 쪽으로(홀더와의 거리 감소)
+  const e2 = mkEngine('us-lcb');
+  for (const o of e2.state.players) if (o.side === 'opp' && o.role !== 'GK') o.x = 90;
+  e2.state.lineIntents.mid = 'support';
+  const l8 = e2.state.players.find((p) => p.id === 'us-l8');
+  const h2 = e2.holder();
+  const d0 = dist(l8, h2);
+  run(e2, 4);
+  ok(dist(l8, h2) < d0 - 1 && l8.x <= l8._bx + 0.5, `mid=support → 8번 내려와 연결 (홀더 거리 ${d0.toFixed(1)}→${dist(l8, h2).toFixed(1)}m)`);
+
+  // front 'drop' → ST가 체크런 고정(전진 대신 볼 쪽으로)
+  const e3 = mkEngine('us-lcb');
+  for (const o of e3.state.players) if (o.side === 'opp' && o.role !== 'GK') o.x = 90;
+  e3.state.lineIntents.front = 'drop';
+  const st = e3.state.players.find((p) => p.id === 'us-st');
+  const sx0 = st.x;
+  run(e3, 4);
+  ok(st.x < sx0 + 1, `front=drop → ST 체크런(전진 안 함: x ${sx0.toFixed(0)}→${st.x.toFixed(0)})`);
 }
 
 console.log(fail === 0 ? '\n실시간 압박 레이어 통과' : `\n${fail} 실패`);
