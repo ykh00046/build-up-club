@@ -141,10 +141,10 @@ console.log('=== 실시간 압박 레이어 테스트 ===\n');
   const e = mkEngine('us-lcb');
   const h = e.holder();
   const o = e.state.players.find((p) => p.side === 'opp' && p.role !== 'GK');
-  o.x = h.x + 4.5; o.y = h.y;
+  o.x = h.x + 4.2; o.y = h.y;   // B2: 문턱=배짱(lcb pr0.7→4.4m), 4.2는 배짱 안
   const x0 = h.x;
   run(e, 3);
-  ok(Math.abs(h.x - x0) < 0.6, `압박 근접 시 드리프트 정지 (Δ${(h.x - x0).toFixed(2)}m)`);
+  ok(Math.abs(h.x - x0) < 0.6, `배짱 안 압박 → 드리프트 정지 (Δ${(h.x - x0).toFixed(2)}m)`);
 }
 
 // [10] GK는 드리프트 안 함(방출 대기)
@@ -241,6 +241,47 @@ console.log('=== 실시간 압박 레이어 테스트 ===\n');
   const sx0 = st.x;
   run(e3, 4);
   ok(st.x < sx0 + 1, `front=drop → ST 체크런(전진 안 함: x ${sx0.toFixed(0)}→${st.x.toFixed(0)})`);
+}
+
+// [15] 선수 개성(B2) — longPass 리드 무게 · pressResistance 배짱 · jumpiness 클로징
+{
+  const leadWith = (lp) => {
+    for (let seed = 4242; seed < 4342; seed++) {
+      const e = mkEngine('us-l8');
+      e.state.lineIntents.back = 'overlap';
+      e.holder().traits.longPass = lp;
+      const lb = e.state.players.find((p) => p.id === 'us-lb');
+      for (const o of e.state.players) if (o.side === 'opp' && o.role !== 'GK') o.x = 92;
+      run(e, 2.0);
+      if (Math.hypot(lb._vx ?? 0, lb._vy ?? 0) < 0.8) continue;
+      const pre = { x: lb.x, y: lb.y };
+      if (!e.dispatch('to_feet', 'us-lb').ok) continue;
+      return Math.hypot(lb.x - pre.x, lb.y - pre.y);
+    }
+    return null;
+  };
+  const lo = leadWith(0.2), hi = leadWith(0.9);
+  ok(lo != null && hi != null && hi > lo * 1.2, `longPass 리드 무게 (lp0.2→${lo?.toFixed(2)}m vs lp0.9→${hi?.toFixed(2)}m)`);
+
+  const driftWith = (pr) => {
+    const e = mkEngine('us-lcb');
+    const h = e.holder(); h.traits.pressResistance = pr;
+    const o = e.state.players.find((p) => p.side === 'opp' && p.role !== 'GK');
+    o.x = h.x; o.y = h.y + 4.8;   // 순수 측면 4.8m — pr0.9(guts4.0)는 몰고, pr0.3(guts5.2)는 정지
+    const x0 = h.x; run(e, 3); return h.x - x0;
+  };
+  const brave = driftWith(0.9), timid = driftWith(0.3);
+  ok(brave > 0.8 && timid < 0.4, `배짱 드리프트 (pr0.9 +${brave.toFixed(1)}m vs pr0.3 +${timid.toFixed(1)}m)`);
+
+  const closeWith = (j) => {
+    const e = mkEngine('us-lcb');
+    const h = e.holder();
+    const o = e.state.players.find((p) => p.side === 'opp' && p.role !== 'GK');
+    o.x = h.x + 12; o.y = h.y; o.jumpiness = j;
+    const d0 = dist(o, h); run(e, 2.5); return d0 - dist(o, h);
+  };
+  const eager = closeWith(0.9), calm = closeWith(0.3);
+  ok(eager > calm * 1.15, `jumpiness 클로징 (j0.9 ${eager.toFixed(1)}m vs j0.3 ${calm.toFixed(1)}m)`);
 }
 
 console.log(fail === 0 ? '\n실시간 압박 레이어 통과' : `\n${fail} 실패`);

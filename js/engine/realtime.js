@@ -103,10 +103,11 @@ export function applyRealtimePress(engine, dt, active) {
   for (const o of s.players) {
     if (o.side !== 'opp' || o.role === 'GK') continue;
     if (o === near && !holderGK) {
-      // 스탠드오프 지점까지 조여옴(관성 — 마지막에 자연 감속).
+      // 스탠드오프 지점까지 조여옴(관성 — 마지막에 자연 감속). B2: 클로징 공격성은
+      // jumpiness — 튀어나가는 전방(0.85)은 빠르게, 신중한 CB(0.35)는 천천히 조인다.
       const dx = h.x - o.x, dy = h.y - o.y, d = Math.hypot(dx, dy) || 1;
       const gx = h.x - dx / d * STANDOFF, gy = h.y - dy / d * STANDOFF;
-      mover(o, gx, gy, paceMax(o, 1.7), dts);
+      mover(o, gx, gy, paceMax(o, 1.4 + (o.jumpiness ?? 0.5) * 0.6), dts);
       // 관성 오버슛 방지 — BACK 문턱(3.5m) 밖 계약을 하드 클램프로 보증.
       const d2 = Math.hypot(h.x - o.x, h.y - o.y);
       if (d2 < STANDOFF && d2 > 0.01) {
@@ -141,10 +142,13 @@ export function applyRealtimePress(engine, dt, active) {
     mover(p, tx, clampY(ty), paceMax(p, 1.5), dts);
   }
 
-  // 홀더 자동 드리프트(B안) — 압박 5m 밖에서만, base+4m 유계, 압박 반대편 소폭 조향.
+  // 홀더 자동 드리프트(B안) — 배짱(B2: pressResistance)만큼 압박을 허용하며 전진.
+  // 저항 강한 선수(0.85→4.1m)는 수비를 더 가까이 두고도 몰고, 약한 선수(0.55→4.7m)는
+  // 일찍 멈춘다. 바닥 4.0 > 스탠드오프 3.8 > BACK 3.5 — 안전 계약 유지.
   if (!holderGK) {
     const DRIFT_MAX = 4;
-    if (nd > 5.0) {
+    const guts = Math.max(4.0, 5.8 - (h.traits?.pressResistance ?? 0.5) * 2);
+    if (nd > guts) {
       const dy = near ? Math.sign(h.y - near.y || 1) * 0.35 : 0;
       const tx = Math.min((h._bx ?? h.x) + DRIFT_MAX, 100);
       const ty = clampY((h._by ?? h.y) + dy * DRIFT_MAX);

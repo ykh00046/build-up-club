@@ -1148,7 +1148,11 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
       const vx = target._vx ?? 0, vy = target._vy ?? 0, spd = Math.hypot(vx, vy);
       let rx = target.x, ry = target.y;
       if (spd > 0.6) {
-        const lead = Math.min(4.5, spd * (durMs / 1000) * 0.9);
+        // B2 선수 개성: 리드의 '무게감'은 패서의 longPass — 잘 차는 선수는 발 앞에
+        // 정확히 실어주고(≈풀 리드), 약한 선수는 언더리드(러너가 되돌아와 받음 =
+        // 모멘텀 손실). lp 0.3→×0.72, 0.8→×0.99.
+        const lp = from.traits?.longPass ?? 0.4;
+        const lead = Math.min(4.5, spd * (durMs / 1000) * 0.9 * (0.55 + lp * 0.55));
         rx += vx / spd * lead; ry += vy / spd * lead;
       } else if (!useLofted && lenRaw > 8) {
         const meet = Math.min(1.6, lenRaw * 0.1);
