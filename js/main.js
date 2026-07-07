@@ -1688,7 +1688,13 @@ function loop(ts) {
   const s = engine.state;
   const ringLive = s.status === 'live' && !engine.busy && !s.matchDecision;
   // 실시간 압박 — us 공격 대기 중일 때만 상대가 볼로 조여온다(수비/애니/가이드 중엔 미적용).
-  applyRealtimePress(engine, dt, realtimeActive(s, ringLive));
+  // 조준 슬로우(사용자 피드백): 캐리는 '선택지 무장→지점 조준' 2단계라 조준하는 동안
+  // 시계·압박이 돌면 캐리(핵심 동사)가 실시간 세금을 제일 크게 문다. 캐리를 고르면
+  // 시간이 15%로 느려져(프로토에서 검증한 슬로우모션) 침착하게 지점을 고른다 —
+  // 생각은 보호되되 완전 정지는 아니라 무한 숙고 익스플로잇은 없다.
+  const AIM_SLOW = 0.15;
+  const rtDt = selectedAction === 'carry' ? dt * AIM_SLOW : dt;
+  applyRealtimePress(engine, rtDt, realtimeActive(s, ringLive));
   const shotZoneNow = engine.shotZoneNow();
   const shotPreview = engine.previewShot();   // { zone, xg } or null
   const boardRead = evaluateBoard(engine);
