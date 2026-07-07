@@ -538,6 +538,14 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
       if (state.ball) state.ball.x = nu.x;
     }
     if (nu.x <= DEFENSE_SHOT_X || dl.steps >= DEFENSE_MAX_STEPS) return resolveOppShot(nu);
+    // A3(비대칭 정체성): 상대 전진 스텝을 텔레포트 대신 볼 비행으로 — "얼어붙은
+    // 판독" 사이의 전개가 눈에 보인다. dispatch와 같은 스냅샷(fx=rx) 후 애니를 걸어
+    // 우리 블록 재배치(아래 defendDecisionFor→advanceDefenseShape의 tx/ty)도 함께
+    // 부드럽게 미끄러진다. (클램프·슛 분기 뒤라 착지점=논리 위치 일치.)
+    for (const p of players) { p.fx = p.rx ?? p.x; p.fy = p.ry ?? p.y; p.tx = p.x; p.ty = p.y; }
+    const _stepFrom = { x: carrier.x, y: carrier.y };
+    const _stepLen = dist(_stepFrom, nu);
+    startAnim({ from: _stepFrom, to: { x: nu.x, y: nu.y }, lofted: _stepLen >= 26 }, flightMs(_stepLen, _stepLen >= 26), null);
     defendDecisionFor(nu);
     return { ok: true, recovered: false, step };
   }

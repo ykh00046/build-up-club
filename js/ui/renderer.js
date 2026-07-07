@@ -85,6 +85,7 @@ export function render(view, dtMs) {
   drawBall(view.ball);
   drawActionRing(view);
   drawVignette(view.pressureExpr);
+  drawFreezeFlash(view.freezeFlash);
   drawShout(view.pressureExpr, view.holder);
   drawCue(view.cue, view.cueTone);
 }
@@ -956,6 +957,17 @@ function drawVignette(pressureExpr) {
   const g = ctx.createRadialGradient(viewW / 2, viewH / 2, Math.min(viewW, viewH) * 0.35, viewW / 2, viewH / 2, Math.max(viewW, viewH) * 0.7);
   g.addColorStop(0, 'rgba(120, 20, 20, 0)');
   g.addColorStop(1, `rgba(120, 20, 20, ${v})`);
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, viewW, viewH);
+}
+
+// A3 프리즈 플래시 — 수비 판독 진입 순간 파란 가장자리가 스치듯 지나간다("세상이
+// 멈춘다"). 압박 비네트(붉음)와 색으로 구분되는 420ms 원샷.
+function drawFreezeFlash(flash) {
+  if (!flash || flash <= 0.01) return;
+  const g = ctx.createRadialGradient(viewW / 2, viewH / 2, Math.min(viewW, viewH) * 0.38, viewW / 2, viewH / 2, Math.max(viewW, viewH) * 0.72);
+  g.addColorStop(0, 'rgba(70, 130, 220, 0)');
+  g.addColorStop(1, `rgba(70, 130, 220, ${0.32 * flash})`);
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, viewW, viewH);
 }

@@ -1699,6 +1699,8 @@ function updateTacticalHud(s) {
 // ─── render loop ─────────────────────────────────────────────────────────────
 let lastTs = performance.now();
 let lastWindowKey = null;
+let lastDefendKey = null;      // A3 프리즈 연출 — defend 결정 신규 오픈 감지
+let defenseFreezeAt = 0;
 // 피치를 가리는 풀스크린 오버레이가 떠 있으면 매치는 상호작용 불가 — 그동안
 // engine.update + 전체 렌더 + 프레임당 프리뷰 계산을 건너뛴다(배터리/CPU 절약).
 const PITCH_COVER_SEL = '#title-overlay.visible, #outcome-overlay.visible, #select-overlay.visible, #tactics-overlay.visible, #hub-overlay.visible, #career-result.visible, #event-overlay.visible, #tutorial-overlay.visible, #philo-overlay.visible';
@@ -1724,6 +1726,11 @@ function loop(ts) {
 
   const s = engine.state;
   const ringLive = s.status === 'live' && !engine.busy && !s.matchDecision;
+  // A3(비대칭 정체성) — 수비 판독 진입 프리즈 연출: 공격은 시간이 흐르고, 볼을 잃으면
+  // 세상이 멈춘다. defend 결정이 새로 열리는 순간 낮은 '썸' + 파란 플래시(렌더러).
+  const defendKey = s.matchDecision?.id === 'defend' ? `${s.turn}:${s.holderId}` : null;
+  if (defendKey && defendKey !== lastDefendKey) { defenseFreezeAt = performance.now(); sfx.freeze(); }
+  lastDefendKey = defendKey;
   // 실시간 압박 — us 공격 대기 중일 때만 상대가 볼로 조여온다(수비/애니/가이드 중엔 미적용).
   // 조준 슬로우(사용자 피드백): 캐리는 '선택지 무장→지점 조준' 2단계라 조준하는 동안
   // 시계·압박이 돌면 캐리(핵심 동사)가 실시간 세금을 제일 크게 문다. 캐리를 고르면
@@ -1759,6 +1766,7 @@ function loop(ts) {
     players: s.players,
     holderId: s.holderId,
     presserId: s._presserId ?? null,   // 실시간 압박수(A5) — 렌더러가 주황 링
+    freezeFlash: Math.max(0, 1 - (performance.now() - defenseFreezeAt) / 420),   // A3 프리즈 플래시
     holder: engine.holder(),
     ball: engine.ballPos(),
     usColor: Club.club.clubColor,   // 우리 팀 킷 = 클럽 컬러

@@ -188,6 +188,12 @@ export const sfx = {
     // 안 물었다 — 낮은 무딘 톡(F2 로그 피드백과 쌍).
     tone(160, 'sine', 0.06, 0.005, 0.12, { sweepTo: 110 });
   },
+  freeze() {
+    if (!ctx) return;
+    // 수비 판독 진입 — 세상이 멈춘다(낮은 썸 + 공기 빠짐). Space slowmo보다 낮고 짧게.
+    tone(320, 'sine', 0.06, 0.012, 0.4, { sweepTo: 140 });
+    noiseHit(0.035, 0.02, 0.35, { filterType: 'lowpass', freq: 800, sweepTo: 200 });
+  },
   releaseChime() {
     if (!ctx) return;
     // 3자 릴리스 — 빠른 상승 3연음(콤비 완성의 시그니처).
