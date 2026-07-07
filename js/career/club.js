@@ -54,6 +54,8 @@ function freshState() {
     divIdx: 0,
     points: 0,
     matchday: 0,            // 누적 경기 수 (시나리오 로테이션용)
+    cupStreak: 0,           // 컵 런(B3) — 연승 스트릭(4승=우승), 패배 시 0
+    cupsWon: 0,             // 컵 우승 트로피 수
     clubName: '',
     clubColor: '#4d8bff',
     legacy: 0,
@@ -105,7 +107,7 @@ export function normalizeState(raw = {}) {
   next.identityXp = { ...base.identityXp, ...(src.identityXp || {}) };
   for (const key of Object.keys(next.identityXp)) next.identityXp[key] = Math.max(0, finiteOr(next.identityXp[key], 0));
   for (const pos of POSITIONS) next.levels[pos.key] = Math.max(0, finiteOr(next.levels[pos.key], base.levels[pos.key]));
-  for (const key of ['cash', 'fans', 'stadiumLvl', 'divIdx', 'points', 'matchday', 'legacy', 'champions', 'totalEarned', 'runEarned', 'boostUntil', 'lastSeen', 'lastMatchIncome', 'streakW', 'philoPoints']) {
+  for (const key of ['cash', 'fans', 'stadiumLvl', 'divIdx', 'points', 'matchday', 'legacy', 'champions', 'totalEarned', 'runEarned', 'boostUntil', 'lastSeen', 'lastMatchIncome', 'streakW', 'philoPoints', 'cupStreak', 'cupsWon']) {
     next[key] = finiteOr(next[key], base[key]);
   }
   // 핵심 수치 하한/상한(감사 H5): 손상·조작 세이브의 음수/폭주 값이 그대로 수용돼

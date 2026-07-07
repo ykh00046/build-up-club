@@ -49,6 +49,10 @@ export function opponentDisposition(divIdx, matchday) {
 // 허브·결과 카드에 더비 표식. 이름이 고정이라 "또 너냐"의 서사가 생긴다.
 const RIVALS = ['Union Holt', 'Racing Brakka', 'Dynamo Kessel', 'Atlético Castellón', 'Inter Verdano'];
 export function rivalName(divIdx) { return RIVALS[Math.min(divIdx, RIVALS.length - 1)]; }
+// 컵 런 매치데이(B3) — 6경기마다 한 번(≡2 mod 6). 라이벌 주기(풀×2−1)와 전 풀에서
+// 비충돌 확인(pool3: 라이벌 ≡5 mod 6 / pool4: 7·15·23…의 mod6=1·3·5).
+export function isCupMatchday(matchday) { return matchday % 6 === 2; }
+
 export function isRivalMatchday(divIdx, matchday) {
   const pool = DIV_POOLS[Math.min(divIdx, DIV_POOLS.length - 1)];
   const cycle = pool.length * 2;

@@ -1210,6 +1210,29 @@ function settleCareerMatch() {
     Club.club.totalEarned += rivalBonus;
     Club.club.runEarned += rivalBonus;
   }
+  // 컵 런(B3) — 컵 매치데이는 스트릭이 걸린다: 이길수록 보상 상승(×1~×2.5), 4연승=
+  // 우승(트로피+대박), 패배·무승부는 스트릭 리셋("컵 탈락 — 다음 대회").
+  let cupNote = null;
+  if (lastMatch?.cup) {
+    if (score.result === 'w') {
+      const stk = (Club.club.cupStreak ?? 0) + 1;
+      let cupBonus = Math.round(income * (0.5 + 0.5 * stk));
+      if (stk >= 4) {
+        Club.club.cupsWon = (Club.club.cupsWon ?? 0) + 1;
+        Club.club.cupStreak = 0;
+        cupBonus += Math.round(income * 3);
+        cupNote = t('cr.note.cupWonAll').replace('{amt}', Club.formatNum(cupBonus));
+        toast('🏆 ' + t('hub.cupTrophy'));
+      } else {
+        Club.club.cupStreak = stk;
+        cupNote = t('cr.note.cupWin').replace('{n}', String(stk)).replace('{amt}', Club.formatNum(cupBonus));
+      }
+      Club.club.cash += cupBonus; Club.club.totalEarned += cupBonus; Club.club.runEarned += cupBonus;
+    } else {
+      if ((Club.club.cupStreak ?? 0) > 0) Club.club.cupStreak = 0;
+      cupNote = t('cr.note.cupOut');
+    }
+  }
   // 포메이션 해금 체크 — 이번 정산(승수/경기수 증가)으로 새로 열린 포메이션 축하.
   const newlyUnlocked = lockedBefore.filter((k) => isFormationUnlocked(k, Club.club));
   for (const k of newlyUnlocked) {
@@ -1334,6 +1357,7 @@ function showCareerResult({ tone, score, income, prog, oppName, mission, seasonG
     else if (tone === 'fail') parts.push(t('cr.note.lost'));
     if (score.setPieceGoal) parts.push(t('cr.note.setpiece'));
     if (rivalBonus > 0) parts.push(t('cr.note.rival').replace('{amt}', Club.formatNum(rivalBonus)));
+    if (cupNote) parts.push(cupNote);
     if (mission && !bannerText.includes(loc(mission.title))) parts.push(t('cr.note.mission').replace('{title}', loc(mission.title)).replace('{reward}', Club.formatNum(mission.reward)));
     if (cond) parts.push((cond.tone === 'bad' ? '⚠ ' : '✨ ') + loc(cond.text));
     for (const goal of seasonGoals) {

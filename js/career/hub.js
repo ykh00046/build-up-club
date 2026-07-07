@@ -9,7 +9,7 @@ import {
 } from './club.js';
 import { ROLES } from '../data/roles.js';
 import { matchSetup, upgradePreview } from './mods.js';
-import { opponentName, scenarioForMatchday, opponentDisposition, rivalName, isRivalMatchday } from './season.js';
+import { opponentName, scenarioForMatchday, opponentDisposition, rivalName, isRivalMatchday, isCupMatchday } from './season.js';
 import { t, loc, getLang, toggleLang } from './i18n.js';
 import { currentMission, effectsSummary } from './events.js';
 import { currentPhilosophy } from './philosophy.js';
@@ -375,13 +375,16 @@ function renderSquad() {
 
 // 다음 상대 + 예상 배당 (mods.matchSetup 사용)
 export function nextMatchInfo() {
-  const oppOVR = oppBaseOVR();
+  const rival = isRivalMatchday(club.divIdx, club.matchday);   // B3 라이벌전(더비)
+  const cup = !rival && isCupMatchday(club.matchday);          // B3 컵 런(강한 상대, 스트릭 스테이크)
+  const oppOVR = oppBaseOVR() + (cup ? 4 : 0);                 // 컵 상대는 한 수 위 — 배당·강도에 반영
   const setup = matchSetup(oppOVR);
   const scn = scenarioForMatchday(club.divIdx, club.matchday);
-  const rival = isRivalMatchday(club.divIdx, club.matchday);   // B3 라이벌전(더비)
   return {
-    oppName: rival ? rivalName(club.divIdx) : opponentName(club.divIdx, club.matchday),
-    rival,
+    oppName: rival ? rivalName(club.divIdx)
+      : cup ? opponentName(club.divIdx, club.matchday + 9973)   // 컵 전용 상대(별도 시드)
+      : opponentName(club.divIdx, club.matchday),
+    rival, cup,
     oppOVR, setup, scenario: scn,
     // 상대 전개 성향 페르소나 — 수비 국면에서 상대 루트 선택의 기본값 (C단계)
     disposition: opponentDisposition(club.divIdx, club.matchday),
@@ -390,7 +393,7 @@ export function nextMatchInfo() {
 
 function renderNextMatch() {
   const info = nextMatchInfo();
-  setText('hub-next-opp', (info.rival ? '🔥 ' : '') + info.oppName);   // 더비 표식(B3)
+  setText('hub-next-opp', (info.rival ? '🔥 ' : info.cup ? '🏆 ' : '') + info.oppName);   // 더비/컵 표식(B3)
   const o = info.setup.odds;
   setHtml('hub-next-odds',
     `<span class="od w">${t('match.win')} ${o.win}%</span>`
