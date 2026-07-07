@@ -474,11 +474,11 @@ function drawDefenseRoute(route) {
     ctx.lineTo(ex - Math.cos(ang - 0.42) * ah, ey - Math.sin(ang - 0.42) * ah);
     ctx.lineTo(ex - Math.cos(ang + 0.42) * ah, ey - Math.sin(ang + 0.42) * ah);
     ctx.closePath(); ctx.fill();
-    // 예상 수신자 타깃 링(맥동)
-    const rr = (tq.s * TOKEN_R_M + 6) * (1 + Math.sin(pulse * 5) * 0.12);
+    // 예상 수신자 타깃 링(맥동) — 발밑 지면 타원.
+    const rrW = TOKEN_R_M * 1.45 * (1 + Math.sin(pulse * 5) * 0.12);
     ctx.strokeStyle = 'rgba(255, 92, 92, 0.55)';
     ctx.lineWidth = 1.6; ctx.setLineDash([4, 4]); ctx.lineDashOffset = march;
-    ctx.beginPath(); ctx.arc(tq.x, tq.y, rr, 0, Math.PI * 2); ctx.stroke();
+    circlePath(route.to.x, route.to.y, rrW); ctx.stroke();
     ctx.setLineDash([]); ctx.lineDashOffset = 0;
   } else {
     // 종잡을 수 없음 — 전방(상대 공격 방향 -x)으로 부채꼴 확산 점선.
@@ -502,11 +502,12 @@ function drawDefenseRoute(route) {
 function drawBaitArmed(b) {
   const d = P(b.drop.x, b.drop.y);
   const march = -pulse * 24;
-  // 드롭 타깃 링(맥동, 녹색=열린 뒷공간).
-  const rr = (d.s * TOKEN_R_M + 8) * (1 + Math.sin(pulse * 5) * 0.14);
+  // 드롭 타깃 링(맥동, 녹색=열린 뒷공간) — 지면 타원.
+  const rrW = TOKEN_R_M * 1.7 * (1 + Math.sin(pulse * 5) * 0.14);
+  const rr = rrW * d.s;   // 라벨 오프셋용 근사 px
   ctx.strokeStyle = 'rgba(93, 214, 197, 0.85)';
   ctx.lineWidth = 2; ctx.setLineDash([5, 5]); ctx.lineDashOffset = march;
-  ctx.beginPath(); ctx.arc(d.x, d.y, rr, 0, Math.PI * 2); ctx.stroke();
+  circlePath(b.drop.x, b.drop.y, rrW); ctx.stroke();
   ctx.setLineDash([]); ctx.lineDashOffset = 0;
   // 릴리서→드롭 경로(3자 릴레이) — 녹색 점선.
   if (b.releaser) {
@@ -528,7 +529,7 @@ function drawShotZoneBadge(zone, holder, xg) {
   // U3: zone QUALITY is part of the read — a low-xG zone shows muted with an
   // honest nudge instead of the hot "shoot now" orange.
   const good = zone.baseXg >= 0.24;
-  const q = P(holder.rx ?? holder.x, holder.ry ?? holder.y);
+  const q = P(holder.rx ?? holder.x, holder.ry ?? holder.y, 2.35);   // 머리 위
   ctx.fillStyle = good ? 'rgba(245, 166, 35, 0.92)' : 'rgba(168, 178, 190, 0.85)';
   ctx.font = `700 ${Math.max(10, gs * 1.2)}px ui-sans-serif, system-ui, sans-serif`;
   ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
@@ -537,7 +538,7 @@ function drawShotZoneBadge(zone, holder, xg) {
   const label = good
     ? `${t('pitch.shotZone')}: ${zoneWord}${pct}`
     : `${t('pitch.shotZone')}: ${zoneWord}${pct}${t('pitch.lowProb')}`;
-  ctx.fillText(label, q.x, q.y - q.s * TOKEN_R_M - 14);
+  ctx.fillText(label, q.x, q.y - 4);
 }
 
 function drawCoverShadows(view) {
@@ -664,16 +665,13 @@ function drawPassOptions(opts, players) {
   for (const o of opts) {
     const p = byId.get(o.targetId);
     if (!p) continue;
-    const q = P(p.rx ?? p.x, p.ry ?? p.y);
-    const r = q.s * TOKEN_R_M + 9;
     let color, alpha;
     if (o.risk < 0.30)      { color = '#5dd6c5'; alpha = 0.88; }
     else if (o.risk < 0.58) { color = '#f5c842'; alpha = 0.68; }
     else                    { color = '#e35d5d'; alpha = 0.38; }
     ctx.globalAlpha = alpha;
     ctx.strokeStyle = color;
-    ctx.beginPath();
-    ctx.arc(q.x, q.y, r, 0, Math.PI * 2);
+    circlePath(p.rx ?? p.x, p.ry ?? p.y, TOKEN_R_M * 1.35);   // 발밑 지면 타원(3D 정합)
     ctx.stroke();
   }
   ctx.restore();
@@ -801,13 +799,12 @@ function drawHover(hover, holder) {
 function drawKbFocus(view) {
   const p = view.players.find((q) => q.id === view.keyboardTargetId);
   if (!p) return;
-  const q = P(p.rx ?? p.x, p.ry ?? p.y);
-  const r = q.s * TOKEN_R_M + 6 + Math.sin(pulse * 4) * 1.8;
+  const rW = TOKEN_R_M * 1.3 + Math.sin(pulse * 4) * 0.3;
   ctx.save();
   ctx.strokeStyle = '#5dd6c5';
   ctx.lineWidth = 2.5;
   ctx.setLineDash([]);
-  ctx.beginPath(); ctx.arc(q.x, q.y, r, 0, Math.PI * 2); ctx.stroke();
+  circlePath(p.rx ?? p.x, p.ry ?? p.y, rW); ctx.stroke();   // 발밑 지면 타원
   ctx.restore();
 }
 
@@ -820,93 +817,117 @@ function drawPlayers(players, holderId, pressureExpr, presserId) {
   }
 }
 
+// 토큰 v2(3D 2회차) — 납작 디스크 → '서 있는 선수' 피규어. 발(지면)·몸통 캡슐·
+// 머리를 카메라 z로 세우고, 상태 링(홀더·압박수·커밋)은 발밑 지면 타원으로.
 function drawToken(p, isHolder, pressureExpr, isPresser = false) {
-  const q = P(p.rx ?? p.x, p.ry ?? p.y);
-  const r = q.s * TOKEN_R_M;
-  const cx = q.x, cy = q.y;
+  const wx = p.rx ?? p.x, wy = p.ry ?? p.y;
+  const feet = P(wx, wy, 0);
+  // 하이브리드 미니어처: 받침 원반(구 토큰의 색 면적·가독) + 그 위에 선 입체 몸.
+  // 실측 인체는 이 카메라에서 판독 불가라 보드게임 말 비례(키 ~3.6m급)로 과장.
+  const head = P(wx, wy, 3.6);
+  const s = feet.s;
+  const bw = s * 0.85;                          // 몸통 반폭
+  const headR = s * 0.5;
   const us = p.side === 'us';
-  // 유사 3D: 지면 캐스트 그림자(아래로 오프셋된 부드러운 타원) → 토큰이 떠 보이게.
+  const kit = us ? (usColor || COLORS.us) : COLORS.opp;
+  const kitDark = us ? (usColor ? shadeHex(usColor, -0.45) : COLORS.usStroke) : COLORS.oppStroke;
+
+  // 받침 원반(피규어 베이스) — 원근 타원(circlePath). 킷 컬러 면적이 구 토큰의
+  // 가독을 승계하고, 그 위 몸통이 입체를 준다.
   ctx.save();
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.28)';
-  ctx.shadowColor = 'rgba(0, 0, 0, 0.32)';
-  ctx.shadowBlur = 3;
-  ctx.beginPath(); ctx.ellipse(cx, cy + r * 0.62, r * 0.92, r * 0.40, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.30)';
+  ctx.beginPath(); ctx.ellipse(feet.x + s * 0.25, feet.y + s * 0.18, bw * 1.7, bw * 0.62, 0, 0, Math.PI * 2); ctx.fill();   // 캐스트 그림자
+  const baseG = ctx.createRadialGradient(feet.x, feet.y - s * 0.2, s * 0.2, feet.x, feet.y, s * TOKEN_R_M * 1.15);
+  baseG.addColorStop(0, shadeHex(typeof kit === 'string' ? kit : '#3366cc', 0.25));
+  baseG.addColorStop(1, shadeHex(typeof kit === 'string' ? kit : '#3366cc', -0.3));
+  ctx.fillStyle = baseG;
+  circlePath(wx, wy, TOKEN_R_M); ctx.fill();
+  ctx.strokeStyle = kitDark; ctx.lineWidth = 1.2;
+  circlePath(wx, wy, TOKEN_R_M); ctx.stroke();
   ctx.restore();
-  // 베이스 디스크(평면 색) + 소유자 글로우.
-  ctx.save();
-  if (isHolder) { ctx.shadowColor = us ? 'rgba(77, 139, 255, 0.6)' : 'rgba(255, 92, 92, 0.55)'; ctx.shadowBlur = 11; }
-  ctx.fillStyle = us ? (usColor || COLORS.us) : COLORS.opp;
-  ctx.strokeStyle = us ? (usColor ? shadeHex(usColor, -0.45) : COLORS.usStroke) : COLORS.oppStroke;
-  ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-  ctx.restore();
-  // 압박수 링(A5 가독성) — 지금 조여오는 그 수비수. 게이지가 높을수록 진해져
-  // "왜 시계가 빨리 차는지"가 눈으로 연결된다.
+
+  // 발밑 상태 링(지면 타원 — 원근 정합).
+  const groundRing = (rW, strokeStyle, width, dash = null) => {
+    ctx.save();
+    ctx.strokeStyle = strokeStyle; ctx.lineWidth = width;
+    if (dash) ctx.setLineDash(dash);
+    circlePath(wx, wy, rW); ctx.stroke();
+    ctx.restore();
+  };
   if (isPresser) {
     const urgency = 0.45 + (pressureExpr?.level ?? 0) * 0.45;
-    ctx.save();
-    ctx.strokeStyle = `rgba(251, 146, 60, ${urgency})`;
-    ctx.lineWidth = 2.5;
-    ctx.beginPath(); ctx.arc(cx, cy, r + 3, 0, Math.PI * 2); ctx.stroke();
-    ctx.restore();
+    groundRing(TOKEN_R_M * 1.15, `rgba(251, 146, 60, ${urgency})`, 2.5);
   }
-  // 몸 방향 노치(실시간 v2) — 속도 벡터(_vx/_vy)로 달리는 방향을 보여준다. 선수가
-  // 어디로 뛰는지 한눈에 읽혀 '축구를 하는 그림'이 된다(정지 시엔 안 그림).
-  {
-    const vx = p._vx ?? 0, vy = p._vy ?? 0, spd = Math.hypot(vx, vy);
-    if (spd > 0.35) {
-      const a = Math.atan2(vy, vx);
-      ctx.save();
-      ctx.translate(cx, cy); ctx.rotate(a);
-      ctx.fillStyle = 'rgba(255,255,255,0.55)';
-      ctx.beginPath();
-      ctx.moveTo(r * 1.3, 0); ctx.lineTo(r * 0.7, -r * 0.36); ctx.lineTo(r * 0.7, r * 0.36);
-      ctx.closePath(); ctx.fill();
-      ctx.restore();
-    }
-  }
-  // 구체 음영: 좌상 하이라이트 → 우하 그림자(디스크에 클립).
-  ctx.save();
-  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.clip();
-  const sphereG = ctx.createRadialGradient(cx - r * 0.38, cy - r * 0.42, r * 0.1, cx, cy, r * 1.2);
-  sphereG.addColorStop(0, 'rgba(255, 255, 255, 0.5)');
-  sphereG.addColorStop(0.45, 'rgba(255, 255, 255, 0.06)');
-  sphereG.addColorStop(1, 'rgba(0, 0, 0, 0.34)');
-  ctx.fillStyle = sphereG;
-  ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
-  ctx.restore();
-
-  if (p.committedTurns > 0) {
-    ctx.strokeStyle = 'rgba(255, 92, 92, 0.85)';
-    ctx.lineWidth = 1.8;
-    ctx.beginPath(); ctx.arc(cx, cy, r + 3, 0, Math.PI * 2); ctx.stroke();
-  }
-
+  if (p.committedTurns > 0) groundRing(TOKEN_R_M * 1.15, 'rgba(255, 92, 92, 0.85)', 1.8);
   if (isHolder) {
     // Pressure embodied: the ring around the holder tightens and quickens.
     const ringLevel = pressureExpr?.ring ?? 0;
     const speed = 2 + ringLevel * 6;
-    const breath = Math.sin(pulse * speed) * (1.5 + ringLevel * 2);
-    const rr = r + 5 + (1 - ringLevel) * 4 + breath;
-    ctx.strokeStyle = ringLevel > 0.65 ? 'rgba(255, 92, 92, 0.9)' : ringLevel > 0.3 ? 'rgba(245, 166, 35, 0.85)' : 'rgba(77, 139, 255, 0.8)';
-    ctx.lineWidth = 1.6 + ringLevel;
-    ctx.beginPath(); ctx.arc(cx, cy, rr, 0, Math.PI * 2); ctx.stroke();
+    const breath = Math.sin(pulse * speed) * (0.25 + ringLevel * 0.35);
+    const rW = TOKEN_R_M * (1.3 + (1 - ringLevel) * 0.5) + breath;
+    groundRing(rW,
+      ringLevel > 0.65 ? 'rgba(255, 92, 92, 0.9)' : ringLevel > 0.3 ? 'rgba(245, 166, 35, 0.85)' : 'rgba(77, 139, 255, 0.8)',
+      1.6 + ringLevel);
   }
 
+  // 몸 방향 노치 — 지면 삼각형(달리는 방향, 발 앞) — 3D 지면 정합.
+  {
+    const vx = p._vx ?? 0, vy = p._vy ?? 0, spd = Math.hypot(vx, vy);
+    if (spd > 0.35) {
+      const a = Math.atan2(vy, vx);
+      const t1 = P(wx + Math.cos(a) * 2.6, wy + Math.sin(a) * 2.6);
+      const t2 = P(wx + Math.cos(a + 2.5) * 1.4, wy + Math.sin(a + 2.5) * 1.4);
+      const t3 = P(wx + Math.cos(a - 2.5) * 1.4, wy + Math.sin(a - 2.5) * 1.4);
+      ctx.fillStyle = 'rgba(255,255,255,0.5)';
+      ctx.beginPath(); ctx.moveTo(t1.x, t1.y); ctx.lineTo(t2.x, t2.y); ctx.lineTo(t3.x, t3.y);
+      ctx.closePath(); ctx.fill();
+    }
+  }
+
+  // 몸통(캡슐: 어깨 라운드 사각) + 소유자 글로우.
+  const bodyTop = head.y + headR * 1.5;         // 머리 아래부터
+  const bodyH = Math.max(4, feet.y - bodyTop);
+  ctx.save();
+  if (isHolder) { ctx.shadowColor = us ? 'rgba(77, 139, 255, 0.7)' : 'rgba(255, 92, 92, 0.6)'; ctx.shadowBlur = 12; }
+  const bodyG = ctx.createLinearGradient(feet.x - bw, 0, feet.x + bw, 0);
+  bodyG.addColorStop(0, shadeHex(typeof kit === 'string' ? kit : '#3366cc', -0.25));
+  bodyG.addColorStop(0.45, typeof kit === 'string' ? kit : '#3366cc');
+  bodyG.addColorStop(1, shadeHex(typeof kit === 'string' ? kit : '#3366cc', -0.4));
+  ctx.fillStyle = bodyG;
+  ctx.strokeStyle = kitDark;
+  ctx.lineWidth = 1;
+  roundRect(feet.x - bw, bodyTop, bw * 2, bodyH, bw * 0.9);
+  ctx.fill(); ctx.stroke();
+  ctx.restore();
+  // 반바지(하단 톤 다운) — 유니폼 실루엣.
+  ctx.fillStyle = 'rgba(0,0,0,0.22)';
+  roundRect(feet.x - bw, bodyTop + bodyH * 0.62, bw * 2, bodyH * 0.2, bw * 0.5);
+  ctx.fill();
+
+  // 머리(살색 톤 + 음영).
+  ctx.save();
+  ctx.fillStyle = '#d9b38a';
+  ctx.beginPath(); ctx.arc(head.x, head.y + headR, headR, 0, Math.PI * 2); ctx.fill();
+  const hg = ctx.createRadialGradient(head.x - headR * 0.3, head.y + headR * 0.6, headR * 0.2, head.x, head.y + headR, headR * 1.1);
+  hg.addColorStop(0, 'rgba(255,255,255,0.35)'); hg.addColorStop(1, 'rgba(0,0,0,0.25)');
+  ctx.fillStyle = hg;
+  ctx.beginPath(); ctx.arc(head.x, head.y + headR, headR, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+
   if (!toggles.labels) return;
-  // 가독성 패스(2026-07): 번호는 굵게, 역할 태그는 고대비+어두운 그림자 — 이전엔
-  // 7.5px 반투명 텍스트가 잔디에 묻혀 판독 불가였다.
+  // 등번호(가슴) — 굵게, 킷 대비.
   ctx.fillStyle = us ? COLORS.usText : COLORS.oppText;
-  ctx.font = `700 ${Math.max(10, r * 0.95).toFixed(1)}px ui-sans-serif, system-ui, sans-serif`;
+  ctx.font = `700 ${Math.max(10, s * 1.05).toFixed(1)}px ui-sans-serif, system-ui, sans-serif`;
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillText(String(p.num), cx, cy + 0.5);
+  ctx.fillText(String(p.num), feet.x, bodyTop + bodyH * 0.34);
+  // 역할 태그(발밑 아래) — 고대비+어두운 그림자.
   ctx.save();
   ctx.shadowColor = 'rgba(0, 0, 0, 0.85)';
   ctx.shadowBlur = 3;
   ctx.fillStyle = us ? COLORS.usTag : COLORS.oppTag;
-  const tagPx = Math.max(9, r * 0.6);
+  const tagPx = Math.max(8.5, s * 0.55);
   ctx.font = `700 ${tagPx.toFixed(1)}px ui-sans-serif, system-ui, sans-serif`;
-  ctx.fillText(p.label, cx, cy + r + tagPx + 1);
+  ctx.fillText(p.label, feet.x, feet.y + tagPx + 3);
   ctx.restore();
 }
 
@@ -1030,11 +1051,11 @@ function drawFreezeFlash(flash) {
 function drawShout(pressureExpr, holder) {
   if (!pressureExpr?.shout || !holder) return;
   const jitter = Math.sin(pulse * 30) * 1.5;
-  const q = P(holder.rx ?? holder.x, holder.ry ?? holder.y);
+  const q = P(holder.rx ?? holder.x, holder.ry ?? holder.y, 2.5);   // 머리 위
   ctx.fillStyle = 'rgba(255, 120, 100, 0.95)';
   ctx.font = `800 ${Math.max(12, gs * 1.6)}px ui-sans-serif, system-ui, sans-serif`;
   ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
-  ctx.fillText(pressureExpr.shout, q.x + jitter, q.y - q.s * TOKEN_R_M - 4);
+  ctx.fillText(pressureExpr.shout, q.x + jitter, q.y - 2);
 }
 
 function drawCue(cue, tone) {
