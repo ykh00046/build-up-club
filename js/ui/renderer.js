@@ -784,6 +784,21 @@ function drawToken(p, isHolder, pressureExpr) {
   ctx.lineWidth = 1;
   ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
   ctx.restore();
+  // 몸 방향 노치(실시간 v2) — 속도 벡터(_vx/_vy)로 달리는 방향을 보여준다. 선수가
+  // 어디로 뛰는지 한눈에 읽혀 '축구를 하는 그림'이 된다(정지 시엔 안 그림).
+  {
+    const vx = p._vx ?? 0, vy = p._vy ?? 0, spd = Math.hypot(vx, vy);
+    if (spd > 0.35) {
+      const a = Math.atan2(vy, vx);
+      ctx.save();
+      ctx.translate(cx, cy); ctx.rotate(a);
+      ctx.fillStyle = 'rgba(255,255,255,0.55)';
+      ctx.beginPath();
+      ctx.moveTo(r * 1.3, 0); ctx.lineTo(r * 0.7, -r * 0.36); ctx.lineTo(r * 0.7, r * 0.36);
+      ctx.closePath(); ctx.fill();
+      ctx.restore();
+    }
+  }
   // 구체 음영: 좌상 하이라이트 → 우하 그림자(디스크에 클립).
   ctx.save();
   ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.clip();

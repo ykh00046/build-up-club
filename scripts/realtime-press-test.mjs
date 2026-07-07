@@ -79,14 +79,16 @@ console.log('=== 실시간 압박 레이어 테스트 ===\n');
 {
   const e = mkEngine('us-lcb');
   const lw = e.state.players.find((p) => p.id === 'us-lw');
-  const mk = e.state.players.find((p) => p.side === 'opp' && p.role !== 'GK');
-  mk.x = lw.x + 1.6; mk.y = lw.y;                      // 타이트 마킹
+  const opps = e.state.players.filter((p) => p.side === 'opp' && p.role !== 'GK');
+  opps[0].x = 88;                                      // 깊은 백라인(오프사이드 라인 제공)
+  const mk = opps[1];
+  mk.x = lw.x + 1.6; mk.y = lw.y;                      // 타이트 마킹(라인 아님)
   const sep0 = dist(mk, lw);
   const b0 = { x: lw.x, y: lw.y };
   run(e, 4);
   const sep1 = Math.min(...e.state.players.filter((p) => p.side === 'opp' && p.role !== 'GK').map((p) => dist(p, lw)));
-  ok(sep1 > sep0 + 1.5, `타이트 마킹 윙어 분리 ${sep0.toFixed(1)}→${sep1.toFixed(1)}m (각 만들기)`);
-  ok(dist(b0, lw) <= 6.3, `오퍼 이동 base 유계 ${dist(b0, lw).toFixed(1)}m ≤ 6.3`);
+  ok(sep1 > sep0 + 1.5, `타이트 마킹 윙어 분리 ${sep0.toFixed(1)}→${sep1.toFixed(1)}m (런으로 벌어짐)`);
+  ok(dist(b0, lw) <= 10.2, `런 이동 base 유계(윙어 cap 9) ${dist(b0, lw).toFixed(1)}m ≤ 10.2`);
 }
 
 // [5] 복귀(R3) — 압박수 아닌 상대가 창 내 이탈했으면 base로 되돌아옴(뭉침 방지)
@@ -98,7 +100,7 @@ console.log('=== 실시간 압박 레이어 테스트 ===\n');
   far.x += 5;                                          // 창 내 이탈 시뮬
   run(e, 6);
   const back = Math.hypot(far.x - far._bx, far.y - far._by);
-  ok(back < 1.0, `비압박수 base 복귀 (이탈 5m → 잔여 ${back.toFixed(2)}m)`);
+  ok(back < 3.2, `비압박수 base±셰이드 복귀 (이탈 5m → 잔여 ${back.toFixed(2)}m ≤ 셰이드 2.9)`);
 }
 
 // [6] 게이지 100 → auto-hold → 엔진 붕괴(볼 상실)
@@ -116,7 +118,8 @@ console.log('=== 실시간 압박 레이어 테스트 ===\n');
   const nd0 = Math.min(...e.state.players.filter((p) => p.side === 'opp' && p.role !== 'GK').map((p) => dist(p, h)));
   run(e, 4);
   const nd1 = Math.min(...e.state.players.filter((p) => p.side === 'opp' && p.role !== 'GK').map((p) => dist(p, h)));
-  ok(nd1 >= nd0 - 0.5, `GK 방출 중 조여옴 없음 (${nd0.toFixed(1)}→${nd1.toFixed(1)}m)`);
+  // v2: 블록이 볼사이드로 '유계 셰이드'(≤~2.9m)는 하되 조여오진 않는다 — GK 여유 유지.
+  ok(nd1 >= nd0 - 3.0, `GK 방출 중 유계 셰이드 외 조여옴 없음 (${nd0.toFixed(1)}→${nd1.toFixed(1)}m)`);
   const nan = e.state.players.some((p) => !Number.isFinite(p.x) || !Number.isFinite(p.y)) || !Number.isFinite(e.state.pressure ?? 0);
   ok(!nan, 'NaN 0');
 }
@@ -151,6 +154,19 @@ console.log('=== 실시간 압박 레이어 테스트 ===\n');
   const x0 = h.x, y0 = h.y;
   run(e, 3);
   ok(Math.hypot(h.x - x0, h.y - y0) < 0.1, 'GK 드리프트 없음');
+}
+
+// [11] 역할 런 — 풀백 오버랩: 볼 전진 시 측면으로 크게 질주(cap 11, 유계 ≤12)
+{
+  const e = mkEngine('us-l8');                        // 볼 x46(>30) — 오버랩 조건
+  for (const o of e.state.players) if (o.side === 'opp' && o.role !== 'GK') o.x = 90;   // 수비 멀리
+  const lb = e.state.players.find((p) => p.id === 'us-lb');
+  const b0 = { x: lb.x, y: lb.y };
+  run(e, 5);
+  const moved = Math.hypot(lb.x - b0.x, lb.y - b0.y);
+  ok(moved > 4.5, `풀백 오버랩 질주 +${moved.toFixed(1)}m (>4.5)`);
+  ok(moved <= 12, `오버랩 유계 ${moved.toFixed(1)}m ≤ 12`);
+  ok(Number.isFinite(lb._vx) && Math.hypot(lb._vx, lb._vy) >= 0, '속도 벡터(몸 방향 노치 재료) 존재');
 }
 
 console.log(fail === 0 ? '\n실시간 압박 레이어 통과' : `\n${fail} 실패`);

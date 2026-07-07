@@ -1,48 +1,88 @@
-// 실시간 압박 레이어(2026-07) — 결정 대기(턴이 끊긴) 동안 시간이 상황을 바꾼다.
+// 실시간 압박 레이어 v2(2026-07) — "축구를 하는 느낌": 관성 움직임 + 역할 런.
 //
-// 계약: 엔진 '기존 파일'은 불변(이 모듈은 신규 추가). DOM을 모른다 — engine만 받아
-// 헤드리스 테스트 가능(scripts/realtime-press-test.mjs가 게이트). main.js가 렌더
-// 루프에서 매 프레임 호출한다.
+// 계약: 엔진 '기존 파일'은 불변(이 모듈은 신규). DOM 무지 — engine만 받아 헤드리스
+// 테스트 가능(scripts/realtime-press-test.mjs가 게이트). main.js가 매 프레임 호출.
 //
-// 동작(모두 결정 대기 중에만):
-//  1) 압박수 1명이 볼로 조여온다(pace 속도) — 왜 시간이 쫓기는지 눈에 보이게.
-//     스탠드오프 3.8m: 엔진 오리엔테이션 문법의 BACK 문턱(3.5m) 밖 — 기다림의 벌은
-//     '게이지'지, 전방 패스가 몰래 다 빨개지는 이중 처벌이 아니다(검토 R2).
-//     홀더가 GK면 조여오지 않는다(후방 방출은 여유 — 검토 R4).
-//  2) 우리 오프볼 전원이 각을 만든다(마커 반대+전방, 마킹 빡셀수록 크게). 턴 시작
-//     위치(base)에 앵커 — 유계, 온사이드.
-//  3) 압박수가 아닌 상대는 base로 복귀 — 조여옴이 턴을 넘어 누적돼 수비가 볼 주변으로
-//     뭉치는 드리프트를 막는다(검토 R3). base는 결정 창마다 리셋(엔진 액션의 이동이
-//     새 진실이 된다).
-//  4) 결정 시계 — 게이지가 실시간으로 찬다(압박 가까울수록 빠르게). 100이면 auto-hold
-//     → 엔진의 기존 붕괴 소비(볼 상실). 속도는 기존 게이지 경제(4R, 액션당 ±2~14)를
-//     '보조'하는 크기(3초에 +7~18) — 시계가 경제를 지배하지 않는다(검토 R1).
+// v2에서 현실감을 만드는 네 가지(전부 결정 대기 중에만):
+//  · 관성 — 모든 실시간 이동이 가감속·도착 감속을 거친다(등속 슬라이드 제거).
+//    속도 벡터(_vx/_vy)가 남아 방향 전환이 곡선이 되고, 렌더러가 이걸로 몸 방향
+//    노치를 그린다.
+//  · 역할 런 — 오프볼이 '오퍼'가 아니라 축구의 런을 뛴다: 풀백 오버랩(측면 질주),
+//    윙어 폭 유지+라인 어깨, ST 체크런↔어깨런 교대, 8/6 라인 사이 포켓. 전부
+//    턴 시작 위치(base) 앵커·역할별 상한·온사이드·동료 간격 유지.
+//  · 수비 블록 호흡 — 압박수 아닌 상대는 base+볼사이드 셰이드로 유닛처럼 미끄러진다
+//    (뭉침 드리프트 방지 겸).
+//  · 기존 계약 유지 — 압박수 1명 조여옴(스탠드오프 3.8m=BACK 문턱 밖), GK 방출 여유,
+//    홀더 드리프트(압박 5m 밖에서만), 결정 시계(게이지 경제 보조 세율, 100→auto-hold).
 
 const STANDOFF = 3.8;
-const paceSpeed = (p, base) => base * (0.6 + (p.traits?.pace ?? 0.6) * 0.6);
-function syncRender(p) { p.rx = p.tx = p.fx = p.x; p.ry = p.ty = p.fy = p.y; }
+const paceMax = (p, base) => base * (0.6 + (p.traits?.pace ?? 0.6) * 0.6);
+function sync(p) { p.rx = p.tx = p.fx = p.x; p.ry = p.ty = p.fy = p.y; }
 
-// 시계 속도(/ms) — 튜닝 노브. 3초 체류 기준: GK +3.6 · 먼 압박 +7.5 · 중간 +12 · 코앞 +18.
+// 시계 속도(/ms) — 3초 체류 기준: GK +3.6 · 먼 압박 +7.5 · 중간 +12 · 코앞 +18.
 export const CLOCK_RATES = { gk: 0.0012, pressed: 0.006, near: 0.004, far: 0.0025 };
+
+// 관성 이동 — 목표로 조향 가속(시정수 ~0.3s), 도착 2.2m 안에서 감속. 방향 전환이
+// 자연스러운 곡선이 되고 _vx/_vy가 렌더 노치의 몸 방향이 된다.
+function mover(p, tx, ty, maxSpd, dts) {
+  const dx = tx - p.x, dy = ty - p.y, d = Math.hypot(dx, dy);
+  const arrive = Math.min(1, d / 2.2);
+  const wx = d > 0.04 ? dx / d * maxSpd * arrive : 0;
+  const wy = d > 0.04 ? dy / d * maxSpd * arrive : 0;
+  const k = Math.min(1, dts * 3.2);
+  p._vx = (p._vx ?? 0) + (wx - (p._vx ?? 0)) * k;
+  p._vy = (p._vy ?? 0) + (wy - (p._vy ?? 0)) * k;
+  p.x += p._vx * dts; p.y += p._vy * dts;
+  sync(p);
+}
+
+const clampY = (y) => Math.max(4, Math.min(64, y));
+const WIDE_L = 7, WIDE_R = 61;
+
+// 역할 런 목표 — base 앵커에서 상황(볼·라인·마킹)에 맞는 런. {tx, ty, cap} 반환.
+function runTarget(p, s, h, offLine, runClock) {
+  const bx = p._bx, by = p._by;
+  const ballX = h.x, ballY = h.y;
+  const role = p.role;
+  let tx = bx + 2.5, ty = by, cap = 4;
+  if (role === 'FB' || role === 'IFB' || role === 'LB' || role === 'RB') {
+    // 오버랩 — 볼이 전진해 있고 같은 측면이면 터치라인을 따라 홀더 앞으로 질주.
+    const myWideY = by < 34 ? WIDE_L : WIDE_R;
+    if (ballX > 30 && Math.abs(ballY - by) < 22) { tx = bx + 11; ty = myWideY; cap = 11; }
+    else { tx = bx + 3; ty = by + (myWideY - by) * 0.3; cap = 5; }
+  } else if (role === 'W') {
+    // 폭 유지 + 오프사이드 라인 어깨에 서기(뒷공간 위협).
+    tx = Math.min(offLine - 1.2, bx + 9); cap = 9;
+    ty = by < 34 ? Math.min(by, WIDE_L + 1) : Math.max(by, WIDE_R - 1);
+  } else if (role === 'ST') {
+    // 체크런(발밑으로 내려옴) ↔ 어깨런(라인 위 횡이동) 교대 — 살아있는 9번.
+    if (Math.floor(runClock / 2.4) % 2 === 0) { tx = Math.max(bx - 5, ballX + 8); ty = by + (ballY - by) * 0.25; cap = 6; }
+    else { tx = Math.min(offLine - 1.0, bx + 7); ty = by + (by >= ballY ? 3.5 : -3.5); cap = 8; }
+  } else if (role === '8' || role === '6' || role === 'DM') {
+    // 라인 사이 포켓 — 볼 사이드로 반 발, 전방 반 발(패스 각 제공).
+    tx = bx + 4; ty = by + (ballY - by) * 0.18; cap = 5;
+  }
+  return { tx, ty: clampY(ty), cap };
+}
 
 export function applyRealtimePress(engine, dt, active) {
   const s = engine.state;
   if (!active) {
     for (const p of s.players) { p._bx = undefined; p._by = undefined; }
+    s._runClock = 0;
     return;
   }
   const h = engine.holder(); if (!h) return;
   const dts = dt / 1000;
+  s._runClock = (s._runClock ?? 0) + dts;
   const holderGK = h.role === 'GK';
 
-  // 결정 창 시작 시 전원 base 앵커(엔진 액션 후 위치가 진실).
   for (const p of s.players) { if (p._bx === undefined) { p._bx = p.x; p._by = p.y; } }
 
-  // 오프사이드 라인(2nd-최심 상대 x) — 우리 각 만들기 온사이드 클램프.
   const oxs = s.players.filter((p) => p.side === 'opp').map((p) => p.x).sort((a, b) => b - a);
   const offLine = oxs[1] ?? 105;
 
-  // 1) 압박수(볼 최근접 상대) 조여옴 + 3) 나머지 상대는 base 복귀.
+  // 압박수(볼 최근접 상대) + 블록 호흡.
   let near = null, nd = Infinity;
   for (const p of s.players) {
     if (p.side !== 'opp' || p.role === 'GK') continue;
@@ -52,59 +92,59 @@ export function applyRealtimePress(engine, dt, active) {
   for (const o of s.players) {
     if (o.side !== 'opp' || o.role === 'GK') continue;
     if (o === near && !holderGK) {
-      if (nd > STANDOFF) {
-        const dx = h.x - o.x, dy = h.y - o.y, d = Math.hypot(dx, dy) || 1;
-        const mv = Math.min(nd - STANDOFF, paceSpeed(o, 1.6) * dts);
-        o.x += dx / d * mv; o.y += dy / d * mv; syncRender(o);
+      // 스탠드오프 지점까지 조여옴(관성 — 마지막에 자연 감속).
+      const dx = h.x - o.x, dy = h.y - o.y, d = Math.hypot(dx, dy) || 1;
+      const gx = h.x - dx / d * STANDOFF, gy = h.y - dy / d * STANDOFF;
+      mover(o, gx, gy, paceMax(o, 1.7), dts);
+      // 관성 오버슛 방지 — BACK 문턱(3.5m) 밖 계약을 하드 클램프로 보증.
+      const d2 = Math.hypot(h.x - o.x, h.y - o.y);
+      if (d2 < STANDOFF && d2 > 0.01) {
+        const ux = (o.x - h.x) / d2, uy = (o.y - h.y) / d2;
+        o.x = h.x + ux * STANDOFF; o.y = h.y + uy * STANDOFF; sync(o);
       }
     } else {
+      // 블록 호흡 — base + 볼사이드 셰이드(유닛 슬라이드, 뭉침 방지).
       const bx = o._bx ?? o.x, by = o._by ?? o.y;
-      const dx = bx - o.x, dy = by - o.y, d = Math.hypot(dx, dy);
-      if (d > 0.05) {
-        const mv = Math.min(d, paceSpeed(o, 1.2) * dts);
-        o.x += dx / d * mv; o.y += dy / d * mv; syncRender(o);
-      }
+      const shX = Math.max(-1.5, Math.min(1.5, (h.x - bx) * 0.05));
+      const shY = Math.max(-2.5, Math.min(2.5, (h.y - by) * 0.16));
+      mover(o, bx + shX, clampY(by + shY), paceMax(o, 1.2), dts);
     }
   }
 
-  // 2) 우리 오프볼 — 각 만들기(base 앵커·마킹 강도별 크기·온사이드).
+  // 우리 오프볼 — 역할 런(관성·base 상한·온사이드·간격 유지).
   for (const p of s.players) {
     if (p.side !== 'us' || p.role === 'GK' || p.id === s.holderId) continue;
-    let mk = null, md = Infinity;
-    for (const o of s.players) { if (o.side !== 'opp' || o.role === 'GK') continue; const d = Math.hypot(o.x - p.x, o.y - p.y); if (d < md) { md = d; mk = o; } }
-    let ax = 0.55, ay = 0;
-    if (mk && md < 12) { const dx = p._bx - mk.x, dy = p._by - mk.y, dl = Math.hypot(dx, dy) || 1; ax += dx / dl * 1.2; ay += dy / dl * 1.2; }
-    const al = Math.hypot(ax, ay) || 1;
-    const offMag = md < 7 ? 5.5 : md < 12 ? 3.0 : 1.6;
-    let tx = p._bx + ax / al * offMag, ty = p._by + ay / al * offMag;
+    let { tx, ty, cap } = runTarget(p, s, h, offLine, s._runClock);
+    // base 상한 — 런은 결정 창 안에서 유계(창마다 리셋).
+    const rdx = tx - p._bx, rdy = ty - p._by, rl = Math.hypot(rdx, rdy);
+    if (rl > cap) { tx = p._bx + rdx / rl * cap; ty = p._by + rdy / rl * cap; }
+    // 온사이드(볼 앞이면 라인 뒤로 못 감) + 홀더 6m 간격 + 동료 3.5m 분리.
     if (tx > h.x) tx = Math.min(tx, offLine - 0.5);
-    ty = Math.max(4, Math.min(64, ty));
-    const dx = tx - p.x, dy = ty - p.y, d = Math.hypot(dx, dy) || 1;
-    const mv = Math.min(d, paceSpeed(p, 1.4) * dts);
-    p.x += dx / d * mv; p.y += dy / d * mv; syncRender(p);
+    const hd = Math.hypot(tx - h.x, ty - h.y);
+    if (hd < 6) { const f = 6 / (hd || 1); tx = h.x + (tx - h.x) * f; ty = h.y + (ty - h.y) * f; }
+    for (const m of s.players) {
+      if (m.side !== 'us' || m.id === p.id || m.role === 'GK') continue;
+      const md = Math.hypot(m.x - tx, m.y - ty);
+      if (md < 3.5) { ty += (ty >= m.y ? 1 : -1) * (3.5 - md); }
+    }
+    mover(p, tx, clampY(ty), paceMax(p, 1.5), dts);
   }
 
-  // 2.5) 홀더 자동 드리프트(B안 — "공을 가지면 계속 이동") — 볼 잡은 필드 선수는
-  //    결정 대기 중 천천히 전진하며 압박 반대편으로 잔걸음. '운반' 액션은 의도적인
-  //    길게 몰기(유인 도구)로 남는다 — 이 드리프트는 조준 없는 자동 잔걸음.
-  //    base 앵커로 창당 최대 DRIFT_MAX(4m). 최근접 수비수 5m 이내면 전진 안 함(제
-  //    발로 태클권·HALF에 안 들어감 — 압박은 어차피 조여온다). 전진은 공짜가 아니다:
-  //    드리프트하는 동안 시계가 차니 "잔걸음 전진 = 게이지로 산다".
+  // 홀더 자동 드리프트(B안) — 압박 5m 밖에서만, base+4m 유계, 압박 반대편 소폭 조향.
   if (!holderGK) {
     const DRIFT_MAX = 4;
     if (nd > 5.0) {
       const dy = near ? Math.sign(h.y - near.y || 1) * 0.35 : 0;
       const tx = Math.min((h._bx ?? h.x) + DRIFT_MAX, 100);
-      const ty = Math.max(4, Math.min(64, (h._by ?? h.y) + dy * DRIFT_MAX));
-      const dx = tx - h.x, dyy = ty - h.y, d = Math.hypot(dx, dyy);
-      if (d > 0.05) {
-        const mv = Math.min(d, paceSpeed(h, 0.9) * dts);   // 캐리=느린 걸음
-        h.x += dx / d * mv; h.y += dyy / d * mv; syncRender(h);
-      }
+      const ty = clampY((h._by ?? h.y) + dy * DRIFT_MAX);
+      mover(h, tx, ty, paceMax(h, 0.95), dts);
+    } else {
+      // 압박권 — 서서 결정(감속 정지).
+      mover(h, h.x, h.y, paceMax(h, 0.9), dts);
     }
   }
 
-  // 4) 결정 시계 — 게이지 경제의 보조 세율(지배 금지). 100 → auto-hold(엔진 붕괴 소비).
+  // 결정 시계 — 게이지 경제의 보조 세율. 100 → auto-hold(엔진 붕괴 소비).
   const rate = holderGK ? CLOCK_RATES.gk : (nd < 5 ? CLOCK_RATES.pressed : nd < 9 ? CLOCK_RATES.near : CLOCK_RATES.far);
   s.pressure = Math.min(100, (s.pressure ?? 0) + rate * dt);
   if ((s.pressure ?? 0) >= 100 && !engine.busy && s.status === 'live') engine.dispatch('hold');
