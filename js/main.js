@@ -72,6 +72,21 @@ let selectedAction = 'to_feet';
 const manualSlow = { charges: 1, active: false };
 // 키다운 핸들러 안에서 i18n t가 지역변수(e.target)에 섀도잉되므로 톱레벨에서 캡처.
 const manualSlowHint = () => t('hint.manualSlow');
+// 수동 슬로우 트리거(공용 — Space 키·모바일 길게누르기 C1). 성공 시 true.
+function tryManualSlow() {
+  if (engine.state.status === 'live' && !engine.busy && engine.holder()?.side === 'us'
+      && manualSlow.charges > 0 && !manualSlow.active) {
+    manualSlow.active = true; manualSlow.charges--;
+    setHint(manualSlowHint());
+    sfx.slowmo();
+    try { navigator.vibrate?.(30); } catch (_) {}
+    return true;
+  }
+  return false;
+}
+// 길게 누르기(C1 모바일) — 480ms 홀드 = Space와 동일한 수동 슬로우. 발동하면 이어지는
+// click(패스)을 한 번 삼킨다(의도치 않은 패스 방지).
+let longPressTimer = null, longPressAt = null, suppressNextClick = false;
 let hover = null;
 let kbTargetId = null;   // 키보드로 선택한 동료(없으면 null)
 let outcomeShown = false;
@@ -704,12 +719,7 @@ document.addEventListener('keydown', (e) => {
   // 진짜 기다림은 안 누르는 것이고, 그 비용은 시계가 문다.)
   if (e.code === 'Space') {
     e.preventDefault();
-    if (engine.state.status === 'live' && !engine.busy && engine.holder()?.side === 'us'
-        && manualSlow.charges > 0 && !manualSlow.active) {
-      manualSlow.active = true; manualSlow.charges--;
-      setHint(manualSlowHint());
-      sfx.slowmo();
-    }
+    tryManualSlow();
     return;
   }
   if (e.key === 'r' || e.key === 'R') { retryAttempt(); return; }
@@ -831,7 +841,27 @@ canvas.addEventListener('mousemove', (e) => {
 
 canvas.addEventListener('mouseleave', () => { hover = null; });
 
+// C1 모바일 — 캔버스 길게 누르기(터치 480ms) = 수동 슬로우.
+canvas.addEventListener('pointerdown', (e) => {
+  if (e.pointerType !== 'touch') return;
+  longPressAt = { x: e.clientX, y: e.clientY };
+  clearTimeout(longPressTimer);
+  longPressTimer = setTimeout(() => {
+    if (tryManualSlow()) suppressNextClick = true;   // 발동 → 릴리스 click 삼킴
+  }, 480);
+}, { passive: true });
+canvas.addEventListener('pointermove', (e) => {
+  if (!longPressAt) return;
+  if (Math.hypot(e.clientX - longPressAt.x, e.clientY - longPressAt.y) > 14) {
+    clearTimeout(longPressTimer); longPressAt = null;   // 드래그면 취소
+  }
+}, { passive: true });
+for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) {
+  canvas.addEventListener(ev, () => { clearTimeout(longPressTimer); longPressAt = null; }, { passive: true });
+}
+
 canvas.addEventListener('click', (e) => {
+  if (suppressNextClick) { suppressNextClick = false; return; }   // 길게누르기 발동 직후 클릭 무시
   if (engine.state.status !== 'live' || engine.busy) return;
   // Ring pill click = same as the matching bottom-bar button.
   const pill = pickActionAt(e.clientX, e.clientY);

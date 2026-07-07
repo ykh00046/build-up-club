@@ -91,7 +91,7 @@ const DICT = {
     'act.holdTip': '박자를 늦춰 압박을 리셋하고 대형을 재정비 — 유인은 마커를 향한 운반으로',
     'act.pressTip': '상대 소유 상황을 만들고 압박으로 공을 빼앗습니다',
     'act.shootTip': '현재 슛 존에서 마무리',
-    'act.barHint': '동료 클릭=패스(발밑/공간 자동) · 링: 운반(유인)/압박/슛 · Space=슬로우',
+    'act.barHint': '동료 클릭=패스(발밑/공간 자동) · 링: 운반(유인)/압박/슛 · Space=슬로우(모바일: 길게 누르기)',
     'act.keys': '클릭 패스 · Space 슬로우(1회) · 4 운반(유인) · 5 압박 · 9 슛 · R 다시',
     // ── 드로어: 매치 모먼트 / 우리 전략 / 전술 기록 ──
     'dr.moment': '매치 모먼트', 'dr.oppState': '상대 상태', 'dr.oppStateDefault': '기본 압박',
@@ -580,7 +580,7 @@ const DICT = {
     'act.holdTip': 'Slow the tempo to reset the press and reset your shape — bait by carrying at a marker',
     'act.pressTip': 'Force an opponent-possession moment and win the ball back by pressing',
     'act.shootTip': 'Finish from the current shot zone',
-    'act.barHint': 'Click = pass (auto to-feet/space) · ring: carry(bait)/press/shoot · Space = slow-mo',
+    'act.barHint': 'Click = pass (auto to-feet/space) · ring: carry(bait)/press/shoot · Space = slow-mo (mobile: long-press)',
     'act.keys': 'Click Pass · Space Slow-mo(1) · 4 Carry(bait) · 5 Press · 9 Shoot · R Retry',
     'hint.manualSlow': 'Manual slow-mo — time eased. Read the lanes calmly (until your next action).',
     // ── Drawer: match moment / our strategy / tactical log ──
