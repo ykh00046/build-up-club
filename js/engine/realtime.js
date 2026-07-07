@@ -84,6 +84,26 @@ export function applyRealtimePress(engine, dt, active) {
     p.x += dx / d * mv; p.y += dy / d * mv; syncRender(p);
   }
 
+  // 2.5) 홀더 자동 드리프트(B안 — "공을 가지면 계속 이동") — 볼 잡은 필드 선수는
+  //    결정 대기 중 천천히 전진하며 압박 반대편으로 잔걸음. '운반' 액션은 의도적인
+  //    길게 몰기(유인 도구)로 남는다 — 이 드리프트는 조준 없는 자동 잔걸음.
+  //    base 앵커로 창당 최대 DRIFT_MAX(4m). 최근접 수비수 5m 이내면 전진 안 함(제
+  //    발로 태클권·HALF에 안 들어감 — 압박은 어차피 조여온다). 전진은 공짜가 아니다:
+  //    드리프트하는 동안 시계가 차니 "잔걸음 전진 = 게이지로 산다".
+  if (!holderGK) {
+    const DRIFT_MAX = 4;
+    if (nd > 5.0) {
+      const dy = near ? Math.sign(h.y - near.y || 1) * 0.35 : 0;
+      const tx = Math.min((h._bx ?? h.x) + DRIFT_MAX, 100);
+      const ty = Math.max(4, Math.min(64, (h._by ?? h.y) + dy * DRIFT_MAX));
+      const dx = tx - h.x, dyy = ty - h.y, d = Math.hypot(dx, dyy);
+      if (d > 0.05) {
+        const mv = Math.min(d, paceSpeed(h, 0.9) * dts);   // 캐리=느린 걸음
+        h.x += dx / d * mv; h.y += dyy / d * mv; syncRender(h);
+      }
+    }
+  }
+
   // 4) 결정 시계 — 게이지 경제의 보조 세율(지배 금지). 100 → auto-hold(엔진 붕괴 소비).
   const rate = holderGK ? CLOCK_RATES.gk : (nd < 5 ? CLOCK_RATES.pressed : nd < 9 ? CLOCK_RATES.near : CLOCK_RATES.far);
   s.pressure = Math.min(100, (s.pressure ?? 0) + rate * dt);

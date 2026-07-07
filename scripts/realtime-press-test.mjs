@@ -121,5 +121,37 @@ console.log('=== 실시간 압박 레이어 테스트 ===\n');
   ok(!nan, 'NaN 0');
 }
 
+// [8] 홀더 자동 드리프트(B안) — 압박 멀면 천천히 전진, base 유계(≤4.2m)
+{
+  const e = mkEngine('us-lcb');
+  const h = e.holder();
+  for (const o of e.state.players) if (o.side === 'opp' && o.role !== 'GK') o.x = h.x + 30;
+  const x0 = h.x;
+  run(e, 4);
+  const drift = h.x - x0;
+  ok(drift > 1.2, `홀더 드리프트 전진 +${drift.toFixed(1)}m (>1.2)`);
+  ok(Math.hypot(h.x - h._bx, h.y - h._by) <= 4.2, `드리프트 base 유계 ${Math.hypot(h.x - h._bx, h.y - h._by).toFixed(1)}m ≤ 4.2`);
+}
+
+// [9] 압박 근접(≤5m)이면 드리프트 정지 — 제 발로 태클권에 안 들어감
+{
+  const e = mkEngine('us-lcb');
+  const h = e.holder();
+  const o = e.state.players.find((p) => p.side === 'opp' && p.role !== 'GK');
+  o.x = h.x + 4.5; o.y = h.y;
+  const x0 = h.x;
+  run(e, 3);
+  ok(Math.abs(h.x - x0) < 0.6, `압박 근접 시 드리프트 정지 (Δ${(h.x - x0).toFixed(2)}m)`);
+}
+
+// [10] GK는 드리프트 안 함(방출 대기)
+{
+  const e = mkEngine('us-gk');
+  const h = e.holder();
+  const x0 = h.x, y0 = h.y;
+  run(e, 3);
+  ok(Math.hypot(h.x - x0, h.y - y0) < 0.1, 'GK 드리프트 없음');
+}
+
 console.log(fail === 0 ? '\n실시간 압박 레이어 통과' : `\n${fail} 실패`);
 process.exit(fail === 0 ? 0 : 1);
