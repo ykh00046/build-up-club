@@ -68,6 +68,10 @@ const params = new URLSearchParams(window.location.search);
 let scenario = getScenario(params.get('scenario'));
 let engine = createEngine(engineScenario(scenario));
 let selectedAction = 'to_feet';
+// 수동 슬로우(Space) — 시도당 1회, 시간을 15%로 늦춰 침착하게 읽기. 액션 실행 시 해제.
+const manualSlow = { charges: 1, active: false };
+// 키다운 핸들러 안에서 i18n t가 지역변수(e.target)에 섀도잉되므로 톱레벨에서 캡처.
+const manualSlowHint = () => t('hint.manualSlow');
 let hover = null;
 let kbTargetId = null;   // 키보드로 선택한 동료(없으면 null)
 let outcomeShown = false;
@@ -225,6 +229,7 @@ function newAttempt() {
     baitCombo: true,
   });
   lastCommanded = careerActive ? oppDisposition : null;
+  manualSlow.charges = 1; manualSlow.active = false;   // 수동 슬로우 시도당 1회 리셋
   // 통합 글루: 클럽 업그레이드를 'us' 선수 traits로 반영 → 강해질수록 전술이 쉬워짐.
   if (currentSetup) applyClubBoost(engine, currentSetup);
   outcomeShown = false;
@@ -583,9 +588,12 @@ let renderedGuideKey = null;
 try { guideDismissed = localStorage.getItem(GUIDE_KEY) === 'done'; } catch { /* private mode */ }
 // Short labels for the in-board ring around the holder — 링이 유일한 조작면이므로
 // 압박(press_mode)도 포함(액션바 삭제, 2026-07).
+// 조작면 정리(2026-07 실시간): 발밑/공간은 피치 클릭 자동판별로 이미 하나(칩 불필요),
+// 기다리기는 실시간에선 "안 누르면 기다림"이라 명시 버튼이 중복 → Space=수동 슬로우로
+// 재해석(아래). 링에는 의도 액션만: 운반(유인 몰기)·슈팅·압박. hold 액션 자체는 엔진·
+// AI·게이지 붕괴용으로 유지(플레이어 표면에서만 제거).
 const RING_LABELS = {
-  hold: 'ring.hold', carry: 'ring.carry', pass_space: 'ring.space', shoot: 'ring.shoot',
-  press_mode: 'ring.press',
+  carry: 'ring.carry', shoot: 'ring.shoot', press_mode: 'ring.press',
 };
 let ringHover = null;
 
@@ -690,7 +698,18 @@ document.addEventListener('keydown', (e) => {
   if (engine.state.baited && (e.key === 'e' || e.key === 'E' || e.code === 'Space')) {
     e.preventDefault(); activateAction('release'); return;
   }
-  if (e.code === 'Space') { e.preventDefault(); activateAction('hold'); return; }
+  // Space = 수동 슬로우(프로토 검증 개념) — 시간을 늦추고 침착하게 레인을 읽는다.
+  // 시도당 1회, 다음 액션 실행 시 해제. (구 '기다리기' 디스패치는 실시간에선 중복 —
+  // 진짜 기다림은 안 누르는 것이고, 그 비용은 시계가 문다.)
+  if (e.code === 'Space') {
+    e.preventDefault();
+    if (engine.state.status === 'live' && !engine.busy && engine.holder()?.side === 'us'
+        && manualSlow.charges > 0 && !manualSlow.active) {
+      manualSlow.active = true; manualSlow.charges--;
+      setHint(manualSlowHint());
+    }
+    return;
+  }
   if (e.key === 'r' || e.key === 'R') { retryAttempt(); return; }
   if (e.key === 'Escape') { selectAction('to_feet'); return; }
   const n = parseInt(e.key, 10);
@@ -1017,6 +1036,7 @@ function buildSpaceHover(point) {
 }
 
 function afterDispatch() {
+  manualSlow.active = false;   // 액션 실행 → 수동 슬로우 해제(1회성)
   renderLog(engine);
   updateGuide();
 }
@@ -1693,7 +1713,8 @@ function loop(ts) {
   // 시간이 15%로 느려져(프로토에서 검증한 슬로우모션) 침착하게 지점을 고른다 —
   // 생각은 보호되되 완전 정지는 아니라 무한 숙고 익스플로잇은 없다.
   const AIM_SLOW = 0.15;
-  const rtDt = selectedAction === 'carry' ? dt * AIM_SLOW : dt;
+  if (engine.busy && manualSlow.active) manualSlow.active = false;   // 액션 시작 → 해제(모든 경로 견고)
+  const rtDt = (selectedAction === 'carry' || manualSlow.active) ? dt * AIM_SLOW : dt;
   applyRealtimePress(engine, rtDt, realtimeActive(s, ringLive));
   const shotZoneNow = engine.shotZoneNow();
   const shotPreview = engine.previewShot();   // { zone, xg } or null

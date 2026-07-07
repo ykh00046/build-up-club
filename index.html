@@ -1038,8 +1038,10 @@
           <button class="btn" data-action="carry" aria-keyshortcuts="4" data-i18n="act.carry" data-i18n-title="act.carryTip" title="공을 운반 — 공을 달면 물리적으로 느려집니다">운반</button>
           <button class="btn" id="btn-pass" type="button" data-i18n="act.pass" data-i18n-title="act.passTip" title="패스 — 동료 클릭=발밑, 빈 공간 클릭=공간">패스</button>
           <button class="btn" data-action="to_feet" aria-keyshortcuts="1" data-i18n="act.toFeet" data-i18n-title="act.toFeetTip" title="동료 발밑으로 정확히 — 선수를 선택">발밑</button>
-          <button class="btn" data-action="pass_space" aria-keyshortcuts="2" data-i18n="act.passSpace" data-i18n-title="act.passSpaceTip" title="공간·로빙 — 지점을 클릭하면 가까운 동료가 받습니다. 멀수록 위험">공간·로빙</button>
-          <button class="btn" data-action="hold" aria-keyshortcuts="3 Space" data-i18n="act.hold" data-i18n-title="act.holdTip" title="공을 잡고 압박을 유인 — 상대가 튀어나오면 등 뒤가 열립니다">기다리기</button>
+          <!-- 조작면 정리(2026-07 실시간): 공간 패스는 피치 클릭 자동판별에 흡수, hold는
+               Space=수동 슬로우로 재해석 — 둘 다 링·단축키에서 제거(상태 캐리어로만 유지). -->
+          <button class="btn" data-action="pass_space" aria-keyshortcuts="" data-i18n="act.passSpace" data-i18n-title="act.passSpaceTip" title="공간·로빙 — 지점을 클릭하면 가까운 동료가 받습니다. 멀수록 위험">공간·로빙</button>
+          <button class="btn" data-action="hold" aria-keyshortcuts="" data-i18n="act.hold" data-i18n-title="act.holdTip" title="공을 잡고 압박을 유인 — 상대가 튀어나오면 등 뒤가 열립니다">기다리기</button>
           <button class="btn" data-action="press_mode" aria-keyshortcuts="5" data-i18n="act.press" data-i18n-title="act.pressTip" title="상대 소유 상황을 만들고 압박으로 공을 빼앗습니다">압박</button>
           <button class="btn btn-shoot" data-action="shoot" data-i18n="act.shoot" data-i18n-title="act.shootTip" title="현재 슛 존에서 마무리" aria-keyshortcuts="9">슈팅</button>
         </div>
