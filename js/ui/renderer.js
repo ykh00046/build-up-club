@@ -80,7 +80,7 @@ export function render(view, dtMs) {
   if (view.hover) drawHover(view.hover, view.holder);
   if (view.passOptions?.length) drawPassOptions(view.passOptions, view.players);
   if (view.runDestinations?.length) drawRunDestinations(view.runDestinations, view.players);
-  drawPlayers(view.players, view.holderId, view.pressureExpr);
+  drawPlayers(view.players, view.holderId, view.pressureExpr, view.presserId);
   if (view.keyboardTargetId) drawKbFocus(view);
   drawBall(view.ball);
   drawActionRing(view);
@@ -759,13 +759,13 @@ function drawKbFocus(view) {
   ctx.restore();
 }
 
-function drawPlayers(players, holderId, pressureExpr) {
+function drawPlayers(players, holderId, pressureExpr, presserId) {
   // Opponents under our tokens.
-  for (const p of players) if (p.side === 'opp') drawToken(p, false, pressureExpr);
+  for (const p of players) if (p.side === 'opp') drawToken(p, false, pressureExpr, p.id === presserId);
   for (const p of players) if (p.side === 'us') drawToken(p, p.id === holderId, pressureExpr);
 }
 
-function drawToken(p, isHolder, pressureExpr) {
+function drawToken(p, isHolder, pressureExpr, isPresser = false) {
   const r = scale * TOKEN_R_M;
   const cx = mx(p.rx ?? p.x), cy = my(p.ry ?? p.y);
   const us = p.side === 'us';
@@ -784,6 +784,16 @@ function drawToken(p, isHolder, pressureExpr) {
   ctx.lineWidth = 1;
   ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
   ctx.restore();
+  // 압박수 링(A5 가독성) — 지금 조여오는 그 수비수. 게이지가 높을수록 진해져
+  // "왜 시계가 빨리 차는지"가 눈으로 연결된다.
+  if (isPresser) {
+    const urgency = 0.45 + (pressureExpr?.level ?? 0) * 0.45;
+    ctx.save();
+    ctx.strokeStyle = `rgba(251, 146, 60, ${urgency})`;
+    ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.arc(cx, cy, r + 3, 0, Math.PI * 2); ctx.stroke();
+    ctx.restore();
+  }
   // 몸 방향 노치(실시간 v2) — 속도 벡터(_vx/_vy)로 달리는 방향을 보여준다. 선수가
   // 어디로 뛰는지 한눈에 읽혀 '축구를 하는 그림'이 된다(정지 시엔 안 그림).
   {

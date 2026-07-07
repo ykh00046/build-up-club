@@ -70,6 +70,7 @@ export function applyRealtimePress(engine, dt, active) {
   if (!active) {
     for (const p of s.players) { p._bx = undefined; p._by = undefined; }
     s._runClock = 0;
+    s._presserId = null;
     return;
   }
   const h = engine.holder(); if (!h) return;
@@ -89,6 +90,8 @@ export function applyRealtimePress(engine, dt, active) {
     const d = Math.hypot(p.x - h.x, p.y - h.y);
     if (d < nd) { nd = d; near = p; }
   }
+  // 압박수 노출(A5 가독성) — 렌더러가 주황 링으로 "누가 조여오는지"를 보여준다.
+  s._presserId = (!holderGK && near) ? near.id : null;
   for (const o of s.players) {
     if (o.side !== 'opp' || o.role === 'GK') continue;
     if (o === near && !holderGK) {

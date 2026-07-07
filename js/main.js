@@ -1741,6 +1741,7 @@ function loop(ts) {
   render({
     players: s.players,
     holderId: s.holderId,
+    presserId: s._presserId ?? null,   // 실시간 압박수(A5) — 렌더러가 주황 링
     holder: engine.holder(),
     ball: engine.ballPos(),
     usColor: Club.club.clubColor,   // 우리 팀 킷 = 클럽 컬러
