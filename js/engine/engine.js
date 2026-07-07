@@ -688,6 +688,7 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
   }
 
   function endAttempt(kind, detail) {
+    state.deferredDecision = null;   // 유예된 국면 결정은 시도가 끝나면 무효(맥락 소멸 — F1)
     if (maybeOpenTransition(kind, detail)) return;
     finishAttempt(kind, detail);
   }
@@ -1683,6 +1684,18 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
       const result = fn(targetId, point);
       if (result.rejected) state.turn--;
       else logSituationEvents(updateTacticalState(state, actionId, result.ok));
+      // F1(플레이테스트 발견): 유인 캐리가 같은 dispatch에서 국면 결정(tempo/flank)을
+      // 열면 — prepareSituations는 캐리 '전'에 돌고 유인은 캐리 '중'에 arm — 릴리스가
+      // 결정 가드에 막혀 "릴리스 ▸ E" 안내와 모순된다(이중 모달). 유인 창이 살아 있는
+      // 동안 결정을 유예했다가, 유인이 해소된(릴리스 완료 또는 다른 액션으로 창 소멸)
+      // 액션 뒤에 복원한다. seen 플래그는 이미 소비돼 중복 발화 없음.
+      if (state.baited && state.matchDecision) {
+        state.deferredDecision = state.matchDecision;
+        state.matchDecision = null;
+      } else if (!state.baited && state.deferredDecision && !state.matchDecision && state.status === 'live') {
+        state.matchDecision = state.deferredDecision;
+        state.deferredDecision = null;
+      }
       // A full gauge ends the attempt no matter what the last action was (S8) —
       // previously only `hold` checked, so you could live at 100% forever.
       if (result.ok && state.status === 'live' && state.pressure >= 100) {
