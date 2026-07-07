@@ -164,4 +164,33 @@ export const sfx = {
     tone(240, 'sawtooth', 0.08, 0.02, 0.55, { sweepTo: 70 });
     tone(120, 'sine', 0.1, 0.02, 0.5, { sweepTo: 50 });
   },
+  // ── 실시간 문법 큐(A4) — 절제된 미니멀 ─────────────────────────────
+  whistle() {
+    if (!ctx) return;
+    // 심판 휘슬 — 삑-삑(짧은 더블 버스트). 시도 종료의 표식.
+    tone(2350, 'square', 0.045, 0.004, 0.11);
+    tone(2350, 'square', 0.05, 0.004, 0.16, { when: 0.16 });
+  },
+  slowmo() {
+    if (!ctx) return;
+    // 시간이 늘어진다 — 아래로 미끄러지는 소프트 스윕(수동 슬로우 진입).
+    tone(660, 'sine', 0.06, 0.01, 0.5, { sweepTo: 220 });
+    noiseHit(0.045, 0.05, 0.45, { filterType: 'lowpass', freq: 1200, sweepTo: 300 });
+  },
+  baitPull() {
+    if (!ctx) return;
+    // 물었다! — 짧은 상승 2음(기대감).
+    tone(392, 'triangle', 0.07, 0.006, 0.12);
+    tone(523.25, 'triangle', 0.08, 0.006, 0.18, { when: 0.08 });
+  },
+  baitMiss() {
+    if (!ctx) return;
+    // 안 물었다 — 낮은 무딘 톡(F2 로그 피드백과 쌍).
+    tone(160, 'sine', 0.06, 0.005, 0.12, { sweepTo: 110 });
+  },
+  releaseChime() {
+    if (!ctx) return;
+    // 3자 릴리스 — 빠른 상승 3연음(콤비 완성의 시그니처).
+    [659.25, 830.6, 987.77].forEach((f, i) => tone(f, 'triangle', 0.07, 0.006, 0.22, { when: i * 0.055 }));
+  },
 };

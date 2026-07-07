@@ -616,7 +616,7 @@ function activateAction(id) {
   }
   if (id === 'hold' || id === 'shoot' || id === 'release') {
     const r = engine.dispatch(id);
-    if (r.ok) (id === 'shoot' ? sfx.kick(0.95) : sfx.tick());
+    if (r.ok) (id === 'shoot' ? sfx.kick(0.95) : id === 'release' ? sfx.releaseChime() : sfx.tick());
     afterDispatch();
     return;
   }
@@ -707,6 +707,7 @@ document.addEventListener('keydown', (e) => {
         && manualSlow.charges > 0 && !manualSlow.active) {
       manualSlow.active = true; manualSlow.charges--;
       setHint(manualSlowHint());
+      sfx.slowmo();
     }
     return;
   }
@@ -852,8 +853,18 @@ canvas.addEventListener('click', (e) => {
     }
     const point = pendingCarry ?? p;
     pendingCarry = null;
+    const _h0 = engine.holder();
     const r = engine.dispatch(selectedAction, null, point);
-    if (r.ok) ACTION_SFX[selectedAction]?.();
+    if (r.ok) {
+      // 킥 강도 = 패스 거리 비례(볼 물리와 쌍) — 짧은 패스는 톡, 긴 대각은 뻥.
+      if (selectedAction === 'pass_space' && _h0) sfx.kick(Math.min(0.9, 0.3 + dist(_h0, point) / 60));
+      else ACTION_SFX[selectedAction]?.();
+      // 유인 사운드(A4) — 물었다(상승 2음) / 안 물었다(무딘 톡, F2 로그와 쌍).
+      if (selectedAction === 'carry' && r.bait) {
+        if (r.bait.baited) sfx.baitPull();
+        else if (r.bait.commitP != null) sfx.baitMiss();
+      }
+    }
     afterDispatch();
     return;
   }
@@ -870,8 +881,9 @@ canvas.addEventListener('click', (e) => {
     }
     const point = pendingCarry ?? p;
     pendingCarry = null;
+    const _h0 = engine.holder();
     const r = engine.dispatch('pass_space', null, point);
-    if (r.ok) ACTION_SFX.pass_space?.();
+    if (r.ok) sfx.kick(_h0 ? Math.min(0.9, 0.3 + dist(_h0, point) / 60) : 0.7);   // 거리 비례
     afterDispatch();
     return;
   }
@@ -888,9 +900,14 @@ canvas.addEventListener('click', (e) => {
 // 패스/특수 액션 실행 — 클릭과 키보드(Enter)가 공유하는 단일 실행 경로.
 function executeTargetedAction(targetId) {
   lastTapTargetId = null;
+  const _h0 = engine.holder();
+  const _t0 = engine.state.players.find((pp) => pp.id === targetId);
   const result = engine.dispatch(selectedAction, targetId);
   if (!result.rejected) {
-    if (result.ok) ACTION_SFX[selectedAction]?.();
+    if (result.ok) {
+      if (selectedAction === 'to_feet' && _h0 && _t0) sfx.kick(Math.min(0.9, 0.3 + dist(_h0, _t0) / 60));   // 거리 비례
+      else ACTION_SFX[selectedAction]?.();
+    }
     hover = null;
     kbTargetId = null;
     // After a special action resolves, fall back to the basic pass.
@@ -1817,8 +1834,8 @@ function loop(ts) {
     const kind = s.outcome?.kind;
     if (kind === 'goal') sfx.goal();
     else if (kind === 'saved' || kind === 'off' || kind === 'blocked') sfx.near();
-    else if (kind === 'collapsed') sfx.collapse();
-    else sfx.sting();
+    else if (kind === 'collapsed') { sfx.whistle(); sfx.collapse(); }   // 휘슬 = 시도 종료 표식
+    else { sfx.whistle(); sfx.sting(); }
     recordAttempt(engine);
     renderLog(engine);
     if (careerActive) {
