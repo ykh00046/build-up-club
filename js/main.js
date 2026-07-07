@@ -1700,6 +1700,7 @@ function updateTacticalHud(s) {
 let lastTs = performance.now();
 let lastWindowKey = null;
 let lastDefendKey = null;      // A3 프리즈 연출 — defend 결정 신규 오픈 감지
+const frameCache = { key: '', at: 0, shotZoneNow: null, shotPreview: null, boardRead: null, passOptions: null };   // 프레임 예산(C2)
 let defenseFreezeAt = 0;
 // 피치를 가리는 풀스크린 오버레이가 떠 있으면 매치는 상호작용 불가 — 그동안
 // engine.update + 전체 렌더 + 프레임당 프리뷰 계산을 건너뛴다(배터리/CPU 절약).
@@ -1740,27 +1741,38 @@ function loop(ts) {
   if (engine.busy && manualSlow.active) manualSlow.active = false;   // 액션 시작 → 해제(모든 경로 견고)
   const rtDt = (selectedAction === 'carry' || manualSlow.active) ? dt * AIM_SLOW : dt;
   applyRealtimePress(engine, rtDt, realtimeActive(s, ringLive));
-  const shotZoneNow = engine.shotZoneNow();
-  const shotPreview = engine.previewShot();   // { zone, xg } or null
-  const boardRead = evaluateBoard(engine);
-
-  // Overlay computations for armed actions (computed each frame; cheap per call).
-  let passOptions = null;
-  let runDestinations = null;
-  if (s.status === 'live' && !s.matchDecision) {
-    const h = engine.holder();
-    if (h?.side === 'us' && selectedAction === 'to_feet') {
-      // Colored rings on each teammate — green/yellow/red by pass risk.
-      passOptions = s.players
-        .filter(m => m.side === 'us' && m.id !== h.id && m.role !== 'GK')
-        .map(m => {
-          const pv = engine.preview('to_feet', m.id);
-          if (!pv || pv.lane.status === 'offside') return null;
-          return { targetId: m.id, risk: pv.lane.risk };
-        })
-        .filter(Boolean);
+  // 프레임 예산(3D 3회차, 로드맵 C2 조기 집행): evaluateBoard + 팀원 전원 preview를
+  // 매 프레임 돌리던 것이 실측 병목(37fps, 최악 169ms — 투영은 10만회 7.3ms로 무관).
+  // 상태 키(턴·홀더·무장액션·게이지 버킷)가 같으면 140ms 캐시 재사용 — 실시간 이동
+  // 반영은 140ms 리프레시로 충분(시각 오버레이용이지 판정이 아님).
+  const now = performance.now();
+  const hvKey = `${s.turn}:${s.holderId}:${selectedAction}:${Math.round((s.pressure ?? 0) / 6)}:${s.status}:${!!s.matchDecision}`;
+  if (hvKey !== frameCache.key || now - frameCache.at > 140) {
+    frameCache.key = hvKey; frameCache.at = now;
+    frameCache.shotZoneNow = engine.shotZoneNow();
+    frameCache.shotPreview = engine.previewShot();   // { zone, xg } or null
+    frameCache.boardRead = evaluateBoard(engine);
+    frameCache.passOptions = null;
+    if (s.status === 'live' && !s.matchDecision) {
+      const h = engine.holder();
+      if (h?.side === 'us' && selectedAction === 'to_feet') {
+        // Colored rings on each teammate — green/yellow/red by pass risk.
+        frameCache.passOptions = s.players
+          .filter(m => m.side === 'us' && m.id !== h.id && m.role !== 'GK')
+          .map(m => {
+            const pv = engine.preview('to_feet', m.id);
+            if (!pv || pv.lane.status === 'offside') return null;
+            return { targetId: m.id, risk: pv.lane.risk };
+          })
+          .filter(Boolean);
+      }
     }
   }
+  const shotZoneNow = frameCache.shotZoneNow;
+  const shotPreview = frameCache.shotPreview;
+  const boardRead = frameCache.boardRead;
+  const passOptions = frameCache.passOptions;
+  let runDestinations = null;
 
   render({
     players: s.players,
