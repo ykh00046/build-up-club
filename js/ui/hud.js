@@ -105,7 +105,7 @@ export function renderLog(engine) {
 
 // ─── outcome card ────────────────────────────────────────────────────────────
 
-export function showOutcome(engine, onRetry, onNextCell, { nextLabel = null } = {}) {
+export function showOutcome(engine, onRetry, onNextCell, { nextLabel = null, onReplay = null } = {}) {
   const o = engine.state.outcome;
   if (!o) return;
   const overlay = document.getElementById('outcome-overlay');
@@ -128,6 +128,14 @@ export function showOutcome(engine, onRetry, onNextCell, { nextLabel = null } = 
   // 커리어는 "결과 정산 →", 자유 플레이는 기본 라벨로 매번 복원(잔존 방지).
   nextBtn.textContent = nextLabel ?? t('oc.next');
   nextBtn.onclick = () => { closeModal(overlay, false); onNextCell(); };
+  // 골 리플레이(C3) — 골일 때만 노출. 클릭 시 카드를 닫고 재생, 끝나면 호출부가
+  // 카드를 다시 연다(onReplay 안에서 처리).
+  const replayBtn = overlay.querySelector('.oc-replay');
+  if (replayBtn) {
+    const canReplay = o.tone === 'goal' && typeof onReplay === 'function';
+    replayBtn.hidden = !canReplay;
+    replayBtn.onclick = canReplay ? () => { closeModal(overlay, false); onReplay(); } : null;
+  }
   // 골 시 간단한 컨페티 효과.
   if (o.tone === 'goal') spawnConfetti(overlay);
 }

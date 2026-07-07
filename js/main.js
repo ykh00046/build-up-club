@@ -230,6 +230,7 @@ function newAttempt() {
   });
   lastCommanded = careerActive ? oppDisposition : null;
   manualSlow.charges = 1; manualSlow.active = false;   // 수동 슬로우 시도당 1회 리셋
+  replayRec.frames.length = 0; replayRec.lastAt = 0; lastGoalReplay = null; replayState = null;   // 리플레이 리셋(C3)
   // 통합 글루: 클럽 업그레이드를 'us' 선수 traits로 반영 → 강해질수록 전술이 쉬워짐.
   if (currentSetup) applyClubBoost(engine, currentSetup);
   outcomeShown = false;
@@ -1710,6 +1711,10 @@ let lastTs = performance.now();
 let lastWindowKey = null;
 let lastDefendKey = null;      // A3 프리즈 연출 — defend 결정 신규 오픈 감지
 const frameCache = { key: '', at: 0, shotZoneNow: null, shotPreview: null, boardRead: null, passOptions: null };   // 프레임 예산(C2)
+// 골 리플레이(C3) — 라이브 중 최근 ~9초를 저해상도(약 11fps)로 기록, 골이면 보관.
+const replayRec = { frames: [], lastAt: 0 };
+let lastGoalReplay = null;
+let replayState = null;   // { frames, t0, dur, done } — 재생 중이면 루프가 이걸 그림
 let defenseFreezeAt = 0;
 // 피치를 가리는 풀스크린 오버레이가 떠 있으면 매치는 상호작용 불가 — 그동안
 // engine.update + 전체 렌더 + 프레임당 프리뷰 계산을 건너뛴다(배터리/CPU 절약).
@@ -1726,12 +1731,69 @@ function realtimeActive(s, ringLive) {
   return true;
 }
 
+// ─── 골 리플레이 재생(C3) ────────────────────────────────────────────────────
+// 기록 프레임을 0.8배속으로 보간 재생 — 선수 rx/ry(렌더 좌표)와 합성 볼만 움직이고
+// 엔진 상태는 불변. 끝나면 done 콜백(결과 카드 재오픈).
+function startReplay(done) {
+  if (!lastGoalReplay || lastGoalReplay.length < 5) { done?.(); return; }
+  replayState = { frames: lastGoalReplay, t0: performance.now(), start: lastGoalReplay[0].t, done };
+  sfx.whoosh();
+}
+function stepReplay(ts, dt) {
+  const R = replayState;
+  const speed = 0.8;
+  const tRec = R.start + (performance.now() - R.t0) * speed;
+  const fs = R.frames;
+  let k = 0;
+  while (k < fs.length - 1 && fs[k + 1].t <= tRec) k++;
+  if (k >= fs.length - 1) {
+    replayState = null;
+    const done = R.done; done?.();
+    return;
+  }
+  const A = fs[k], B = fs[k + 1];
+  const f = Math.min(1, Math.max(0, (tRec - A.t) / Math.max(1, B.t - A.t)));
+  const byId = new Map(B.ps.map((r) => [r[0], r]));
+  for (const rec of A.ps) {
+    const p = engine.state.players.find((q) => q.id === rec[0]);
+    const nb = byId.get(rec[0]);
+    if (!p || !nb) continue;
+    const nx = rec[1] + (nb[1] - rec[1]) * f, ny = rec[2] + (nb[2] - rec[2]) * f;
+    p._vx = (nx - (p.rx ?? nx)) / Math.max(0.016, dt / 1000);   // 노치용 근사 속도
+    p._vy = (ny - (p.ry ?? ny)) / Math.max(0.016, dt / 1000);
+    p.rx = nx; p.ry = ny;
+  }
+  let ball = null;
+  if (A.ball && B.ball) {
+    ball = {
+      x: A.ball[0] + (B.ball[0] - A.ball[0]) * f,
+      y: A.ball[1] + (B.ball[1] - A.ball[1]) * f,
+      lofted: !!A.ball[2], flying: !!A.ball[3],
+      flightT: A.ball[4] + (B.ball[4] - A.ball[4]) * f,
+    };
+  }
+  render({
+    players: engine.state.players,
+    holderId: null, presserId: null, freezeFlash: 0,
+    holder: null, ball,
+    usColor: Club.club.clubColor,
+    pressureExpr: { level: 0, ring: 0, vignette: 0, shout: null },
+    phase: engine.state.phase,
+    cue: '🎬 ' + t('oc.replay'), cueTone: 'success',
+    hover: null, keyboardTargetId: null, passOptions: null, runDestinations: null,
+    defenseRoute: null, baitArmed: null, shotZone: null, shotXg: null,
+    rewardWindow: null, superiorityZones: null, actionRing: null,
+  }, dt);
+}
+
 function loop(ts) {
   requestAnimationFrame(loop);
   const dt = Math.min(50, ts - lastTs);
   lastTs = ts;
   // 오버레이가 피치를 덮는 동안은 무거운 작업을 멈춘다(루프는 살아있어 닫히면 자동 재개).
   if (renderPaused()) return;
+  // 골 리플레이 재생(C3) — 기록 프레임 보간으로 피치를 되돌린다(엔진은 건드리지 않음).
+  if (replayState) { stepReplay(ts, dt); return; }
   engine.update(dt);
 
   const s = engine.state;
@@ -1782,6 +1844,21 @@ function loop(ts) {
   const boardRead = frameCache.boardRead;
   const passOptions = frameCache.passOptions;
   let runDestinations = null;
+
+  // 리플레이 기록(C3) — 라이브 중 90ms 간격으로 렌더 위치·볼 스냅샷.
+  if (s.status === 'live') {
+    const nowMs = performance.now();
+    if (nowMs - replayRec.lastAt > 90) {
+      replayRec.lastAt = nowMs;
+      const b = engine.ballPos();
+      replayRec.frames.push({
+        t: nowMs,
+        ps: s.players.map((p) => [p.id, p.rx ?? p.x, p.ry ?? p.y]),
+        ball: b ? [b.x, b.y, b.lofted ? 1 : 0, b.flying ? 1 : 0, b.flightT ?? 0] : null,
+      });
+      if (replayRec.frames.length > 110) replayRec.frames.shift();
+    }
+  }
 
   render({
     players: s.players,
@@ -1861,6 +1938,7 @@ function loop(ts) {
   if (s.status === 'over' && !engine.busy && !outcomeShown) {
     outcomeShown = true;
     const kind = s.outcome?.kind;
+    if (kind === 'goal' && replayRec.frames.length > 5) lastGoalReplay = replayRec.frames.slice(-100);   // 최근 ~9초 보관(C3)
     if (kind === 'goal') sfx.goal();
     else if (kind === 'saved' || kind === 'off' || kind === 'blocked') sfx.near();
     else if (kind === 'collapsed') { sfx.whistle(); sfx.collapse(); }   // 휘슬 = 시도 종료 표식
@@ -1872,8 +1950,15 @@ function loop(ts) {
       // 만들었다 — 실패를 보기 전엔 재도전할 수 없었으니까. 이제 결과 카드에서
       // 무엇이 잘못됐는지 본 뒤 재도전(1회) 또는 정산을 선택한다. 최종 시도만 정산.
       if (careerSettled) settleCareerMatch();   // 방어적 — 정상 경로에선 도달 안 함
-      else showOutcome(engine, retryAttempt, () => settleCareerMatch(), { nextLabel: t('oc.settle') });
-    } else showOutcome(engine, retryAttempt, nextCell);
+      else {
+        const openOc = () => showOutcome(engine, retryAttempt, () => settleCareerMatch(),
+          { nextLabel: t('oc.settle'), onReplay: () => startReplay(openOc) });
+        openOc();
+      }
+    } else {
+      const openOc = () => showOutcome(engine, retryAttempt, nextCell, { onReplay: () => startReplay(openOc) });
+      openOc();
+    }
   }
   // (재스케줄은 loop() 진입부에서 처리 — 여기서 다시 호출하면 프레임당 이중 예약됨)
 }
