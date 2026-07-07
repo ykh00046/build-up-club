@@ -33,6 +33,10 @@ ok(slow.collapsePct >= 8, `느린 페이스 붕괴 ${slow.collapsePct.toFixed(1)
 // ③ 결말·단조
 ok(fast.timeoutPct <= 2 && slow.timeoutPct <= 2, `타임아웃 ${fast.timeoutPct.toFixed(1)}/${slow.timeoutPct.toFixed(1)}% ≤ 2`);
 ok(slow.avgPressure > fast.avgPressure + 5, `게이지 단조(느림 ${slow.avgPressure.toFixed(0)} > 보통 ${fast.avgPressure.toFixed(0)}+5)`);
+
+// ④ EV 순서(B4 붐-버스트 수리) — 뭉갬이 goal EV에서도 이기면 안 된다(드리프트-게이지
+//    커플링으로 꾸물이 35.3→20.0% 교정). 표본 노이즈 여유 +6pp.
+ok(slow.goalPct <= fast.goalPct + 6, `EV 순서: 꾸물이 goal ${slow.goalPct.toFixed(1)}% ≤ 보통 ${fast.goalPct.toFixed(1)}%+6`);
 ok(Number.isFinite(fast.goalPct) && Number.isFinite(slow.collapsePct), 'NaN 없음');
 
 console.log(fail === 0 ? '\n실시간 자기대국 게이트 통과' : `\n${fail} 실패`);

@@ -134,6 +134,14 @@ console.log('=== 실시간 압박 레이어 테스트 ===\n');
   const drift = h.x - x0;
   ok(drift > 1.2, `홀더 드리프트 전진 +${drift.toFixed(1)}m (>1.2)`);
   ok(Math.hypot(h.x - h._bx, h.y - h._by) <= 4.2, `드리프트 base 유계 ${Math.hypot(h.x - h._bx, h.y - h._by).toFixed(1)}m ≤ 4.2`);
+  // B4 커플링 — 게이지 80이면 몰 공간이 줄어 드리프트 미미(꾸물이 공짜 전진 차단)
+  const e2 = mkEngine('us-lcb');
+  const h2 = e2.holder();
+  for (const o of e2.state.players) if (o.side === 'opp' && o.role !== 'GK') o.x = h2.x + 30;
+  e2.state.pressure = 80;
+  const x20 = h2.x;
+  run(e2, 4);
+  ok(h2.x - x20 <= 1.8, `게이지 80 드리프트 +${(h2.x - x20).toFixed(1)}m ≤ 1.8 (커플링)`);
 }
 
 // [9] 압박 근접(≤5m)이면 드리프트 정지 — 제 발로 태클권에 안 들어감

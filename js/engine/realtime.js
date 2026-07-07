@@ -146,7 +146,11 @@ export function applyRealtimePress(engine, dt, active) {
   // 저항 강한 선수(0.85→4.1m)는 수비를 더 가까이 두고도 몰고, 약한 선수(0.55→4.7m)는
   // 일찍 멈춘다. 바닥 4.0 > 스탠드오프 3.8 > BACK 3.5 — 안전 계약 유지.
   if (!holderGK) {
-    const DRIFT_MAX = 4;
+    // B4(꾸물이 붐-버스트 수리): 드리프트 상한을 게이지에 커플링 — 게이지가 찰수록
+    // 상대 블록이 정돈돼 몰 공간이 줄어든다. 보통 페이스(게이지 ~25)는 3.4m로 거의
+    // 그대로, 꾸물이(게이지 60+)는 ~1.7m로 줄어 "뭉개며 공짜 전진" EV가 꺾인다.
+    // (측정: 3.2s 페이스 goal 35% > 1.5s 23.7% 역전이 원인 — 창당 4m×7턴 누적.)
+    const DRIFT_MAX = 4 * Math.max(0.25, 1 - ((s.pressure ?? 0) / 100) * 0.95);
     const guts = Math.max(4.0, 5.8 - (h.traits?.pressResistance ?? 0.5) * 2);
     if (nd > guts) {
       const dy = near ? Math.sign(h.y - near.y || 1) * 0.35 : 0;
