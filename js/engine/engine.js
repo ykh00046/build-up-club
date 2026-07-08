@@ -1097,6 +1097,39 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
     return lofted ? clamp(420 + len * 38, 650, 1700) : clamp(200 + len * 30, 340, 1300);
   }
 
+  // 도착 수렴(2026-07-08, 사용자 지시 "공의 도착을 기준으로"): 공이 발을 떠난
+  // 뒤에는 오프사이드가 없다(판정은 킥 순간 — isOffside 불변). 착지가 깊으면
+  // (x>70) 근처 공격 러너들이 라인 제한 없이 "도착 지점 기준 슬롯"으로 스프린트
+  // 한다 — ST/10 니어포스트·스폿 습격, 반대쪽 W 백포스트, 8 박스 가장자리
+  // 풀백 지점. 이동량은 비행시간×주력으로 유계(순간이동 아님 — 볼과 같이 박스에
+  // 들어오는 그림). ourStructureShift(라인 캡) 뒤에 호출해 그 캡을 덮는다.
+  function arrivalConvergence(land, receiverId, passerId, durMs) {
+    if (land.x < 70) return;
+    const secs = durMs / 1000;
+    const central = Math.abs(land.y - PITCH_H / 2) < 14;
+    for (const p of ours()) {
+      if (p.role === 'GK' || p.id === receiverId || p.id === passerId) continue;
+      let slot = null;
+      if (p.role === 'ST' || p.role === '10') {
+        // 도착점 습격 — 착지가 측면이면 스폿으로(크로스/컷백 타깃), 중앙이면 곁 지원.
+        slot = { x: Math.min(land.x + (central ? 1 : 2), 96), y: lerp(land.y, PITCH_H / 2, central ? 0.25 : 0.6) };
+      } else if (p.role === 'W') {
+        const farSide = land.y < PITCH_H / 2 ? p.homeY > PITCH_H / 2 : p.homeY < PITCH_H / 2;
+        if (farSide) slot = { x: Math.min(land.x + 1, 96), y: land.y < PITCH_H / 2 ? PITCH_H / 2 + 7.5 : PITCH_H / 2 - 7.5 };  // 백포스트
+      } else if (p.role === '8') {
+        slot = { x: Math.max(76, land.x - 9), y: lerp(p.y, PITCH_H / 2, 0.35) };   // 가장자리 풀백(컷백) 지점
+      }
+      if (!slot) continue;
+      // 스프린트 유계 — 비행 동안 닿는 만큼만(주력 4.5~8m/s × 비행초).
+      const dash = (4.5 + (p.traits?.pace ?? 0.6) * 3.5) * secs;
+      const dx = slot.x - p.x, dy = slot.y - p.y, d = Math.hypot(dx, dy) || 1;
+      const f = Math.min(1, dash / d);
+      const nx = clamp(p.x + dx * f, 2, PITCH_W - 2);
+      const ny = clamp(p.y + dy * f, 2, PITCH_H - 2);
+      p.x = nx; p.y = ny; p.tx = nx; p.ty = ny;
+    }
+  }
+
   // ─── shared pass resolution ───────────────────────────────────────────────
   function resolvePassTo(target, { lofted = false, viaLabel = null, extraRisk = 0, autoLob = false } = {}) {
     const from = holder();
@@ -1202,6 +1235,7 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
 
     pressReact({ type: 'pass', trigger, dist: dist(from, target) });
     maybeAdvancePhase();
+    arrivalConvergence({ x: target.x, y: target.y }, target.id, from.id, durMs);   // 비행 중 도착 수렴
 
     const trapped = receiverTrapCheck(target);
     startAnim({ from: fromPos, to: { x: target.x, y: target.y }, lofted: useLofted }, durMs, () => {
@@ -1326,6 +1360,7 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
       const trigger = passTriggerFor(fromPos, landing, nu);
       pressReact({ type: 'pass', trigger, dist: dist(fromPos, landing) });
       maybeAdvancePhase();
+      arrivalConvergence(landing, nu.id, from.id, lofted ? 950 : 700);   // 비행 중 도착 수렴
       const trapped = receiverTrapCheck(nu);
       startAnim({ from: fromPos, to: landing, lofted }, lofted ? 950 : 700, () => {
         if (trapped) endAttempt('trapped', { holder: nu });
