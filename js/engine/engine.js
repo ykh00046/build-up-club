@@ -832,6 +832,15 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
       } else {
         want = clamp(Math.min(p.homeX + push + cfg.off, line - cfg.gap, 95), 4, PITCH_W - 3);
       }
+      // 래칫(2026-07-08): 실시간 결정 창의 역할 런이 벌어둔 전진을 액션 재배치가
+      // 되물리지 않는다 — want는 양방향 목표가 아니라 최소 전진선. 이미 더 깊은
+      // 선수는 온사이드 한계(라인-갭) 안이면 유지, 후퇴는 라인이 내려왔을 때만.
+      // (전진 패스 직후 전원이 뒤로 조깅하던 톱니 진동의 수리 — 실제 축구처럼
+      // 전방은 라인을 피닝한 채 남는다.) 지원 앵커는 예외: 내려오는 게 임무.
+      if (!isSupportAnchor) {
+        const onsideCap = clamp(line - Math.max(0.6, cfg.gap), 4, PITCH_W - 3);
+        want = Math.max(want, Math.min(p.x, onsideCap));
+      }
       const dx = want - p.x;
       const isArrivalRunner = cutbackDeveloping && (p.role === 'ST' || p.role === '10' || farSideW);
       if (isArrivalRunner) {
