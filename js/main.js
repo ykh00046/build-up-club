@@ -613,14 +613,15 @@ const coachCard = document.getElementById('coach-card');
 let guideDismissed = false;
 let renderedGuideKey = null;
 try { guideDismissed = localStorage.getItem(GUIDE_KEY) === 'done'; } catch { /* private mode */ }
-// Short labels for the in-board ring around the holder — 링이 유일한 조작면이므로
-// 압박(press_mode)도 포함(액션바 삭제, 2026-07).
+// Short labels for the in-board ring around the holder — 링이 유일한 조작면.
 // 조작면 정리(2026-07 실시간): 발밑/공간은 피치 클릭 자동판별로 이미 하나(칩 불필요),
 // 기다리기는 실시간에선 "안 누르면 기다림"이라 명시 버튼이 중복 → Space=수동 슬로우로
-// 재해석(아래). 링에는 의도 액션만: 운반(유인 몰기)·슈팅·압박. hold 액션 자체는 엔진·
-// AI·게이지 붕괴용으로 유지(플레이어 표면에서만 제거).
+// 재해석(아래). 압박(press_mode)도 표면 제거(2026-07-08 사용자 결정): 내 소유를
+// 헌납해 압박 상황을 만드는 건 축구 논리가 거꾸로고, 진짜 압박은 카운터프레스 창·
+// 수비 국면에 있으며, 열기(+6)→물러나기(−12)가 무위험 게이지 −6 익스플로잇이었다.
+// 엔진 기계(openPressingMode)는 유지 — 표면에서만 제거. 링에는 운반(유인)·슈팅만.
 const RING_LABELS = {
-  carry: 'ring.carry', shoot: 'ring.shoot', press_mode: 'ring.press',
+  carry: 'ring.carry', shoot: 'ring.shoot',
 };
 let ringHover = null;
 
@@ -629,18 +630,7 @@ const actionbarEl = document.querySelector('.actionbar');
 
 function activateAction(id) {
   if (engine.state.status !== 'live' || engine.busy) return;
-  if (id === 'press_mode') {
-    const r = engine.openPressingMode();
-    if (r.ok) {
-      sfx.tick();
-      renderedSituationActionKey = '';
-      renderLog(engine);
-      updateTacticalHud(engine.state);
-      refreshActionAvailability();
-      setHint(t('hint.pressPick'));
-    }
-    return;
-  }
+  // (press_mode 표면 핸들러 제거 — 위 RING_LABELS 주석 참조. 엔진 기계는 유지.)
   if (id === 'hold' || id === 'shoot' || id === 'release') {
     const r = engine.dispatch(id);
     if (r.ok) (id === 'shoot' ? sfx.kick(0.95) : id === 'release' ? sfx.releaseChime() : sfx.tick());

@@ -998,7 +998,7 @@
         <div class="coach-actions"><button id="btn-guide-dismiss" type="button" data-i18n="coach.viewAll">전체 전술 보기</button></div>
       </div>
       <div class="canvas-wrap">
-        <canvas id="pitch" role="application" data-i18n-aria="aria.board" aria-label="11대11 전술 보드 — 방향키로 받을 동료 선택, Enter로 패스, 1~9 액션, Space 기다리기" tabindex="0"></canvas>
+        <canvas id="pitch" role="application" data-i18n-aria="aria.board" aria-label="11대11 전술 보드 — 방향키로 받을 동료 선택, Enter로 패스, 4 운반·9 슛, Space 슬로우" tabindex="0"></canvas>
         <div id="kb-announce" class="sr-only" aria-live="assertive"></div>
         <!-- 결정 창(카운터프레스/수비압박) — 액션바 삭제로 피치 하단 중앙 오버레이로 이동. -->
         <div id="transition-actions" class="transition-actions" aria-live="polite"></div>
@@ -1022,11 +1022,13 @@
                Space=수동 슬로우로 재해석 — 둘 다 링·단축키에서 제거(상태 캐리어로만 유지). -->
           <button class="btn" data-action="pass_space" aria-keyshortcuts="" data-i18n="act.passSpace" data-i18n-title="act.passSpaceTip" title="공간·로빙 — 지점을 클릭하면 가까운 동료가 받습니다. 멀수록 위험">공간·로빙</button>
           <button class="btn" data-action="hold" aria-keyshortcuts="" data-i18n="act.hold" data-i18n-title="act.holdTip" title="공을 잡고 압박을 유인 — 상대가 튀어나오면 등 뒤가 열립니다">기다리기</button>
-          <button class="btn" data-action="press_mode" aria-keyshortcuts="5" data-i18n="act.press" data-i18n-title="act.pressTip" title="상대 소유 상황을 만들고 압박으로 공을 빼앗습니다">압박</button>
+          <!-- 압박 표면 제거(2026-07-08): 소유 헌납형 압박은 축구 논리 역행+게이지
+               익스플로잇. 버튼은 상태 캐리어로만 잔존(키·링 어디서도 안 잡힘). -->
+          <button class="btn" data-action="press_mode" aria-keyshortcuts="" data-i18n="act.press" data-i18n-title="act.pressTip" title="상대 소유 상황을 만들고 압박으로 공을 빼앗습니다">압박</button>
           <button class="btn btn-shoot" data-action="shoot" data-i18n="act.shoot" data-i18n-title="act.shootTip" title="현재 슛 존에서 마무리" aria-keyshortcuts="9">슈팅</button>
         </div>
-        <span class="hint" data-i18n="act.barHint">동료 클릭=발밑 · 빈 공간=공간 패스 · 볼 주변 링에서 기다리기/운반/압박/슛</span>
-        <span class="keys" aria-hidden="true" data-i18n="act.keys">Space 기다리기 · 1 발밑 · 2 공간 · 4 운반 · 5 압박 · 9 슛 · R 다시</span>
+        <span class="hint" data-i18n="act.barHint">동료 클릭=패스(발밑/공간 자동) · 링: 운반(유인)/슛 · Space=슬로우</span>
+        <span class="keys" aria-hidden="true" data-i18n="act.keys">클릭 패스 · Space 슬로우(1회) · 4 운반(유인) · 9 슛 · R 다시</span>
       </div>
     </div>
 
