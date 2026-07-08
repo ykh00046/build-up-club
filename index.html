@@ -46,8 +46,6 @@
     header .title { font-family: 'Saira Condensed', sans-serif; font-weight: 700; letter-spacing: 0.3px; white-space: nowrap; }
     header .title small { color: var(--text-muted); font-weight: 400; margin-left: 8px; }
     header .right { display: flex; gap: 14px; align-items: center; color: var(--text-muted); font-size: 12px; }
-    .scenario-picker select { background: var(--panel-2); color: var(--text); border: 1px solid var(--line); border-radius: 4px; padding: 4px 8px; font-size: 12px; cursor: pointer; }
-    .scenario-picker select:hover { border-color: var(--accent); }
 
     /* 피치-퍼스트: 단일 컬럼(피치 풀폭). 정보 패널은 온디맨드 드로어로 분리. */
     main { display: grid; grid-template-columns: 1fr; gap: 12px; padding: 12px; min-height: 0; }
@@ -802,33 +800,7 @@
     .eff-chip .eff-next { color: var(--accent); font-weight: 700; }
 
     /* ─── 3D 디자인 요소 ────────────────────────────────────────────────────── */
-    /* 타이틀 축구공 — 전술 보드 팔레트의 패널과 봉제선을 사용한다. */
-    .title-ball {
-      position: absolute; top: clamp(8vh, 14vh, 18vh); right: clamp(6vw, 9vw, 12vw);
-      width: clamp(64px, 11vw, 124px); aspect-ratio: 1; border-radius: 50%; pointer-events: none; overflow: hidden;
-      background:
-        radial-gradient(circle at 32% 26%, rgba(255,255,255,.92) 0 5%, transparent 18%),
-        radial-gradient(circle at 38% 32%, #f6f8f7 0%, #dce4e1 36%, #879793 76%, #3b4847 100%);
-      border: 1px solid rgba(77, 139, 255,.2);
-      box-shadow: inset -10px -12px 24px rgba(0,0,0,0.42), inset 7px 7px 16px rgba(255,255,255,0.44), 0 0 0 8px rgba(77, 139, 255,.025), 0 22px 44px rgba(0,0,0,0.5);
-      animation: tb-float 4.6s ease-in-out infinite;
-    }
-    .title-ball::before {
-      content: ''; position: absolute; inset: 8%; border-radius: 50%;
-      background: repeating-conic-gradient(from 18deg, transparent 0 18deg, rgba(17,23,31,.18) 19deg 20deg, transparent 21deg 71deg);
-      mix-blend-mode: multiply;
-    }
-    .tb-panel { position: absolute; width: 23%; aspect-ratio: 1; background: #172126; clip-path: polygon(50% 0, 98% 36%, 79% 95%, 21% 95%, 2% 36%); filter: drop-shadow(0 1px 1px rgba(255,255,255,.18)); }
-    .tb-core { left: 39%; top: 38%; background: #10191d; }
-    .tb-p1 { left: 10%; top: 20%; transform: scale(.72) rotate(-18deg); }
-    .tb-p2 { right: 9%; top: 18%; transform: scale(.68) rotate(22deg); }
-    .tb-p3 { left: 14%; bottom: 5%; transform: scale(.62) rotate(18deg); }
-    .tb-p4 { right: 12%; bottom: 7%; transform: scale(.7) rotate(-12deg); background: #153f3b; }
-    .tb-shine { position: absolute; top: 12%; left: 17%; width: 30%; height: 25%; border-radius: 50%; background: radial-gradient(circle, rgba(255,255,255,0.72), rgba(255,255,255,0) 70%); }
-    @keyframes tb-float { 50% { transform: translateY(-11px) rotate(5deg); } }
-    @media (max-width: 640px) { .title-ball { display: none; } }
-    @media (prefers-reduced-motion: reduce) { .title-ball { animation: none; } }
-
+    /* (구 타이틀 축구공 .title-ball/.tb-* CSS는 타이틀 리디자인으로 DOM이 사라져 제거 — 9R) */
     /* 허브 엠블럼 입체화 (hub.js의 인라인 그라디언트 배경은 그대로 둠) */
     .hub-club { perspective: 460px; }
     .hub-badge {
@@ -987,14 +959,15 @@
         <button id="btn-guide" type="button" aria-controls="coach-card" data-i18n="board.guide">플레이 가이드</button>
       </div>
       <div id="match-situation" class="situation-strip" role="status" aria-live="polite" hidden>
-        <strong id="situation-title" data-i18n="board.situation">상황 변화</strong>
+        <!-- data-i18n 제거(9R): 런타임이 결정 창에서 제목을 비우는데 applyStaticI18n이 되살렸다 -->
+        <strong id="situation-title">상황 변화</strong>
         <span id="situation-detail"></span>
         <!-- 선택 버튼은 피치 오버레이(#transition-actions) 한 곳에만 — 중복 정리(2026-07) -->
       </div>
       <div id="coach-card" class="coach-card" hidden>
         <span class="coach-step">첫 플레이 · 1/3</span>
-        <strong class="coach-title" data-i18n="coach.s1.title">압박을 먼저 움직이세요</strong>
-        <p class="coach-copy" data-i18n="coach.s1.copy">기다리기, 운반, 짧은 패스로 상대가 튀어나오게 만드세요.</p>
+        <strong class="coach-title" data-i18n="coach.s1.title">시간이 흐릅니다 — 클릭=패스</strong>
+        <p class="coach-copy" data-i18n="coach.s1.copy">동료를 클릭해 연결하세요. 미루면 게이지가 차고 가득 차면 뺏깁니다 — 볼 잡은 선수는 알아서 전진해요.</p>
         <div class="coach-actions"><button id="btn-guide-dismiss" type="button" data-i18n="coach.viewAll">전체 전술 보기</button></div>
       </div>
       <div class="canvas-wrap">
@@ -1353,7 +1326,7 @@
             <div class="tactics-diff-desc" id="tactics-sp-desc">골 쪽 회전으로 GK 압박 — 대인·게겐에 강함</div>
           </div>
           <div class="tactics-intents">
-            <div class="tactics-section-label">시작 대형 <small style="text-transform:none;font-weight:400;letter-spacing:0;color:var(--text-muted);">— 경기 중 변경 가능</small></div>
+            <div class="tactics-section-label"><span data-i18n="brief.startShape">시작 대형</span> <small style="text-transform:none;font-weight:400;letter-spacing:0;color:var(--text-muted);">— <span data-i18n="dr.changeable">경기 중 변경 가능</span></small></div>
             <div class="tactics-intent-row" data-tgroup="front">
               <span class="tactics-intent-k" data-i18n="dr.front">전방</span>
               <button class="tactics-intent-btn active" data-tintent="pin" data-i18n="dr.pin" title="최전방에 머물며 상대 백라인을 밀어냄">라인 밀어내기</button>

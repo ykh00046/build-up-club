@@ -207,11 +207,8 @@ function cancelSelect() {
   if (wasCareer) enterHub();
 }
 
-document.getElementById('btn-select-moment')?.addEventListener('click', () => {
-  selectingForCareer = false;
-  buildSelectGrid();
-  openModal(selectOverlay, selectGrid.querySelector('.current'));
-});
+// (#btn-select-moment 리스너 제거 — 버튼이 DOM에서 사라진 지 오래(9R). 모먼트
+// 전환은 커리어 로테이션이 정본, 콘솔 __game.switchScenario는 디버그용으로 유지.)
 document.getElementById('btn-select-close')?.addEventListener('click', cancelSelect);
 selectOverlay?.addEventListener('click', (e) => { if (e.target === selectOverlay) cancelSelect(); });
 
@@ -672,8 +669,7 @@ function updateGuide() {
     const locked = !guideDismissed && stage === 1 && btn.dataset.guideTier === 'advanced';
     btn.classList.toggle('guide-locked', locked);
   }
-  // 첫 플레이 1단계에선 '고급' 토글도 숨겨 기본기에 집중시킨다.
-  actionbarEl?.classList.toggle('guide-stage1', !guideDismissed && stage === 1);
+  // (구 .guide-stage1 토글 제거 — 대응 CSS가 액션바 삭제와 함께 사라진 죽은 배관, 9R)
 }
 
 document.getElementById('btn-guide-dismiss')?.addEventListener('click', dismissGuide);
@@ -825,8 +821,8 @@ function refreshActionAvailability() {
     const sp = engine.previewShot();
     shootBtn.textContent = sp ? `${t('act.shoot')} ${Math.round(sp.xg * 100)}%` : t('act.shoot');
   }
-  // 전환 국면: 일반 액션을 흐리게 — 카운터프레스/후퇴(상황 선택)가 주 액션이 되도록.
-  actionbarEl?.classList.toggle('decision-active', decisionActive);
+  // (구 .decision-active 토글 제거 — 대응 CSS가 액션바 삭제와 함께 사라진 죽은 배관, 9R.
+  //  전환 국면의 일반 액션 차단은 버튼 disabled + 링 필터가 이미 수행.)
 }
 
 // ─── canvas input ────────────────────────────────────────────────────────────

@@ -55,7 +55,9 @@ function legalActionsFor(engine, md, holder) {
   if (md) return md.choices.map((c) => c.id);
   if (holder?.side !== 'us') return [];
   if (engine.state?.baited) return ['release'];   // 유인 창은 릴리스로만 완성
-  const acts = ['to_feet', 'pass_space', 'carry', 'hold', 'press_mode'];
+  // press_mode는 표면 제거(2026-07-08)와 함께 광고 중단 — 소유 헌납+실패 즉사라
+  // legalActions를 그대로 샘플링하는 정책에겐 자해 버튼이었다. 직접 호출 테스트는 유지.
+  const acts = ['to_feet', 'pass_space', 'carry', 'hold'];
   if (engine.shotZoneNow?.()) acts.push('shoot');
   return acts;
 }

@@ -13,7 +13,10 @@ export function bindScenarioPanels(scenario) {
   setText('scn-title', loc(scenario.title));
   setText('scn-our', loc(scenario.ourShapeName));
   setText('scn-opp', loc(scenario.oppShapeName));
-  setText('scn-scheme', scenario.scheme);
+  // 드로어 '방식'도 브리핑과 같은 번역 라벨(9R: raw scheme id 노출 정리).
+  const schemeKey = 'scheme.' + scenario.scheme;
+  const schemeText = t(schemeKey);
+  setText('scn-scheme', schemeText === schemeKey ? scenario.scheme : schemeText);
   setText('scn-intensity', scenario.intensity.toUpperCase());
   setText('scn-compact', scenario.compactness.toUpperCase());
   setText('scn-target', loc(scenario.targetShot));
@@ -21,8 +24,7 @@ export function bindScenarioPanels(scenario) {
   setText('scn-briefing', loc(scenario.briefing));
   setText('scn-opp-plan', loc(scenario.oppPlan) ?? '—');
   document.title = `${t('app.title')} · ${scenario.cell}`;
-  const sel = document.getElementById('scenario-selector');
-  if (sel) sel.value = scenario.cell;
+  // (#scenario-selector 셀렉트는 모먼트 카드로 대체된 지 오래 — 죽은 참조 제거, 9R)
 }
 
 export function renderHudState(engine, boardRead = null) {

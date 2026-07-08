@@ -836,8 +836,13 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
       // 되물리지 않는다 — want는 양방향 목표가 아니라 최소 전진선. 이미 더 깊은
       // 선수는 온사이드 한계(라인-갭) 안이면 유지, 후퇴는 라인이 내려왔을 때만.
       // (전진 패스 직후 전원이 뒤로 조깅하던 톱니 진동의 수리 — 실제 축구처럼
-      // 전방은 라인을 피닝한 채 남는다.) 지원 앵커는 예외: 내려오는 게 임무.
-      if (!isSupportAnchor) {
+      // 전방은 라인을 피닝한 채 남는다.)
+      // 적용 범위(9R 수리): 전진 지시(off≥0)의 전방·중원만. 후퇴형 지시(전방
+      // '내려와 연결' off−11 / 중원 '수적 우위' off−8)와 후방의 대형 복귀
+      // (오버랩→후방 안정 전환 등)는 정상 후퇴 — 전 역할 래칫은 UI가 약속한
+      // 전략 스위치를 무력화했다(QA Major 4 재발). 지원 앵커도 예외(내려오는 임무).
+      const ratchetable = (grp === 'front' || grp === 'mid') && cfg.off >= 0;
+      if (!isSupportAnchor && ratchetable) {
         const onsideCap = clamp(line - Math.max(0.6, cfg.gap), 4, PITCH_W - 3);
         want = Math.max(want, Math.min(p.x, onsideCap));
       }
@@ -1117,7 +1122,9 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
         const farSide = land.y < PITCH_H / 2 ? p.homeY > PITCH_H / 2 : p.homeY < PITCH_H / 2;
         if (farSide) slot = { x: Math.min(land.x + 1, 96), y: land.y < PITCH_H / 2 ? PITCH_H / 2 + 7.5 : PITCH_H / 2 - 7.5 };  // 백포스트
       } else if (p.role === '8') {
-        slot = { x: Math.max(76, land.x - 9), y: lerp(p.y, PITCH_H / 2, 0.35) };   // 가장자리 풀백(컷백) 지점
+        // 가장자리 풀백(컷백) 지점 — 항상 착지보다 후방(9R: 얕은 착지 70~76에서
+        // 풀백 지점이 공보다 전방으로 역행하던 경계 수리).
+        slot = { x: Math.min(Math.max(76, land.x - 9), land.x - 2), y: lerp(p.y, PITCH_H / 2, 0.35) };
       }
       if (!slot) continue;
       // 스프린트 유계 — 비행 동안 닿는 만큼만(주력 4.5~8m/s × 비행초).
@@ -1360,9 +1367,12 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
       const trigger = passTriggerFor(fromPos, landing, nu);
       pressReact({ type: 'pass', trigger, dist: dist(fromPos, landing) });
       maybeAdvancePhase();
-      arrivalConvergence(landing, nu.id, from.id, lofted ? 950 : 700);   // 비행 중 도착 수렴
+      // 볼 물리 일원화(9R): 공간 패스도 flightMs — 고정 700/950은 40m 대각 전환의
+      // 수렴 스프린트 예산을 절반으로 깎고 5m 숏은 과대였다(to_feet 경로와 정합).
+      const durMs = flightMs(dist(fromPos, landing), lofted);
+      arrivalConvergence(landing, nu.id, from.id, durMs);   // 비행 중 도착 수렴
       const trapped = receiverTrapCheck(nu);
-      startAnim({ from: fromPos, to: landing, lofted }, lofted ? 950 : 700, () => {
+      startAnim({ from: fromPos, to: landing, lofted }, durMs, () => {
         if (trapped) endAttempt('trapped', { holder: nu });
       });
       logLine(loose
