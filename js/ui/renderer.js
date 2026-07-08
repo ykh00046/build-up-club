@@ -9,7 +9,7 @@ import {
 } from '../data/pitch.js';
 import { prefersReducedMotion } from '../util/motion.js';
 import { t, getLang } from '../career/i18n.js';
-import { setupCamera, proj, unprojGround, groundScale } from './camera.js';
+import { setupCamera, setCameraMode, updateCamera, proj, unprojGround, groundScale } from './camera.js';
 
 let canvas, ctx, dpr = 1, viewW = 0, viewH = 0, gs = 6;   // gs = 피치 중심 스케일(px/m)
 let pulse = 0;
@@ -81,6 +81,10 @@ export function render(view, dtMs) {
   // 접근성: reduced-motion이면 시간 누적자(pulse)를 멈춰 숨쉬는 윈도우·링 펄스·
   // 행진 점선·GK 흔들림 등 idle 캔버스 애니메이션을 정지(static)시킨다.
   if (!prefersReducedMotion()) pulse += dtMs / 1000;
+  // 상황별 카메라 — READ(조준·슬로우·결정)면 세워서 판독, 아니면 방송각.
+  // 리플레이 등 cameraRead 미지정 뷰는 FLOW. reduced-motion이면 즉시 스냅.
+  setCameraMode(!!view.cameraRead);
+  updateCamera(performance.now(), prefersReducedMotion());
   usColor = view.usColor || null;
 
   ctx.fillStyle = COLORS.bg;

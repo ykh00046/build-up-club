@@ -14,11 +14,44 @@
 
 import { PITCH_W, PITCH_H } from '../data/pitch.js';
 
-// 카메라 자세(튜닝 노브) — 남쪽 뒤 상공. 틸트 ~54°: 탑다운 판독에 무게를 두되
-// 원근 깊이(몸통·볼 아크)는 남긴다. 이력: 28°(납작) → 39° → 44° → 54°
-// (2026-07-08 사용자 반복 지시 "여전히 너무 기울었다" — 세로 판독 우선).
-const CAM = { x: PITCH_W / 2, y: PITCH_H + 52, z: 125 };
+// 상황별 카메라(2026-07-09, 사용자 제안 채택) — 고정각은 '판독'과 '깊이'를 동시에
+// 못 잡는다(28→39→44→54° 4회 반복이 그 증거). 두 포즈 사이를 z 하나로 보간:
+//   FLOW  z=86  (~44°) — 관전·자동 진행: 방송각의 원근 깊이(몸통·볼 아크·멋)
+//   READ  z=200 (~66°) — 조준·슬로우·결정 창: 전술 보드에 가까운 간격 판독
+// "시간이 느려지는 모든 순간 = 카메라가 선다" — P1(결정의 게임)의 시각 문법.
+// 렌더러가 매 프레임 setCameraMode(read)+updateCamera()로 구동, ~300ms 지수 이징.
+// 부속 원칙: 패스 레인·링은 항상 지면 평면에 그려져(renderer) 각도 무관 판독 불변.
+const Z_FLOW = 86;
+const Z_READ = 200;
+const CAM = { x: PITCH_W / 2, y: PITCH_H + 52, z: Z_FLOW };
 const LOOK = { x: PITCH_W / 2, y: 30, z: 0 };
+
+let camBlend = 0;      // 0=FLOW … 1=READ (현재)
+let camTarget = 0;     // 목표
+let camLastTs = 0;
+let viewW0 = 0, viewH0 = 0;
+
+export function setCameraMode(read) { camTarget = read ? 1 : 0; }
+
+// 매 프레임 호출(렌더러) — 목표를 향해 지수 접근(시정수 120ms ≈ 체감 300ms 전환).
+// 이동 중일 때만 재피팅하므로 정지 상태 비용 0. snap=접근성(reduced-motion) 즉시 전환.
+export function updateCamera(now, snap = false) {
+  if (!viewW0) return;
+  const dt = Math.min(100, now - (camLastTs || now));
+  camLastTs = now;
+  const d = camTarget - camBlend;
+  if (Math.abs(d) < 0.002) {
+    if (camBlend !== camTarget) { camBlend = camTarget; applyCamPose(); }
+    return;
+  }
+  camBlend = snap ? camTarget : camBlend + d * (1 - Math.exp(-dt / 120));
+  applyCamPose();
+}
+
+function applyCamPose() {
+  CAM.z = Z_FLOW + (Z_READ - Z_FLOW) * camBlend;
+  setupCamera(viewW0, viewH0);
+}
 
 let F = { x: 0, y: -1, z: 0 }, U = { x: 0, y: 0, z: 1 };   // 기저(우측 R은 +x 고정)
 let focal = 10, cx0 = 0, cy0 = 0, centerS = 6;
@@ -26,6 +59,7 @@ let focal = 10, cx0 = 0, cy0 = 0, centerS = 6;
 function norm(v) { const l = Math.hypot(v.x, v.y, v.z) || 1; return { x: v.x / l, y: v.y / l, z: v.z / l }; }
 
 export function setupCamera(viewW, viewH) {
+  viewW0 = viewW; viewH0 = viewH;   // 상황별 카메라의 재피팅용 기억
   F = norm({ x: LOOK.x - CAM.x, y: LOOK.y - CAM.y, z: LOOK.z - CAM.z });
   // R = (1,0,0) 고정(롤 없음) → U = R × F.
   U = norm({ x: 0, y: -F.z, z: F.y });

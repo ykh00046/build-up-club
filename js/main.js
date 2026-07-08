@@ -1895,6 +1895,10 @@ function loop(ts) {
   render({
     players: s.players,
     holderId: s.holderId,
+    // 상황별 카메라 READ 트리거 — 시간이 느려지거나 멈추는 모든 순간에 카메라를
+    // 세운다: 운반 조준·수동 슬로우(AIM_SLOW와 동일 조건) + 결정 창(공격 템포·
+    // 수비 5택) + 카운터프레스 창 + 유인 릴리스 창. 그 외(자동 진행·볼 비행)는 방송각.
+    cameraRead: !!(selectedAction === 'carry' || manualSlow.active || s.matchDecision || s.transition || s.baited),
     presserId: s._presserId ?? null,   // 실시간 압박수(A5) — 렌더러가 주황 링
     freezeFlash: Math.max(0, 1 - (performance.now() - defenseFreezeAt) / 420),   // A3 프리즈 플래시
     holder: engine.holder(),
