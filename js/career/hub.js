@@ -119,7 +119,9 @@ function pulse(el) {
 }
 
 // 선수 롤 선택 UI (E8) — 중원/전방 롤 버튼 + 설명. 무료 토글, 즉시 저장.
-function renderRoles() {
+// #hub-roles는 전술 브리핑에 산다(2026-07-08 허브→브리핑 이전) — 상대를 보고 고른다.
+// 브리핑이 열릴 때 main.js populateTacticsOverlay가 호출(해금/언어 최신화).
+export function renderRoles() {
   const el = $('hub-roles');
   if (!el) return;
   const LINES = [['mf', 'hub.line.mid'], ['fw', 'hub.line.front']];
@@ -131,7 +133,7 @@ function renderRoles() {
     return `<div class="hub-role-line"><span class="rl-k">${t('hub.roleLine').replace('{x}', t(labelKey))}</span><div class="hub-role-btns">${btns}</div><div class="hub-role-desc">${desc}</div></div>`;
   }).join('');
   for (const btn of el.querySelectorAll('.role-btn')) {
-    btn.addEventListener('click', () => { setRole(btn.dataset.line, btn.dataset.role); renderHub(); });
+    btn.addEventListener('click', () => { setRole(btn.dataset.line, btn.dataset.role); renderRoles(); });
   }
 }
 
@@ -178,7 +180,6 @@ export function renderHub() {
   const spCost = setPieceCoachCost();
   setHtml('hub-setpiece', `<span class="cb-k">${t('hub.setpieceCoach').replace('{n}', club.setPieceCoach)}</span><span class="cb-v">${spCost == null ? 'MAX' : formatNum(spCost)}</span>`);
   toggleAfford('hub-setpiece', spCost != null && club.cash >= spCost);
-  renderRoles();
   const boostBtn = $('hub-boost');
   if (boostBtn) {
     boostBtn.innerHTML = boostActive()

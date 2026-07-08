@@ -29,7 +29,7 @@ import * as Club from './career/club.js';
 import { applyClubBoost, resolveScoreline, BUILD_SHAPES, applyFormationMods, applySetPiece } from './career/mods.js';
 import { FORMATION_BUILDERS, FORMATION_MODS, FORMATION_ARCHETYPE, FORMATION_UNLOCKS, isFormationUnlocked } from './data/formations.js';
 import { DELIVERIES, DEFAULT_DELIVERY, bestDeliveryFor, deliveryBonus } from './data/setpieces.js';
-import { initHub, renderHub, nextMatchInfo } from './career/hub.js';
+import { initHub, renderHub, renderRoles, nextMatchInfo } from './career/hub.js';
 import { divisionPool } from './career/season.js';
 import { t, loc, applyStaticI18n } from './career/i18n.js';
 import {
@@ -320,6 +320,17 @@ function populateTacticsOverlay(scn) {
   updateShapeUI();
   updateDeliveryUI();
   updateTacticsIntentUI();
+  // 전술 선택 통합(2026-07-08, 허브→브리핑): 포메이션 칩 + 중원/전방 롤을 상대
+  // 정보 옆에서 고른다. 해금/언어 상태는 브리핑이 열릴 때마다 최신화.
+  renderFormationChips();
+  renderRoles();
+  // 상대 전개 성향 필 — 커리어에서만(자유 플레이는 페르소나 없음).
+  const dispEl = el('tactics-disp');
+  if (dispEl) {
+    const on = careerActive && oppDisposition;
+    dispEl.hidden = !on;
+    if (on) dispEl.textContent = t('disp.' + oppDisposition);
+  }
   // 추천 플랜 한 줄 — 스카우팅 추천 액션 + 우위. 첫 경기엔 이것만, 나머지는 접는다.
   const scoutP = SCOUTING[scn.scheme];
   const planActs = scoutP ? actionLabels(scoutP.recommendActions) : (loc(scn.targetShot) ?? '');
@@ -1138,7 +1149,6 @@ function enterHub() {
   const sb = document.getElementById('scorebug');
   if (sb) sb.hidden = true;   // 매치 스코어버그는 매치에서만 노출
   renderHub();
-  syncFormationBoard();   // 다음 상대 셰이프 + 포메이션 해금 상태 갱신
   openModal(hubOverlay);
   if (!offlineShown && offlineGain > 1) {
     offlineShown = true;
@@ -1523,7 +1533,7 @@ function setText(id, v) { const el = document.getElementById(id); if (el) el.tex
 initHub({ onPlay: startMatch, onLang: () => {
   applyStaticI18n();
   bindScenarioPanels(scenario);
-  syncFormationBoard();   // 허브 포메이션 보드(칩 설명/잠금/상대 라벨)도 새 언어로 재구성 (감사 U5)
+  // 포메이션 칩/롤은 브리핑이 열릴 때(populateTacticsOverlay) 새 언어로 재구성된다.
 }, onUpgrade: () => {} });
 
 // ─── Mobile drawer: 상대 정보·전술 (접이식 하단 시트, ISSUE-003) ───────────────
@@ -1540,65 +1550,37 @@ document.getElementById('btn-drawer-close')?.addEventListener('click', () => set
 document.getElementById('read-chip')?.addEventListener('click', () => setDrawer(true));
 drawerBackdrop?.addEventListener('click', () => setDrawer(false));
 
-// ─── 포메이션 보드 (허브 = 전술실) — 3개 셰이프를 분필 피치 위에 시각화 ───────────
+// ─── 포메이션 선택 (브리핑 '대형' 패널, 2026-07-08 허브에서 이전) ────────────────
+// 허브의 분필 보드 대신, 브리핑의 실제 대형 SVG(우리 vs 상대 블록)가 프리뷰 —
+// 칩을 누르면 상대 블록 대비 우리 셰이프가 즉시 재렌더된다(결정에 맥락이 붙음).
 const FORMATIONS = {
-  f433: { shape: '4-3-3', desc: { ko: '균형', en: 'Balanced' }, dots: [
-    { x: 50, y: 90, gk: 1 }, { x: 18, y: 72 }, { x: 39, y: 75 }, { x: 61, y: 75 }, { x: 82, y: 72 },
-    { x: 28, y: 50 }, { x: 50, y: 48 }, { x: 72, y: 50 }, { x: 24, y: 23 }, { x: 50, y: 18 }, { x: 76, y: 23 } ] },
-  f442: { shape: '4-4-2', desc: { ko: '클래식', en: 'Classic' }, dots: [
-    { x: 50, y: 90, gk: 1 }, { x: 18, y: 72 }, { x: 39, y: 74 }, { x: 61, y: 74 }, { x: 82, y: 72 },
-    { x: 18, y: 48 }, { x: 40, y: 50 }, { x: 60, y: 50 }, { x: 82, y: 48 }, { x: 38, y: 22 }, { x: 62, y: 22 } ] },
-  f4231: { shape: '4-2-3-1', desc: { ko: '모던', en: 'Modern' }, dots: [
-    { x: 50, y: 90, gk: 1 }, { x: 18, y: 73 }, { x: 39, y: 75 }, { x: 61, y: 75 }, { x: 82, y: 73 },
-    { x: 38, y: 57 }, { x: 62, y: 57 }, { x: 24, y: 38 }, { x: 50, y: 36 }, { x: 76, y: 38 }, { x: 50, y: 18 } ] },
-  f352: { shape: '3-5-2', desc: { ko: '윙백', en: 'Wing-backs' }, dots: [
-    { x: 50, y: 90, gk: 1 }, { x: 30, y: 74 }, { x: 50, y: 76 }, { x: 70, y: 74 },
-    { x: 12, y: 52 }, { x: 88, y: 52 }, { x: 34, y: 50 }, { x: 50, y: 48 }, { x: 66, y: 50 }, { x: 40, y: 20 }, { x: 60, y: 20 } ] },
-  f343: { shape: '3-4-3', desc: { ko: '하이프레스', en: 'High press' }, dots: [
-    { x: 50, y: 90, gk: 1 }, { x: 28, y: 74 }, { x: 50, y: 76 }, { x: 72, y: 74 },
-    { x: 16, y: 50 }, { x: 40, y: 52 }, { x: 60, y: 52 }, { x: 84, y: 50 }, { x: 26, y: 22 }, { x: 50, y: 18 }, { x: 74, y: 22 } ] },
-  f4312: { shape: '4-3-1-2', desc: { ko: '다이아몬드', en: 'Diamond' }, dots: [
-    { x: 50, y: 90, gk: 1 }, { x: 18, y: 73 }, { x: 39, y: 75 }, { x: 61, y: 75 }, { x: 82, y: 73 },
-    { x: 50, y: 58 }, { x: 30, y: 46 }, { x: 70, y: 46 }, { x: 50, y: 34 }, { x: 40, y: 18 }, { x: 60, y: 18 } ] },
-  f532: { shape: '5-3-2', desc: { ko: '로우블록', en: 'Low block' }, dots: [
-    { x: 50, y: 90, gk: 1 }, { x: 12, y: 70 }, { x: 32, y: 74 }, { x: 50, y: 76 }, { x: 68, y: 74 }, { x: 88, y: 70 },
-    { x: 34, y: 50 }, { x: 50, y: 48 }, { x: 66, y: 50 }, { x: 40, y: 22 }, { x: 60, y: 22 } ] },
-  f451: { shape: '4-5-1', desc: { ko: '컴팩트', en: 'Compact' }, dots: [
-    { x: 50, y: 90, gk: 1 }, { x: 18, y: 72 }, { x: 39, y: 74 }, { x: 61, y: 74 }, { x: 82, y: 72 },
-    { x: 16, y: 50 }, { x: 35, y: 52 }, { x: 50, y: 50 }, { x: 65, y: 52 }, { x: 84, y: 50 }, { x: 50, y: 20 } ] },
+  f433:  { shape: '4-3-3',   desc: { ko: '균형', en: 'Balanced' } },
+  f442:  { shape: '4-4-2',   desc: { ko: '클래식', en: 'Classic' } },
+  f4231: { shape: '4-2-3-1', desc: { ko: '모던', en: 'Modern' } },
+  f352:  { shape: '3-5-2',   desc: { ko: '윙백', en: 'Wing-backs' } },
+  f343:  { shape: '3-4-3',   desc: { ko: '하이프레스', en: 'High press' } },
+  f4312: { shape: '4-3-1-2', desc: { ko: '다이아몬드', en: 'Diamond' } },
+  f532:  { shape: '5-3-2',   desc: { ko: '로우블록', en: 'Low block' } },
+  f451:  { shape: '4-5-1',   desc: { ko: '컴팩트', en: 'Compact' } },
 };
 let currentFormation = 'f433';
-// 다음 상대의 압박 scheme → 보드 표시용 포메이션 키(시나리오 buildOpp와 동일 계보).
-const SCHEME_FORMATION = { hybrid: 'f433', gegen: 'f433', man: 'f442', zonal: 'f442', midblock: 'f4231', lowblock: 'f532' };
-let oppFormation = 'f442';
-let oppShapeLabel = null;    // 시나리오의 oppShapeName(풀 텍스트) — 보드 상단 라벨
-// 한 팀의 dots를 절반에 매핑: us=하단(자기 골 아래), opp=상단(미러, 서로 마주봄).
-function fbDots(f, side) {
-  return f.dots.map((d) => {
-    const y = side === 'us' ? 52 + ((d.y - 18) / 72) * 42 : 6 + ((90 - d.y) / 72) * 42;
-    return `<span class="fb-dot ${side}${d.gk ? ' gk' : ''}" style="left:${d.x}%;top:${y.toFixed(1)}%"></span>`;
-  }).join('');
-}
-function renderFormationBoard(key) {
+function selectFormation(key) {
   if (!isFormationUnlocked(key, Club.club)) return;   // 잠긴 포메이션은 선택 불가
   const f = FORMATIONS[key];
-  const opp = FORMATIONS[oppFormation];
-  const pitch = document.getElementById('fb-pitch');
-  if (!f || !opp || !pitch) return;
+  if (!f) return;
   currentFormation = key;
   // 선택 → 전용 포지션 빌더(chosenFormation) + 공/수 트레이드오프 mods(아키타입) 둘 다 반영.
   chosenFormation = key;
   chosenShape = FORMATION_ARCHETYPE[key] || 'balanced';
-  pitch.innerHTML =
-    `<span class="fb-side-label opp">${loc({ ko: '상대', en: 'OPPONENT' })} · ${oppShapeLabel ?? (opp.shape + ' ' + loc(opp.desc))}</span>` +
-    `<span class="fb-side-label us">${loc({ ko: '우리', en: 'YOU' })} · ${f.shape}</span>` +
-    fbDots(opp, 'opp') + fbDots(f, 'us');
-  const nameEl = document.getElementById('fb-shape-name');
-  if (nameEl) nameEl.textContent = `${f.shape} · ${loc(f.desc)}`;
+  setText('fb-shape-name', `${f.shape} · ${loc(f.desc)}`);
   setText('fb-mods', formationModsSummary(key));   // 선택 효과(공격/실점) 즉시 표시
   for (const c of document.querySelectorAll('.fb-chip')) c.classList.toggle('on', c.dataset.formation === key);
+  // 대형 프리뷰 즉시 재렌더 — 상대 블록 대비 우리 셰이프가 바로 바뀐다.
+  const fEl = document.getElementById('tactics-formation');
+  if (fEl) fEl.innerHTML = buildFormationSvg(shapedScenario(), { ...tacticsIntents });
+  updateShapeUI();   // 빌드업 셰이프 설명도 아키타입에 맞게 갱신
 }
-function initFormationBoard() {
+function renderFormationChips() {
   const chips = document.getElementById('fb-chips');
   if (!chips) return;
   chips.innerHTML = Object.entries(FORMATIONS).map(([k, f]) => {
@@ -1608,10 +1590,10 @@ function initFormationBoard() {
     const sub = locked ? `🔒 ${loc({ ko: cond.ko, en: cond.en })}` : loc(f.desc);
     return `<button type="button" class="fb-chip${locked ? ' locked' : ''}" data-formation="${k}" ${locked ? 'aria-disabled="true"' : ''}><span>${f.shape}</span><span class="fb-chip-sub">${sub}</span></button>`;
   }).join('');
-  for (const c of chips.querySelectorAll('.fb-chip')) c.addEventListener('click', () => renderFormationBoard(c.dataset.formation));
+  for (const c of chips.querySelectorAll('.fb-chip')) c.addEventListener('click', () => selectFormation(c.dataset.formation));
   // 선택 중이던 포메이션이 (새 세이브 등으로) 잠겨 있으면 기본으로 폴백.
   if (!isFormationUnlocked(currentFormation, Club.club)) currentFormation = 'f433';
-  renderFormationBoard(currentFormation);
+  selectFormation(currentFormation);
 }
 // 선택 포메이션의 공/수 트레이드오프 요약 — "이 선택이 뭘 바꾸나"를 숫자로.
 function formationModsSummary(key) {
@@ -1621,22 +1603,6 @@ function formationModsSummary(key) {
   const sign = (v) => (v > 0 ? '+' : '') + v + '%';
   return `${t('hub.modAtk')} ${sign(atk)} · ${t('hub.modCon')} ${sign(con)}`;
 }
-// 허브 진입 시 동기화: 다음 상대의 실제 압박 셰이프 + 해금 상태(경기/승수 갱신 반영)
-// + 매치 프로그램 스트립(상대명·셰이프·공략 포인트).
-function syncFormationBoard() {
-  const info = nextMatchInfo();
-  oppFormation = SCHEME_FORMATION[info?.scenario?.scheme] ?? 'f442';
-  oppShapeLabel = info?.scenario?.oppShapeName ? loc(info.scenario.oppShapeName) : null;
-  setText('hs-name', info?.oppName ?? '—');
-  setText('hs-shape', oppShapeLabel ?? '');
-  // 전개 성향 필 — "뺏기면 이 상대는 이렇게 나온다"를 경기 전에 읽게(C단계).
-  setText('hs-disp', info?.disposition ? t('disp.' + info.disposition) : '');
-  const sc = SCOUTING[info?.scenario?.scheme];
-  setText('hs-weak', sc?.weakness ? loc(sc.weakness) : '—');
-  initFormationBoard();
-}
-initFormationBoard();
-
 // ─── 클럽 철학 모달 (장기 분기 선택·퍼크 해금) ────────────────────────────────
 const philoOverlay = document.getElementById('philo-overlay');
 function openPhilo() { renderPhiloModal(); openModal(philoOverlay); }

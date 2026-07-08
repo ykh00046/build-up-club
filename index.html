@@ -348,6 +348,8 @@
     .tactics-adv-toggle:hover { border-color: var(--accent); color: var(--accent); }
     #tactics-overlay.simplified .tactics-difficulty,
     #tactics-overlay.simplified .tactics-intents,
+    #tactics-overlay.simplified .fb-chips,
+    #tactics-overlay.simplified .fb-picked,
     #tactics-overlay.simplified .tactics-scout { display: none; }
     #tactics-overlay.simplified .tactics-wrap { gap: 12px; }
     #tactics-overlay.simplified .tactics-body { grid-template-columns: minmax(240px, 300px) 1fr; align-items: start; }
@@ -374,6 +376,10 @@
     .tactics-target-line strong { color: var(--warn); }
     .tactics-edge-line { font-size: 11.5px; color: var(--text-muted); margin-top: 6px; }
     .tactics-edge-line strong { color: var(--accent); }
+    /* 상대 전개 성향 필(허브 스트립에서 이전) — 뺏긴 뒤 이 상대의 루트 성향. */
+    .tactics-disp { display: inline-block; font-size: 11px; font-weight: 700; color: var(--warn); border: 1px solid rgba(255,190,90,0.4); border-radius: 999px; padding: 2px 9px; margin-top: 5px; white-space: nowrap; }
+    /* 롤 선택(스쿼드 탭에서 이전) — 시작 대형 아래, 같은 결정 축. */
+    .tactics-roles { margin-top: 10px; }
     .tactics-scout {
       margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--line);
       display: flex; flex-direction: column; gap: 5px;
@@ -580,46 +586,13 @@
     .hub-promote-bar i::after { content: ''; position: absolute; top: 0; left: -100%; width: 60%; height: 100%; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.18), transparent); animation: gauge-shimmer 2.5s ease-in-out infinite; }
     #hub-promote-label { display: block; margin-top: 7px; font-size: 12px; color: var(--text-muted); }
 
-    /* ── 포메이션 보드 (허브 = 전술실 주인공) ───────────────────────────── */
-    /* 매치 프로그램 스트립 — 상대명·압박 셰이프·공략 포인트를 보드 위에서 먼저 읽는다. */
-    .hub-scout { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; background: var(--panel-2); border: 1px solid var(--line); border-radius: 12px; padding: 11px 15px; margin-bottom: 10px; }
-    .hs-main { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
-    .hs-k { color: var(--text-muted); font-size: 10.5px; letter-spacing: 1px; text-transform: uppercase; }
-    .hs-name { font-family: 'Saira Condensed', sans-serif; font-size: 19px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.3px; }
-    .hs-shape { font-size: 11px; font-weight: 700; color: var(--danger); border: 1px solid rgba(255,90,110,0.45); border-radius: 999px; padding: 2px 9px; white-space: nowrap; }
-    /* 상대 전개 성향 필 — 볼을 뺏겼을 때 이 상대가 어떻게 나오는지 미리 읽는다(C단계). */
-    .hs-disp { font-size: 11px; font-weight: 700; color: var(--warn); border: 1px solid rgba(255,190,90,0.4); border-radius: 999px; padding: 2px 9px; white-space: nowrap; }
-    .hs-disp:empty { display: none; }
-    .hs-weak { display: flex; align-items: baseline; gap: 8px; font-size: 12px; color: var(--text-muted); max-width: 52%; }
-    .hs-weak b { color: var(--accent); font-size: 10.5px; letter-spacing: 1px; text-transform: uppercase; white-space: nowrap; }
-    @media (max-width: 700px) { .hs-weak { max-width: 100%; } }
-    .fb-headr { display: flex; align-items: baseline; gap: 10px; }
+    /* ── 포메이션 선택 칩 (브리핑 '대형' 패널, 2026-07-08 허브에서 이전) ───── */
     .fb-mods { font-size: 11px; color: var(--text-muted); font-feature-settings: 'tnum'; white-space: nowrap; }
-    .formation-board { position: relative; background: linear-gradient(180deg, #0c1a17, #091411); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px 16px; box-shadow: var(--elev-1); }
-    .fb-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 11px; }
-    .fb-title { font-family: 'Saira Condensed', sans-serif; font-weight: 800; font-size: 13px; letter-spacing: 2px; color: var(--text-muted); }
-    .fb-shape { font-family: 'Saira Condensed', sans-serif; font-weight: 800; font-size: 17px; color: var(--energy); letter-spacing: 0.5px; }
-    /* 세로(포트레이트) 전술 보드 — 매치 화면과 같은 피치 팔레트/마킹(2026-07 재설계).
-       좌: 세로 피치(상대 위 / 우리 아래), 우: 포메이션 칩 2열. */
-    .fb-body { display: grid; grid-template-columns: minmax(250px, 340px) 1fr; gap: 16px; align-items: start; }
-    .fb-pitch { position: relative; width: 100%; max-width: 340px; aspect-ratio: 68 / 105; border-radius: 10px; overflow: hidden;
-      border: 1px solid rgba(120,200,180,0.22); box-shadow: inset 0 0 40px rgba(0,0,0,0.35);
-      background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 68 105' preserveAspectRatio='none'%3E%3Crect width='68' height='105' fill='%2316301f'/%3E%3Cg fill='%23ffffff' opacity='.045'%3E%3Crect y='0' width='68' height='13.125'/%3E%3Crect y='26.25' width='68' height='13.125'/%3E%3Crect y='52.5' width='68' height='13.125'/%3E%3Crect y='78.75' width='68' height='13.125'/%3E%3C/g%3E%3Cg fill='none' stroke='%234a6b56' stroke-width='.6'%3E%3Crect x='1.5' y='1.5' width='65' height='102'/%3E%3Cline x1='1.5' y1='52.5' x2='66.5' y2='52.5'/%3E%3Ccircle cx='34' cy='52.5' r='9.15'/%3E%3Crect x='13.85' y='1.5' width='40.3' height='16.5'/%3E%3Crect x='13.85' y='87' width='40.3' height='16.5'/%3E%3Crect x='24.84' y='1.5' width='18.32' height='5.5'/%3E%3Crect x='24.84' y='98' width='18.32' height='5.5'/%3E%3C/g%3E%3Cg fill='%234a6b56'%3E%3Ccircle cx='34' cy='52.5' r='.8'/%3E%3Ccircle cx='34' cy='12.5' r='.7'/%3E%3Ccircle cx='34' cy='92.5' r='.7'/%3E%3C/g%3E%3C/svg%3E") center / 100% 100% no-repeat; }
-    /* 토큰 — 매치 화면과 동일 계열(우리=밝은 화이트, 상대=레드, GK=앰버). */
-    .fb-dot { position: absolute; width: 18px; height: 18px; border-radius: 50%; transform: translate(-50%, -50%); z-index: 2;
-      background: radial-gradient(circle at 35% 30%, #ffffff, #dbe4ee);
-      box-shadow: 0 2px 5px rgba(0,0,0,0.55); border: 1.5px solid #1f2a37;
-      transition: left 0.45s cubic-bezier(0.16,1,0.3,1), top 0.45s cubic-bezier(0.16,1,0.3,1); }
-    .fb-dot.us.gk { background: radial-gradient(circle at 35% 30%, #ffe49a, var(--warn)); border-color: #4a3208; }
-    .fb-dot.opp { background: radial-gradient(circle at 35% 30%, #e97c7c, #c44b4b); border-color: #2a0d0d; }
-    .fb-dot.opp.gk { background: radial-gradient(circle at 35% 30%, #ffb3a0, #b03e30); }
-    .fb-side-label { position: absolute; left: 10px; z-index: 3; font-family: 'Saira Condensed', sans-serif; font-weight: 800; font-size: 10.5px; letter-spacing: 1.2px; padding: 3px 9px; border-radius: 5px; background: rgba(7,11,17,0.72); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); }
-    .fb-side-label.opp { top: 9px; color: #ff8d8d; }
-    .fb-side-label.us { bottom: 9px; color: var(--energy); }
-    .fb-chips { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; align-content: start; }
-    @media (max-width: 700px) { .fb-body { grid-template-columns: 1fr; } .fb-pitch { margin: 0 auto; max-width: 300px; } .fb-chips { margin-top: 12px; } }
-    .fb-chip { flex: 1; background: var(--panel-2); border: 1px solid var(--line); color: var(--text-muted); border-radius: 10px; padding: 13px 8px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; transition: border-color 0.15s, color 0.15s, background 0.15s; }
-    .fb-chip > span:first-child { font-family: 'Saira Condensed', sans-serif; font-weight: 700; font-size: 15px; letter-spacing: 0.5px; }
+    .fb-shape { font-family: 'Saira Condensed', sans-serif; font-weight: 800; font-size: 15px; color: var(--energy); letter-spacing: 0.5px; }
+    .fb-picked { display: flex; align-items: baseline; gap: 10px; margin-top: 7px; }
+    .fb-chips { display: grid; grid-template-columns: repeat(2, 1fr); gap: 7px; align-content: start; margin-top: 12px; }
+    .fb-chip { flex: 1; background: var(--panel-2); border: 1px solid var(--line); color: var(--text-muted); border-radius: 9px; padding: 8px 6px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 3px; transition: border-color 0.15s, color 0.15s, background 0.15s; }
+    .fb-chip > span:first-child { font-family: 'Saira Condensed', sans-serif; font-weight: 700; font-size: 14px; letter-spacing: 0.5px; }
     .fb-chip .fb-chip-sub { font-size: 11px; font-weight: 600; color: var(--text-muted); font-feature-settings: 'tnum'; }
     .fb-chip:hover { border-color: var(--accent); color: var(--text); }
     .fb-chip.on { border-color: var(--energy); color: var(--energy); background: rgba(25,233,192,0.08); box-shadow: 0 0 16px -5px var(--energy); }
@@ -1195,28 +1168,9 @@
       </div>
 
       <div class="hub-panels">
-        <!-- 경기: 다음 상대를 향한 준비만 -->
+        <!-- 경기: 클럽 상태·미션·승격만 — 전술 선택(포메이션·롤)은 상대 정보가 보이는
+             전술 브리핑으로 이전(2026-07-08 사용자 결정: 허브=경영, 브리핑=경기 준비). -->
         <section class="hub-panel on" id="hub-panel-match" role="tabpanel" aria-labelledby="tab-match">
-          <!-- 매치 프로그램: 상대를 먼저 보여주고 → 아래 보드에서 포메이션으로 대응한다. -->
-          <div class="hub-scout" id="hub-scout">
-            <div class="hs-main">
-              <span class="hs-k" data-i18n="hub.nextOpp">다음 상대</span>
-              <span class="hs-name" id="hs-name">—</span>
-              <span class="hs-shape" id="hs-shape"></span>
-              <span class="hs-disp" id="hs-disp"></span>
-            </div>
-            <div class="hs-weak"><b data-i18n="hub.oppWeak">공략 포인트</b><span id="hs-weak">—</span></div>
-          </div>
-          <div class="formation-board" id="formation-board">
-            <div class="fb-head">
-              <span class="fb-title" data-i18n="hub.formation">FORMATION</span>
-              <span class="fb-headr"><span class="fb-shape" id="fb-shape-name">—</span><span class="fb-mods" id="fb-mods"></span></span>
-            </div>
-            <div class="fb-body">
-              <div class="fb-pitch" id="fb-pitch" aria-hidden="true"></div>
-              <div class="fb-chips" id="fb-chips" role="group" data-i18n-aria="hub.formation"></div>
-            </div>
-          </div>
           <div class="hub-mission" id="hub-mission"></div>
           <div class="hub-promote">
             <div class="hub-promote-bar"><i id="hub-promote-fill"></i></div>
@@ -1232,7 +1186,7 @@
             <button class="hub-card-btn" id="hub-setpiece"></button>
             <button class="hub-card-btn" id="hub-boost"></button>
           </section>
-          <section class="hub-roles" id="hub-roles"></section>
+          <!-- 중원/전방 롤 선택은 전술 브리핑(시작 대형 옆)으로 이전 — 상대를 보고 고른다. -->
         </section>
 
         <!-- 클럽: 장기 시스템, 진행도에 따라 순차 해금 -->
@@ -1342,11 +1296,17 @@
             <span class="tactics-vs">vs</span>
             <span class="tactics-opp-label" id="tactics-opp-shape">—</span>
           </div>
+          <!-- 포메이션 선택(허브→브리핑 이전, 2026-07-08) — 칩을 누르면 위 대형
+               프리뷰가 즉시 그 셰이프로 재렌더: 상대 블록 대비를 보며 고른다. -->
+          <div class="fb-chips" id="fb-chips" role="group" data-i18n-aria="hub.formation"></div>
+          <div class="fb-picked"><span class="fb-shape" id="fb-shape-name">—</span><span class="fb-mods" id="fb-mods"></span></div>
         </div>
         <div class="tactics-right">
           <div class="tactics-intel">
             <div class="tactics-section-label" data-i18n="brief.oppTactics">상대 전술</div>
             <div class="tactics-scheme-line" id="tactics-scheme-line">—</div>
+            <!-- 상대 전개 성향 필(허브 스트립에서 이전) — 뺏기면 이 상대는 이렇게 나온다. -->
+            <div class="tactics-disp" id="tactics-disp" hidden></div>
             <div class="tactics-opp-plan-text" id="tactics-opp-plan-text">—</div>
             <div class="tactics-edge-line"><span data-i18n="brief.ourEdge">우리가 만들 우위</span>: <strong id="tactics-edge-text">—</strong></div>
             <div class="tactics-target-line"><span data-i18n="brief.recShot">추천 마무리</span>: <strong id="tactics-target-shot">—</strong></div>
@@ -1406,6 +1366,9 @@
               <button class="tactics-intent-btn" data-tintent="overlap" data-i18n="dr.overlap" title="풀백이 높이 전진">풀백 전진</button>
               <button class="tactics-intent-btn active" data-tintent="hold" data-i18n="dr.hold" title="풀백이 남아 리셋 출구를 보장합니다">후방 안정</button>
             </div>
+            <!-- 중원/전방 롤(스쿼드 탭→브리핑 이전, 2026-07-08) — 시작 대형과 같은
+                 결정의 두 축. hub.js renderRoles가 채운다. -->
+            <div class="hub-roles tactics-roles" id="hub-roles"></div>
           </div>
         </div>
       </div>
