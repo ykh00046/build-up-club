@@ -40,12 +40,14 @@ export function renderHudState(engine, boardRead = null) {
     PRESSING: t('obj.pressing'),
     SHOT: t('obj.shot'),
   };
-  // 다음 추천 행동 — 단일 CTA. 상황 > 좋은 슛 > 압박 위험 > 국면 순으로 하나만 강하게 민다.
+  // 다음 추천 행동 — 단일 CTA. 결정 > 역습 창 > 좋은 슛 > 전진 제안 > 압박 위험 순.
   let objective = objectives[s.phase] ?? t('obj.default');
   const decisionNow = s.matchDecision;
   const zoneNow = engine.shotZoneNow?.();
   const pressLvl = engine.pressureExpression?.().level ?? 0;
   if (decisionNow) objective = t('obj.decision').replace('{title}', decisionNow.title);
+  // 역습 창(수비 성공 직후 2액션) — 시간 민감 프롬프트라 슛·전진 제안보다 우선.
+  else if ((s.counterLeft ?? 0) > 0) objective = t('obj.counter');
   else if (zoneNow && zoneNow.baseXg >= 0.24) objective = t('obj.shootNow');
   else if (boardRead?.best && boardRead.reset && boardRead.best.risk >= 0.35) {
     // 전진 제안이 위험(≥35%)하고 안전 리사이클이 있으면 — 강행 대신 볼 지켜 다시

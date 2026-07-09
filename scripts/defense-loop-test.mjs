@@ -47,6 +47,16 @@ function openDefense(seed, opts = {}) {
   ok(e && e.state.status === 'live' && e.holder()?.side === 'us', '회수 후 우리 볼·시도 계속');
   ok(e && e.state.defenseLoop === null && e.state.matchDecision === null, '수비 상태 정리');
   ok(e && e.state.possession === 'us', '점유 복귀');
+  // 역습 모먼트: 회수 성공 → 역습 창 2액션 개방(패스 위험 할인), 액션마다 소모.
+  ok(e && e.state.counterLeft === 2, '회수 → 역습 창 2액션 개방');
+  if (e) {
+    e.dispatch('hold');
+    let g = 0; while (e.busy && g++ < 50) e.update(200);
+    ok(e.state.counterLeft === 1, '역습 창 액션마다 1 소모(2→1)');
+    e.dispatch('hold');
+    g = 0; while (e.busy && g++ < 50) e.update(200);
+    ok(e.state.counterLeft === 0, '역습 창 소진(1→0)');
+  }
 }
 
 // 3) 실패 누적 — 상대가 전진하고 새 결정이 열리거나 슛에 도달한다.
