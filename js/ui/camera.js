@@ -29,22 +29,30 @@ const LOOK = { x: PITCH_W / 2, y: 30, z: 0 };
 let camBlend = 0;      // 0=FLOW … 1=READ (현재)
 let camTarget = 0;     // 목표
 let camLastTs = 0;
+let readReq = false;       // 이번 프레임의 READ 요청(원시값)
+let readHoldUntil = 0;     // 플래핑 방지 — READ 최소 체류 만료 시각
 let viewW0 = 0, viewH0 = 0;
 
-export function setCameraMode(read) { camTarget = read ? 1 : 0; }
+export function setCameraMode(read) { readReq = !!read; }
 
-// 매 프레임 호출(렌더러) — 목표를 향해 지수 접근(시정수 120ms ≈ 체감 300ms 전환).
-// 이동 중일 때만 재피팅하므로 정지 상태 비용 0. snap=접근성(reduced-motion) 즉시 전환.
+// 매 프레임 호출(렌더러) — 목표를 향해 지수 접근. snap=접근성(reduced-motion) 즉시 전환.
+// 플래핑 방지(리뷰 반영): 유인 창이 300ms 만에 닫히는 류의 짧은 깜빡임에 카메라가
+// 위아래로 펌핑하지 않도록, 한번 READ면 최소 450ms 체류 후에만 내려온다(올라가는
+// 건 즉시). 이징도 비대칭 — 일어설 땐 τ=100ms(기민), 앉을 땐 τ=250ms(느긋) —
+// "감독이 일어선다/앉는다"의 연출 문법이자 추가 완충. 이동 중에만 재피팅(정지 비용 0).
 export function updateCamera(now, snap = false) {
   if (!viewW0) return;
   const dt = Math.min(100, now - (camLastTs || now));
   camLastTs = now;
+  if (readReq) readHoldUntil = now + 450;
+  camTarget = (readReq || now < readHoldUntil) ? 1 : 0;
   const d = camTarget - camBlend;
   if (Math.abs(d) < 0.002) {
     if (camBlend !== camTarget) { camBlend = camTarget; applyCamPose(); }
     return;
   }
-  camBlend = snap ? camTarget : camBlend + d * (1 - Math.exp(-dt / 120));
+  const tau = d > 0 ? 100 : 250;
+  camBlend = snap ? camTarget : camBlend + d * (1 - Math.exp(-dt / tau));
   applyCamPose();
 }
 
