@@ -47,12 +47,21 @@ function openDefense(seed, opts = {}) {
   ok(e && e.state.status === 'live' && e.holder()?.side === 'us', '회수 후 우리 볼·시도 계속');
   ok(e && e.state.defenseLoop === null && e.state.matchDecision === null, '수비 상태 정리');
   ok(e && e.state.possession === 'us', '점유 복귀');
-  // 역습 모먼트: 회수 성공 → 역습 창 2액션 개방(패스 위험 할인), 액션마다 소모.
+  // 역습 모먼트(공간 표현): 회수 성공 → 2액션 동안 상대 복귀 지연(event.dt ×0.25
+  // → press.js clampSpeed 이동 예산 축소). 확률 배율이 아니라 기하학 — 레인이
+  // 실제로 열린 채 유지되고 프리뷰·해소가 같은 위치를 읽는다.
   ok(e && e.state.counterLeft === 2, '회수 → 역습 창 2액션 개방');
   if (e) {
+    const snap = () => e.state.players.filter((p) => p.side === 'opp' && p.line !== 'gk').map((p) => ({ id: p.id, x: p.x, y: p.y }));
+    const maxDisp = (a, b) => Math.max(...a.map((p, i) => Math.hypot(b[i].x - p.x, b[i].y - p.y)));
+    const s0 = snap();
     e.dispatch('hold');
     let g = 0; while (e.busy && g++ < 50) e.update(200);
+    const dCounter = maxDisp(s0, snap());
     ok(e.state.counterLeft === 1, '역습 창 액션마다 1 소모(2→1)');
+    // hold(dt=1.0)의 정상 이동 상한은 MAX_STEP 7~8m — 역습 창은 ×0.25라 ~2m
+    // (+분리 pushOff 여유). 상대가 '몸으로' 못 돌아오는 공간 계약.
+    ok(dCounter <= 4.5, `역습 창 중 상대 복귀 지연 (최대 이동 ${dCounter.toFixed(1)}m ≤ 4.5)`);
     e.dispatch('hold');
     g = 0; while (e.busy && g++ < 50) e.update(200);
     ok(e.state.counterLeft === 0, '역습 창 소진(1→0)');

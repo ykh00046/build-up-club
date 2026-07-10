@@ -432,10 +432,11 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
     state.consecutiveHolds = 0;
     addPressure(-10);
     logLine(t('log.defense.regain'), 'success');
-    // 역습 모먼트(2026-07-09, 사용자 제안 — 공수 왕복의 마지막 연결 고리): 수비
-    // 성공은 일반 복귀가 아니라 역습이다. 상대 블록이 우리 진영으로 쏠려 있던
-    // 순간이므로 다음 2액션 동안 패스 위험 ×COUNTER_RISK_MUL(스크램블 할인).
-    // 강압박 회수의 모멘텀 +10과 중첩 — press의 "즉시 역공" 정체성이 완성된다.
+    // 역습 모먼트(2026-07-09, 공간 표현으로 전환 07-10): 수비 성공은 일반 복귀가
+    // 아니라 역습이다. 상대 블록이 우리 진영으로 쏠린 위치는 possession.js가 순수
+    // 계산이라 그대로 보존되고, 다음 2액션 동안 상대 복귀가 지연된다(pressReact의
+    // event.dt ×0.25 — 확률 배율이 아니라 기하학: 레인이 '진짜로' 열려 프리뷰·해소
+    // 자동 일치). 강압박 회수의 모멘텀 +10과 중첩 — "즉시 역공" 정체성 완성.
     state.counterLeft = 2;
     logLine(t('log.counter.open'), 'success');   // 마지막 로그 = 큐 토스트
     return { ok: true, recovered: true, regain };
@@ -922,9 +923,16 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
   let shapePendingLogged = false;
   function pressReact(event) {
     const dt = actionTime(event.type, event.dist);
-    event.dt = dt;                 // press.js가 같은 시간으로 수비 이동을 스케일
-    // 역습 창 소모 — 공격 액션마다 1(위험 롤은 이미 굴렀으므로 사후 감산이 정확).
-    if ((state.counterLeft ?? 0) > 0) state.counterLeft--;
+    // 역습 창 = 공간 표현(2026-07-10, 사용자 원칙: "짧은 효과는 공간으로, 긴 효과는
+    // 통계로"). 이전의 위험 ×0.75 배율은 표본 1개(주사위 한 번)로는 체감 불가 —
+    // 대신 상대의 복귀를 실제로 지연한다: 회수 직후 2액션 동안 상대 이동 예산
+    // (press.js clampSpeed의 MAX_STEP×dt)을 1/4로. 전진해 있던 몸이 못 돌아와
+    // 레인이 '기하학적으로' 열리고, 프리뷰(evaluateLane)와 해소가 같은 위치를
+    // 읽으므로 계약 불일치가 원리적으로 불가능. 우리 이동(ourStructureShift)은
+    // 전속력 — 역습의 비대칭 그 자체가 그림으로 보인다.
+    const counterActive = (state.counterLeft ?? 0) > 0;
+    if (counterActive) state.counterLeft--;
+    event.dt = counterActive ? dt * 0.25 : dt;   // press.js가 이 시간으로 수비 이동을 스케일
     ourStructureShift(dt);
     // 자연 상승 +2/액션 — 시간이 갈수록 상대 블록이 자리 잡는다. 감소 항만 있던
     // 게이지 경제(중앙값 0, 베이트 0회/경기 — 자기대국 감사)에 유입원을 만들어
@@ -1145,11 +1153,6 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
     }
   }
 
-  // 역습 창 위험 할인 — 회수 직후 2액션은 상대 블록이 정렬 전(스크램블)이라
-  // 패스 레인이 실제보다 덜 위험하다. 공격 액션(pressReact)마다 1씩 소모.
-  const COUNTER_RISK_MUL = 0.75;
-  const counterMul = () => ((state.counterLeft ?? 0) > 0 ? COUNTER_RISK_MUL : 1);
-
   // ─── shared pass resolution ───────────────────────────────────────────────
   function resolvePassTo(target, { lofted = false, viaLabel = null, extraRisk = 0, autoLob = false } = {}) {
     const from = holder();
@@ -1182,7 +1185,7 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
       : from.orientation === 'HALF' && isForwardPass ? 0.12
       : 0;
     const baseRisk = edgeRelief(clamp(ev.risk * (1.15 - skill * 0.3) + extraRisk + orientMod, 0.02, 0.97), target);
-    const risk = clamp(baseRisk * tacRiskMul(state.currentAction) * counterMul(), 0.02, 0.97);
+    const risk = clamp(baseRisk * tacRiskMul(state.currentAction), 0.02, 0.97);
 
     if (rollFail(risk)) {
       // Intercepted mid-flight.
@@ -1330,7 +1333,7 @@ export function createEngine(scenario, seed = Date.now() % 2147483647, options =
       // 깊이 방향 스루볼은 스위퍼 키퍼의 공간 — GK 레이스로 가격 책정(evaluateLanding과
       // 동일 모델). 컷백/스퀘어(전진 성분 ≤2m)는 낮은 되돌림이라 GK 소유가 아니므로 제외.
       const gkRace = landing.x > from.x + 2 ? sweeperRisk(landing, nu, opps()) : 0;
-      const risk = clamp((Math.max(ev.risk, gkRace) + reachPenalty) * (1.1 - pass * 0.25) * tacRiskMul(state.currentAction) * counterMul(), 0.02, 0.97);
+      const risk = clamp((Math.max(ev.risk, gkRace) + reachPenalty) * (1.1 - pass * 0.25) * tacRiskMul(state.currentAction), 0.02, 0.97);
 
       const fromPos = { x: from.x, y: from.y };
       let loose = false;
