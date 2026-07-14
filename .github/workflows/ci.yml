@@ -1,10 +1,18 @@
 name: tests
 
+# push 트리거 제거(2026-07-14): scripts/*.mjs 105개(다수가 자기대국 probe)가 순차 실행되어
+# 1회 ~37분이 걸린다. main에 커밋이 20~30분 간격으로 들어오는 개발 방식이라 push마다 돌리면
+# 월 1,800분(계정 무료 한도 2,000분의 90%)을 혼자 소모하고, 잡이 끝날 땐 이미 다음 커밋이
+# 올라가 있어 게이트 역할도 못 했다. 이제 PR과 수동 실행에서만 돈다.
+# 로컬 전체 실행: for f in scripts/*.mjs; do node "$f"; done
 on:
-  push:
-    branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   regression:
